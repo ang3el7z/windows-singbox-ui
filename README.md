@@ -1,6 +1,6 @@
 # SingBox-UI
 
-Modern client for working with SingBox subscriptions with a mobile design.
+Modern Windows client for working with SingBox subscriptions with a mobile design.
 
 > ⚠️ **Disclaimer**  
 > This project is intended **strictly for educational and research purposes**.  
