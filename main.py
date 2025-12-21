@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
     QLineEdit, QSystemTrayIcon, QMenu, QAction
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSharedMemory
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
@@ -54,6 +54,84 @@ def restart_as_admin():
     except Exception as e:
         print(f"Ошибка перезапуска от имени администратора: {e}")
         return False
+
+
+def show_restart_admin_dialog(parent, title, message):
+    """Кастомный диалог для перезапуска от имени администратора"""
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setMinimumWidth(400)
+    dialog.setModal(True)
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #0b0f1a;
+            border-radius: 12px;
+        }
+        QLabel {
+            color: #e5e9ff;
+            background-color: transparent;
+            border: none;
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+        }
+        QPushButton#btnYes {
+            background-color: #00f5d4;
+            color: #020617;
+        }
+        QPushButton#btnYes:hover {
+            background-color: #5fffe3;
+        }
+        QPushButton#btnNo {
+            background-color: rgba(255,255,255,0.05);
+            color: #9ca3af;
+        }
+        QPushButton#btnNo:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+    """)
+    
+    layout = QVBoxLayout(dialog)
+    layout.setSpacing(20)
+    layout.setContentsMargins(24, 24, 24, 24)
+    
+    # Иконка и заголовок
+    title_label = QLabel(title)
+    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+    title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+    layout.addWidget(title_label)
+    
+    # Сообщение
+    message_label = QLabel(message)
+    message_label.setWordWrap(True)
+    message_label.setFont(QFont("Segoe UI", 13))
+    message_label.setStyleSheet("color: #9ca3af; margin-bottom: 8px;")
+    layout.addWidget(message_label)
+    
+    # Кнопки
+    btn_layout = QHBoxLayout()
+    btn_layout.setSpacing(12)
+    
+    btn_no = QPushButton(tr("download.cancel"))
+    btn_no.setObjectName("btnNo")
+    btn_no.setCursor(Qt.PointingHandCursor)
+    btn_no.clicked.connect(dialog.reject)
+    btn_layout.addWidget(btn_no)
+    
+    btn_yes = QPushButton(tr("messages.restart_yes"))
+    btn_yes.setObjectName("btnYes")
+    btn_yes.setCursor(Qt.PointingHandCursor)
+    btn_yes.setDefault(True)
+    btn_yes.clicked.connect(dialog.accept)
+    btn_layout.addWidget(btn_yes)
+    
+    layout.addLayout(btn_layout)
+    
+    return dialog.exec_() == QDialog.Accepted
 
 
 class MainWindow(QMainWindow):
@@ -912,14 +990,11 @@ class MainWindow(QMainWindow):
     def admin_status_mouse_press(self, event):
         """Обработка клика по надписи о правах администратора"""
         if not is_admin():
-            reply = QMessageBox.question(
+            if show_restart_admin_dialog(
                 self,
                 tr("messages.admin_required_title"),
-                tr("messages.restart_as_admin_question"),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.Yes:
+                tr("messages.restart_as_admin_question")
+            ):
                 if restart_as_admin():
                     self.close()
                 else:
@@ -1200,14 +1275,11 @@ class MainWindow(QMainWindow):
         
         # Проверяем права администратора
         if not is_admin():
-            reply = QMessageBox.question(
+            if show_restart_admin_dialog(
                 self,
                 tr("messages.admin_required_title"),
-                tr("messages.admin_required_start"),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.Yes:
+                tr("messages.admin_required_start")
+            ):
                 if restart_as_admin():
                     self.close()
                     return
@@ -1260,14 +1332,11 @@ class MainWindow(QMainWindow):
         
         # Проверяем права администратора перед остановкой
         if not is_admin():
-            reply = QMessageBox.question(
+            if show_restart_admin_dialog(
                 self,
                 tr("messages.admin_required_title"),
-                tr("messages.admin_required_stop"),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.Yes:
+                tr("messages.admin_required_stop")
+            ):
                 if restart_as_admin():
                     # Закрываем текущее приложение
                     self.close()
@@ -1369,14 +1438,11 @@ class MainWindow(QMainWindow):
         
         # Если включили запуск от имени администратора, предлагаем перезапустить
         if enabled and not is_admin():
-            reply = QMessageBox.question(
+            if show_restart_admin_dialog(
                 self,
                 tr("messages.restart_required_title"),
-                tr("messages.restart_required_text"),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.Yes:
+                tr("messages.restart_required_text")
+            ):
                 if restart_as_admin():
                     self.close()
                     return
@@ -1630,6 +1696,64 @@ class StartSingBoxThread(QThread):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setApplicationName("SingBox-UI")
+    
+    # Проверка единственного экземпляра приложения
+    shared_memory = QSharedMemory("SingBox-UI-Instance")
+    if shared_memory.attach():
+        # Приложение уже запущено
+        # Пытаемся найти и активировать существующее окно
+        # Используем Windows API для поиска окна
+        try:
+            import win32gui
+            import win32con
+            
+            def enum_windows_callback(hwnd, windows):
+                if win32gui.IsWindowVisible(hwnd):
+                    window_text = win32gui.GetWindowText(hwnd)
+                    if "SingBox-UI" in window_text:
+                        windows.append(hwnd)
+                return True
+            
+            windows = []
+            win32gui.EnumWindows(enum_windows_callback, windows)
+            
+            if windows:
+                hwnd = windows[0]
+                # Восстанавливаем окно если оно свернуто
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                # Активируем окно
+                win32gui.SetForegroundWindow(hwnd)
+                win32gui.BringWindowToTop(hwnd)
+        except ImportError:
+            # Если win32gui не доступен, пробуем через ctypes
+            try:
+                user32 = ctypes.windll.user32
+                
+                def enum_windows_proc(hwnd, lParam):
+                    if user32.IsWindowVisible(hwnd):
+                        length = user32.GetWindowTextLengthW(hwnd)
+                        buffer = ctypes.create_unicode_buffer(length + 1)
+                        user32.GetWindowTextW(hwnd, buffer, length + 1)
+                        if "SingBox-UI" in buffer.value:
+                            # Восстанавливаем и активируем окно
+                            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                            user32.SetForegroundWindow(hwnd)
+                            user32.BringWindowToTop(hwnd)
+                    return True
+                
+                EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+                user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        
+        sys.exit(0)
+    
+    # Создаем shared memory для этого экземпляра
+    if not shared_memory.create(1):
+        sys.exit(0)
     
     # Проверяем доступность системного трея
     if not QSystemTrayIcon.isSystemTrayAvailable():

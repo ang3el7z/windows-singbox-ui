@@ -106,7 +106,8 @@
     "subscription_exists_text": "Эта подписка уже добавлена в список",
     "subscription_already_exists": "Подписка уже существует в списке",
     "subscription_import_error_title": "Ошибка импорта",
-    "subscription_import_error_text": "Не удалось импортировать подписку: {error}"
+    "subscription_import_error_text": "Не удалось импортировать подписку: {error}",
+    "restart_yes": "Перезапустить"
   },
   "tray": {
     "show": "Открыть",
