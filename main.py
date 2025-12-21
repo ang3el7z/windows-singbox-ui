@@ -980,8 +980,8 @@ class MainWindow(QMainWindow):
             name = name_input.text().strip()
             url = url_input.text().strip()
             if name and url:
-        self.subs.add(name, url)
-        self.refresh_subscriptions_ui()
+                self.subs.add(name, url)
+                self.refresh_subscriptions_ui()
                 self.log(tr("profile.added", name=name))
                 dialog.accept()
             else:
@@ -1044,7 +1044,7 @@ class MainWindow(QMainWindow):
                 if latest_version:
                     self.cached_latest_version = latest_version
                     self.version_check_failed_count = 0
-        else:
+                else:
                     self.version_check_failed_count += 1
                     # Используем кэш если есть
                     if self.cached_latest_version:
@@ -1304,7 +1304,7 @@ class MainWindow(QMainWindow):
         """Стиль большой кнопки"""
         # Обновляем подложку
         if hasattr(self, 'btn_wrapper'):
-        if running:
+            if running:
                 self.btn_wrapper.setStyleSheet("""
                     QWidget {
                         background-color: #1a1f2e;
@@ -1442,7 +1442,7 @@ class MainWindow(QMainWindow):
     def on_singbox_start_error(self, error_msg):
         """Обработка ошибки запуска SingBox"""
         self.log(tr("messages.start_error", error=error_msg))
-            self.proc = None
+        self.proc = None
         self.update_big_button_state()
 
     def stop_singbox(self):
@@ -1531,7 +1531,7 @@ class MainWindow(QMainWindow):
                         ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
                         winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
                     else:
-                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
                 else:
                     try:
                         winreg.DeleteValue(key, app_name)
@@ -1711,15 +1711,15 @@ class MainWindow(QMainWindow):
         print(line)
         
         if hasattr(self, 'logs'):
-        self.logs.append(line)
+            self.logs.append(line)
             cursor = self.logs.textCursor()
             cursor.movePosition(cursor.End)
             self.logs.setTextCursor(cursor)
         
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
-        with LOG_FILE.open("a", encoding="utf-8") as f:
-            f.write(line + "\n")
+            with LOG_FILE.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
         except Exception as e:
             print(f"Ошибка записи в лог файл: {e}")
 
