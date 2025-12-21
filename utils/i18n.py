@@ -1,7 +1,5 @@
 """Система локализации"""
 import json
-import sys
-from pathlib import Path
 from typing import Dict, Any
 from config.paths import LOCALES_DIR
 
@@ -27,18 +25,6 @@ class Translator:
         # Используем LOCALES_DIR из config.paths (теперь это data/locales)
         locale_file = LOCALES_DIR / f"{self.language}.json"
         
-        # Для обратной совместимости проверяем старые пути
-        if not locale_file.exists() and getattr(sys, 'frozen', False):
-            exe_path = Path(sys.executable)
-            if exe_path.parent.name == '_internal':
-                exe_dir = exe_path.parent.parent
-            else:
-                exe_dir = exe_path.parent
-            # Проверяем старый путь рядом с exe
-            old_locale_file = exe_dir / "locales" / f"{self.language}.json"
-            if old_locale_file.exists():
-                locale_file = old_locale_file
-        
         if locale_file.exists():
             try:
                 with open(locale_file, 'r', encoding='utf-8') as f:
@@ -56,17 +42,6 @@ class Translator:
     def load_fallback(self):
         """Загружает русский язык как fallback"""
         locale_file = LOCALES_DIR / "ru.json"
-        
-        # Для обратной совместимости проверяем старые пути
-        if not locale_file.exists() and getattr(sys, 'frozen', False):
-            exe_path = Path(sys.executable)
-            if exe_path.parent.name == '_internal':
-                exe_dir = exe_path.parent.parent
-            else:
-                exe_dir = exe_path.parent
-            old_locale_file = exe_dir / "locales" / "ru.json"
-            if old_locale_file.exists():
-                locale_file = old_locale_file
         
         if locale_file.exists():
             try:
@@ -111,17 +86,6 @@ class Translator:
         # Используем LOCALES_DIR из config.paths (теперь это data/locales)
         locales_path = LOCALES_DIR
         
-        # Для обратной совместимости проверяем старые пути
-        if not locales_path.exists() and getattr(sys, 'frozen', False):
-            exe_path = Path(sys.executable)
-            if exe_path.parent.name == '_internal':
-                exe_dir = exe_path.parent.parent
-            else:
-                exe_dir = exe_path.parent
-            old_locales_path = exe_dir / "locales"
-            if old_locales_path.exists():
-                locales_path = old_locales_path
-        
         # Ищем все json файлы в папке locales
         if locales_path.exists():
             for file in locales_path.glob("*.json"):
@@ -157,15 +121,18 @@ def get_available_languages() -> list:
 
 def get_language_name(lang_code: str) -> str:
     """Возвращает название языка по коду"""
-    names = {
-        "en": "English",
-        "ru": "Русский",
-        "es": "Español",
-        "fr": "Français",
-        "de": "Deutsch",
-        "zh": "中文",
-        "ja": "日本語",
-        "ko": "한국어",
-    }
-    return names.get(lang_code, lang_code.upper())
+    # Пробуем прочитать название из файла локализации
+    locale_file = LOCALES_DIR / f"{lang_code}.json"
+    if locale_file.exists():
+        try:
+            with open(locale_file, 'r', encoding='utf-8') as f:
+                locale_data = json.load(f)
+                # Проверяем наличие поля _language_name в корне JSON
+                if isinstance(locale_data, dict) and "_language_name" in locale_data:
+                    return locale_data["_language_name"]
+        except Exception:
+            pass  # Если не удалось прочитать, используем fallback
+    
+    # Fallback: возвращаем код языка в верхнем регистре
+    return lang_code.upper()
 

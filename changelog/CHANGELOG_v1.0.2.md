@@ -11,7 +11,6 @@
 ### 📁 Better File Organization
 - **Locales moved to data**: All localization files now stored in `data/locales` for better organization
 - **Consistent structure**: All application data (logs, configs, locales) now in `data/` directory
-- **Backward compatibility**: Application still works with old `locales/` folder structure
 
 ## 🐛 Bug Fixes
 

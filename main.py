@@ -3076,12 +3076,8 @@ class AppUpdateThread(QThread):
         """Запускает updater.exe для обновления и перезапуска приложения"""
         from config.paths import ROOT, DATA_DIR
         
-        current_exe = Path(sys.executable)
-        if current_exe.parent.name == '_internal':
-            # PyInstaller bundle
-            app_dir = current_exe.parent.parent
-        else:
-            app_dir = current_exe.parent
+        # Используем ROOT из config.paths, который уже правильно определяет путь
+        app_dir = ROOT
         
         # Находим updater.exe в data
         updater_exe = DATA_DIR / "updater.exe"
