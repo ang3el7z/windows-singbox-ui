@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
         set_language(language)
 
         self.proc: subprocess.Popen | None = None
-        self.current_sub_index: int = 0
+        self.current_sub_index: int = -1  # -1 означает что профиль не выбран
         self.running_sub_index: int = -1  # Индекс запущенного профиля (-1 если не запущен)
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
@@ -828,12 +828,6 @@ class MainWindow(QMainWindow):
         
         btn_layout.addWidget(self.btn_wrapper, alignment=Qt.AlignCenter)
         
-        self.lbl_state = QLabel(tr("home.state_stopped"))
-        self.lbl_state.setAlignment(Qt.AlignCenter)
-        self.lbl_state.setFont(QFont("Segoe UI", 14))
-        self.lbl_state.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; margin-top: 16px; padding: 0px;")
-        btn_layout.addWidget(self.lbl_state)
-        
         outer.addWidget(btn_container)
         outer.addStretch()
         
@@ -1135,17 +1129,29 @@ class MainWindow(QMainWindow):
     # Подписки
     def refresh_subscriptions_ui(self):
         """Обновление списка подписок"""
+        saved_index = self.current_sub_index
         self.sub_list.clear()
         for name in self.subs.list_names():
             self.sub_list.addItem(name)
         if self.sub_list.count() > 0:
-            self.sub_list.setCurrentRow(self.current_sub_index)
+            # Проверяем, что сохраненный индекс валидный
+            if 0 <= saved_index < self.sub_list.count():
+                self.sub_list.setCurrentRow(saved_index)
+                self.current_sub_index = saved_index
+            else:
+                # Если индекс невалидный, выбираем первый элемент
+                self.sub_list.setCurrentRow(0)
+                self.current_sub_index = 0
         else:
             self.current_sub_index = -1
 
     def on_sub_changed(self, row: int):
         """Изменение выбранной подписки"""
-        self.current_sub_index = row
+        # Проверяем, что список не пустой и индекс валидный
+        if row < 0 or self.sub_list.count() == 0:
+            self.current_sub_index = -1
+        else:
+            self.current_sub_index = row
         self.update_profile_info()
         self.update_big_button_state()
 
@@ -1327,8 +1333,9 @@ class MainWindow(QMainWindow):
             self.subs.save()
             self.refresh_subscriptions_ui()
             # Восстанавливаем выбор
-            if row < self.sub_list.count():
+            if self.sub_list.count() > 0 and 0 <= row < self.sub_list.count():
                 self.sub_list.setCurrentRow(row)
+                self.current_sub_index = row
             self.log(tr("profile.renamed", old_name=old_name, new_name=new_name.strip()))
     
     def on_test_sub(self):
@@ -1542,11 +1549,11 @@ class MainWindow(QMainWindow):
         selected_sub = None
         
         # Получаем запущенный профиль
-        if running and self.running_sub_index >= 0:
+        if running and self.running_sub_index >= 0 and self.sub_list.count() > 0:
             running_sub = self.subs.get(self.running_sub_index)
         
         # Получаем выбранный профиль
-        if self.current_sub_index >= 0:
+        if self.current_sub_index >= 0 and self.sub_list.count() > 0:
             selected_sub = self.subs.get(self.current_sub_index)
         
         # Формируем текст
@@ -1872,7 +1879,6 @@ class MainWindow(QMainWindow):
             self.big_btn.setText(tr("home.button_start"))
         
         self.style_big_btn_running(bool(running))
-        self.lbl_state.setText(tr("home.state_running") if running else tr("home.state_stopped"))
 
     def on_big_button(self):
         """Обработка нажатия большой кнопки"""
@@ -1888,7 +1894,7 @@ class MainWindow(QMainWindow):
             self.log(tr("messages.no_core"))
             self.update_version_info()
             return
-        if self.current_sub_index < 0:
+        if self.current_sub_index < 0 or self.sub_list.count() == 0:
             self.log(tr("messages.no_subscription"))
             return
         
@@ -1987,7 +1993,7 @@ class MainWindow(QMainWindow):
 
     def auto_update_config(self):
         """Автообновление конфига"""
-        if self.current_sub_index < 0:
+        if self.current_sub_index < 0 or self.sub_list.count() == 0:
             return
         log_to_file(tr("messages.auto_update"))
         ok = self.subs.download_config(self.current_sub_index)
