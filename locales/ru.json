@@ -43,6 +43,8 @@
     "autostart": "Запускать вместе с Windows",
     "run_as_admin": "Запускать от имени администратора",
     "auto_start_singbox": "Автозапуск SingBox при запуске приложения",
+    "minimize_to_tray": "Сворачивать в трей при закрытии",
+    "kill_all": "Убить все процессы",
     "logs": "Логи"
   },
   "download": {
@@ -65,6 +67,7 @@
     "downloading_config": "Скачиваю config.json...",
     "config_error": "Не удалось скачать конфиг, старт отменён.",
     "starting": "Запускаю sing-box...",
+    "started_success": "sing-box успешно запущен",
     "start_error": "Ошибка запуска: {error}",
     "stopping": "Останавливаю sing-box...",
     "stopped": "sing-box завершился, код {code}",
@@ -86,7 +89,18 @@
     "restart_required_text": "Для применения настройки 'Запускать от имени администратора' требуется перезапустить приложение.\n\nПерезапустить сейчас?",
     "admin_restart_failed": "Не удалось перезапустить приложение от имени администратора",
     "auto_start_singbox_enabled": "Автозапуск SingBox при запуске приложения включён",
-    "auto_start_singbox_disabled": "Автозапуск SingBox при запуске приложения выключен"
+    "auto_start_singbox_disabled": "Автозапуск SingBox при запуске приложения выключен",
+    "minimize_to_tray_enabled": "Сворачивание в трей включено",
+    "minimize_to_tray_disabled": "Сворачивание в трей выключено",
+    "minimized_to_tray": "Приложение свернуто в трей",
+    "kill_all_title": "Остановка всех процессов",
+    "kill_all_confirm": "Вы уверены, что хотите остановить все процессы SingBox и закрыть приложение?",
+    "killing_all": "Останавливаю все процессы...",
+    "kill_all_done": "Все процессы остановлены"
+  },
+  "tray": {
+    "show": "Открыть",
+    "quit": "Закрыть"
   }
 }
 

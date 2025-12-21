@@ -43,6 +43,8 @@
     "autostart": "Start with Windows",
     "run_as_admin": "Run as administrator",
     "auto_start_singbox": "Auto-start SingBox when application starts",
+    "minimize_to_tray": "Minimize to tray when closing",
+    "kill_all": "Kill all processes",
     "logs": "Logs"
   },
   "download": {
@@ -65,6 +67,7 @@
     "downloading_config": "Downloading config.json...",
     "config_error": "Failed to download config, start cancelled.",
     "starting": "Starting sing-box...",
+    "started_success": "sing-box started successfully",
     "start_error": "Start error: {error}",
     "stopping": "Stopping sing-box...",
     "stopped": "sing-box exited with code {code}",
@@ -86,7 +89,18 @@
     "restart_required_text": "To apply the 'Run as administrator' setting, the application needs to be restarted.\n\nRestart now?",
     "admin_restart_failed": "Failed to restart the application as administrator",
     "auto_start_singbox_enabled": "Auto-start SingBox when application starts enabled",
-    "auto_start_singbox_disabled": "Auto-start SingBox when application starts disabled"
+    "auto_start_singbox_disabled": "Auto-start SingBox when application starts disabled",
+    "minimize_to_tray_enabled": "Minimize to tray enabled",
+    "minimize_to_tray_disabled": "Minimize to tray disabled",
+    "minimized_to_tray": "Application minimized to tray",
+    "kill_all_title": "Stop all processes",
+    "kill_all_confirm": "Are you sure you want to stop all SingBox processes and close the application?",
+    "killing_all": "Stopping all processes...",
+    "kill_all_done": "All processes stopped"
+  },
+  "tray": {
+    "show": "Show",
+    "quit": "Quit"
   }
 }
 

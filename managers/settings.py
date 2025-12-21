@@ -12,6 +12,7 @@ class SettingsManager:
             "start_with_windows": False,
             "run_as_admin": False,
             "auto_start_singbox": False,  # Автозапуск sing-box при запуске приложения
+            "minimize_to_tray": True,  # Сворачивать в трей (по умолчанию включено)
             "language": "ru",  # Язык интерфейса
         }
         self.load()

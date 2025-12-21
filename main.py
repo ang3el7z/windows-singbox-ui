@@ -10,9 +10,9 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
-    QLineEdit
+    QLineEdit, QSystemTrayIcon, QMenu, QAction
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
@@ -175,6 +175,9 @@ class MainWindow(QMainWindow):
         if self.settings.get("auto_start_singbox", False):
             # Запускаем с небольшой задержкой, чтобы UI успел загрузиться
             QTimer.singleShot(500, self.start_singbox)
+        
+        # Инициализация системного трея
+        self.setup_tray()
         
         # Таймеры
         self.update_info_timer = QTimer(self)
@@ -575,6 +578,52 @@ class MainWindow(QMainWindow):
             }
         """)
         settings_layout.addWidget(self.cb_auto_start_singbox)
+        
+        self.cb_minimize_to_tray = QCheckBox(tr("settings.minimize_to_tray"))
+        self.cb_minimize_to_tray.setChecked(self.settings.get("minimize_to_tray", True))
+        self.cb_minimize_to_tray.stateChanged.connect(self.on_minimize_to_tray_changed)
+        self.cb_minimize_to_tray.setFont(QFont("Segoe UI", 13))
+        self.cb_minimize_to_tray.setStyleSheet("""
+            QCheckBox {
+                color: #e5e9ff;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QCheckBox::indicator {
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 2px solid #475569;
+                background-color: rgba(0,245,212,0.1);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00f5d4;
+                border-color: #00f5d4;
+            }
+        """)
+        settings_layout.addWidget(self.cb_minimize_to_tray)
+        
+        # Кнопка "Убить" для полной остановки всех процессов
+        self.btn_kill_all = QPushButton(tr("settings.kill_all"))
+        self.btn_kill_all.setFont(QFont("Segoe UI", 13))
+        self.btn_kill_all.setCursor(Qt.PointingHandCursor)
+        self.btn_kill_all.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 107, 107, 0.15);
+                color: #ff6b6b;
+                border-radius: 12px;
+                padding: 12px 20px;
+                border: 2px solid #ff6b6b;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 107, 107, 0.25);
+                border-color: #ff5252;
+            }
+        """)
+        self.btn_kill_all.clicked.connect(self.on_kill_all_clicked)
+        settings_layout.addWidget(self.btn_kill_all)
         
         outer.addWidget(settings_card)
         
@@ -1042,16 +1091,27 @@ class MainWindow(QMainWindow):
             return
         
         # Запускаем в отдельном потоке чтобы не блокировать UI
+        self.log(tr("messages.starting"))
+        # Отключаем кнопку на время запуска
+        self.big_btn.setEnabled(False)
+        
         self.start_thread = StartSingBoxThread(CORE_EXE, CONFIG_FILE, CORE_DIR)
         self.start_thread.finished.connect(self.on_singbox_started)
         self.start_thread.error.connect(self.on_singbox_start_error)
         self.start_thread.start()
-        self.log(tr("messages.starting"))
-        self.update_big_button_state()
     
     def on_singbox_started(self, proc):
         """Обработка успешного запуска SingBox"""
         self.proc = proc
+        # Проверяем, что процесс действительно запущен
+        if proc is not None and proc.poll() is None:
+            self.log(tr("messages.started_success"))
+        else:
+            # Процесс завершился сразу после запуска
+            if proc:
+                code = proc.returncode if proc.returncode is not None else -1
+                self.log(tr("messages.stopped", code=code))
+            self.proc = None
         self.update_big_button_state()
     
     def on_singbox_start_error(self, error_msg):
@@ -1114,16 +1174,7 @@ class MainWindow(QMainWindow):
             self.log(tr("messages.auto_update_not_running"))
     
     def poll_process(self):
-        """Опрос процесса"""
-        if self.proc and self.proc.stdout:
-            try:
-                while True:
-                    line = self.proc.stdout.readline()
-                    if not line:
-                        break
-                    self.log(line.rstrip())
-            except Exception:
-                pass
+        """Опрос процесса - проверяем, не завершился ли процесс"""
         if self.proc and self.proc.poll() is not None:
             code = self.proc.returncode
             self.log(tr("messages.stopped", code=code))
@@ -1207,6 +1258,96 @@ class MainWindow(QMainWindow):
         self.settings.set("auto_start_singbox", enabled)
         self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
     
+    def on_minimize_to_tray_changed(self, state: int):
+        """Изменение настройки сворачивания в трей"""
+        enabled = state == Qt.Checked
+        self.settings.set("minimize_to_tray", enabled)
+        self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
+    
+    def on_kill_all_clicked(self):
+        """Обработка нажатия кнопки 'Убить' - полная остановка всех процессов"""
+        reply = QMessageBox.question(
+            self,
+            tr("messages.kill_all_title"),
+            tr("messages.kill_all_confirm"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.log(tr("messages.killing_all"))
+            self.kill_all_processes()
+            self.update_big_button_state()
+            QMessageBox.information(
+                self,
+                tr("messages.kill_all_title"),
+                tr("messages.kill_all_done")
+            )
+    
+    def setup_tray(self):
+        """Настройка системного трея"""
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            print("Системный трей недоступен")
+            return
+        
+        # Создаем иконку для трея
+        if getattr(sys, 'frozen', False):
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                icon_path = exe_path.parent.parent / "icon.png"
+            else:
+                icon_path = exe_path.parent / "icon.png"
+        else:
+            icon_path = Path(__file__).parent / "icon.png"
+        
+        if not icon_path.exists():
+            # Используем иконку приложения по умолчанию
+            tray_icon = QIcon()
+        else:
+            tray_icon = QIcon(str(icon_path))
+        
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(tray_icon)
+        self.tray_icon.setToolTip(tr("app.title"))
+        
+        # Создаем контекстное меню для трея
+        tray_menu = QMenu(self)
+        
+        # Действие "Открыть"
+        show_action = QAction(tr("tray.show"), self)
+        show_action.triggered.connect(self.show)
+        show_action.triggered.connect(self.raise_)
+        show_action.triggered.connect(self.activateWindow)
+        tray_menu.addAction(show_action)
+        
+        tray_menu.addSeparator()
+        
+        # Действие "Закрыть"
+        quit_action = QAction(tr("tray.quit"), self)
+        quit_action.triggered.connect(self.quit_application)
+        tray_menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        
+        # Обработка клика по иконке трея
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        
+        # Показываем иконку в трее
+        self.tray_icon.show()
+    
+    def tray_icon_activated(self, reason):
+        """Обработка активации иконки трея"""
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+    
+    def quit_application(self):
+        """Полное закрытие приложения с остановкой всех процессов"""
+        self.kill_all_processes()
+        if hasattr(self, 'tray_icon') and self.tray_icon:
+            self.tray_icon.hide()
+        QApplication.quit()
+    
     # Логи
     def load_logs(self):
         """Загрузка логов"""
@@ -1242,35 +1383,22 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Закрытие окна"""
-        # Принудительно останавливаем sing-box при закрытии программы
-        if self.proc and self.proc.poll() is None:
-            try:
-                # Пытаемся корректно завершить процесс
-                self.proc.terminate()
-                self.proc.wait(timeout=2)
-            except Exception:
-                try:
-                    # Если не получилось, принудительно убиваем процесс
-                    self.proc.kill()
-                    self.proc.wait(timeout=1)
-                except Exception:
-                    pass
-            self.proc = None
+        # Если включен трей режим, сворачиваем в трей вместо закрытия
+        if self.settings.get("minimize_to_tray", True):
+            if self.tray_icon and self.tray_icon.isVisible():
+                event.ignore()
+                self.hide()
+                if self.tray_icon:
+                    self.tray_icon.showMessage(
+                        tr("app.title"),
+                        tr("messages.minimized_to_tray"),
+                        QSystemTrayIcon.Information,
+                        2000
+                    )
+                return
         
-        # Также проверяем, не осталось ли процессов sing-box.exe
-        # Используем taskkill для Windows
-        if sys.platform == "win32":
-            try:
-                subprocess.run(
-                    ["taskkill", "/F", "/IM", "sing-box.exe"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=2,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-            except Exception:
-                pass
-        
+        # Если трей режим выключен или пользователь хочет закрыть - убиваем все процессы
+        self.kill_all_processes()
         event.accept()
 
 
@@ -1343,20 +1471,44 @@ class StartSingBoxThread(QThread):
             
             proc = subprocess.Popen(
                 [str(self.core_exe), "run", "-c", str(self.config_file)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
+                stdout=subprocess.DEVNULL,  # Перенаправляем в /dev/null чтобы не блокировать
+                stderr=subprocess.DEVNULL,  # Перенаправляем в /dev/null чтобы не блокировать
                 cwd=str(self.core_dir),
                 startupinfo=startupinfo,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
             )
-            self.finished.emit(proc)
+            
+            # Небольшая задержка, чтобы процесс успел запуститься
+            import time
+            time.sleep(0.2)
+            
+            # Проверяем, что процесс все еще запущен
+            if proc.poll() is None:
+                # Процесс запущен успешно
+                self.finished.emit(proc)
+            else:
+                # Процесс завершился сразу после запуска
+                returncode = proc.returncode if proc.returncode is not None else -1
+                self.error.emit(f"Процесс завершился сразу после запуска с кодом {returncode}")
         except Exception as e:
             self.error.emit(str(e))
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Проверяем доступность системного трея
+    if not QSystemTrayIcon.isSystemTrayAvailable():
+        QMessageBox.critical(
+            None,
+            "Ошибка",
+            "Системный трей недоступен на этой системе."
+        )
+        sys.exit(1)
+    
+    # Не закрываем приложение при закрытии последнего окна, если трей включен
+    app.setQuitOnLastWindowClosed(False)
+    
     apply_dark_theme(app)
     win = MainWindow()
     win.show()
