@@ -391,6 +391,13 @@ class MainWindow(QMainWindow):
         version_row.addStretch()
         version_layout.addLayout(version_row)
         
+        # Label для сообщения об обновлении (показывается под текущей версией)
+        self.lbl_update_info = QLabel()
+        self.lbl_update_info.setFont(QFont("Segoe UI", 11))
+        self.lbl_update_info.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px;")
+        self.lbl_update_info.hide()
+        version_layout.addWidget(self.lbl_update_info)
+        
         outer.addWidget(version_card)
         
         # Карточка профиля
@@ -777,6 +784,11 @@ class MainWindow(QMainWindow):
         """Обновление информации о версии"""
         version = get_singbox_version()
         if version:
+            # Всегда показываем текущую версию
+            self.lbl_version.setText(tr("home.installed", version=version))
+            self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            self.btn_version_warning.hide()
+            
             # Проверяем наличие обновлений
             latest_version = get_latest_version()
             if latest_version:
@@ -784,28 +796,26 @@ class MainWindow(QMainWindow):
                 comparison = compare_versions(version, latest_version)
                 print(f"[Version Check] Сравнение: {comparison} (< 0 означает что текущая старше)")
                 if comparison < 0:  # Текущая версия старше
-                    self.lbl_version.setText(tr("home.update_available", version=latest_version))
-                    self.lbl_version.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px;")
-                    self.btn_version_warning.hide()
+                    # Показываем сообщение об обновлении под текущей версией
+                    self.lbl_update_info.setText(tr("home.update_available", version=latest_version))
+                    self.lbl_update_info.show()
                     self.btn_version_update.show()
                     print(f"[Version Check] Показано обновление: {latest_version}")
                 else:
-                    self.lbl_version.setText(tr("home.installed", version=version))
-                    self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
-                    self.btn_version_warning.hide()
+                    # Версия актуальна, скрываем сообщение об обновлении
+                    self.lbl_update_info.hide()
                     self.btn_version_update.hide()
                     print(f"[Version Check] Версия актуальна: {version}")
             else:
-                # Не удалось проверить обновления, показываем текущую версию
+                # Не удалось проверить обновления
                 print(f"[Version Check] Не удалось получить последнюю версию, показываем текущую: {version}")
-                self.lbl_version.setText(tr("home.installed", version=version))
-                self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
-                self.btn_version_warning.hide()
+                self.lbl_update_info.hide()
                 self.btn_version_update.hide()
         else:
             print("[Version Check] SingBox не установлен")
             self.lbl_version.setText(tr("home.not_installed"))
             self.lbl_version.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
+            self.lbl_update_info.hide()
             self.btn_version_warning.show()
             self.btn_version_update.hide()
     
