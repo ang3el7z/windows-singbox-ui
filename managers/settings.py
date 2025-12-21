@@ -15,6 +15,7 @@ class SettingsManager:
             "minimize_to_tray": True,  # Сворачивать в трей (по умолчанию включено)
             "language": "ru",  # Язык интерфейса
             "allow_multiple_processes": True,  # Разрешить несколько процессов одновременно
+            "isDebug": False,  # Режим отладки (логирование в файл)
         }
         self.load()
     

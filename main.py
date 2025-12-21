@@ -24,6 +24,43 @@ from managers.subscriptions import SubscriptionManager
 from utils.i18n import tr, set_language
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions
 from core.downloader import DownloadThread
+from datetime import datetime
+
+
+def log_to_file(msg: str, log_file: Path = None):
+    """Логирование в файл (работает до создания MainWindow)"""
+    # Проверяем настройку isDebug из файла напрямую
+    is_debug = False
+    try:
+        from config.paths import SETTINGS_FILE
+        if SETTINGS_FILE.exists():
+            import json
+            settings_data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            is_debug = settings_data.get("isDebug", False)
+    except Exception:
+        pass
+    
+    # Если режим отладки выключен, только выводим в консоль
+    if not is_debug:
+        print(msg)
+        return
+    
+    # Если режим отладки включен, записываем в файл
+    if log_file is None:
+        log_file = LOG_FILE
+    
+    try:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        line = f"[{ts}] {msg}"
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+        # Также выводим в консоль, если доступна
+        print(line)
+    except Exception as e:
+        # Если не удалось записать в файл, хотя бы в консоль
+        print(f"[LOG ERROR] Не удалось записать в лог: {e}")
+        print(f"[LOG] {msg}")
 
 
 def is_admin():
@@ -41,20 +78,33 @@ def restart_as_admin():
 
     try:
         exe_path = sys.executable  # PyInstaller: это ваш .exe
-        params = ""  # при желании: " ".join(map(shlex.quote, sys.argv[1:]))
+        # Передаем рабочий каталог, чтобы новый процесс запускался в правильной директории
+        work_dir = str(Path(exe_path).parent)
+        
+        # Запускаем новый процесс от имени администратора
         result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", exe_path, params, None, 1
+            None, "runas", exe_path, "", work_dir, 1  # SW_SHOWNORMAL = 1
         )
+        
+        # ShellExecuteW возвращает значение > 32 при успехе
         if result <= 32:
+            log_to_file(f"[Admin Restart] Ошибка запуска от имени администратора: код {result}")
             return False
 
-        # Даем время новому процессу запуститься перед закрытием старого
+        log_to_file(f"[Admin Restart] Новый процесс запущен от имени администратора, PID должен быть > 32: {result}")
+        
+        # Даем больше времени новому процессу запуститься перед закрытием старого
         # Это важно для корректной работы QSharedMemory и трея
         app = QApplication.instance()
         if app:
-            QTimer.singleShot(500, app.quit)
+            # Используем QTimer чтобы не блокировать UI поток
+            # Увеличиваем задержку до 2 секунд, чтобы новый процесс успел полностью запуститься
+            QTimer.singleShot(2000, lambda: app.quit() if app else None)
         return True
-    except Exception:
+    except Exception as e:
+        import traceback
+        error_msg = f"[Admin Restart] Исключение при перезапуске: {e}\n{traceback.format_exc()}"
+        log_to_file(error_msg)
         return False
 
 def show_restart_admin_dialog(parent, title, message):
@@ -1659,8 +1709,16 @@ class MainWindow(QMainWindow):
             self.debug_section_visible = not self.debug_section_visible
             self.debug_card.setVisible(self.debug_section_visible)
             self.logs_click_count = 0  # Сбрасываем счетчик
+            
+            # Переключаем настройку isDebug
+            current_debug = self.settings.get("isDebug", False)
+            new_debug = not current_debug
+            self.settings.set("isDebug", new_debug)
+            
             if self.debug_section_visible:
-                self.log("Debug меню активировано")
+                self.log(f"Debug меню активировано (isDebug: {new_debug})")
+            else:
+                self.log(f"Debug меню скрыто (isDebug: {new_debug})")
     
     def on_allow_multiple_changed(self, state: int):
         """Изменение настройки разрешения нескольких процессов"""
@@ -1722,19 +1780,13 @@ class MainWindow(QMainWindow):
     def on_run_as_admin_changed(self, state: int):
         """Изменение настройки запуска от имени администратора"""
         enabled = state == Qt.Checked
-        
-        # Сохраняем настройку БЕЗ немедленного перезапуска
         self.settings.set("run_as_admin", enabled)
         
         # Если автозапуск включен, обновляем его с новой настройкой
         if self.settings.get("start_with_windows", False):
             self.set_autostart(True)
         
-        # Логируем изменение настройки
-        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
-        
         # Если включили запуск от имени администратора, предлагаем перезапустить
-        # НО только если пользователь явно согласится, и только тогда закрываем окно
         if enabled and not is_admin():
             if show_restart_admin_dialog(
                 self,
@@ -1742,11 +1794,12 @@ class MainWindow(QMainWindow):
                 tr("messages.restart_required_text")
             ):
                 if restart_as_admin():
-                    # Перезапуск будет выполнен через restart_as_admin(), который сам вызовет quit()
-                    # Не вызываем self.close() здесь, чтобы избежать двойного закрытия
+                    self.close()
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
+        
+        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
     def on_auto_start_singbox_changed(self, state: int):
         """Изменение настройки автозапуска sing-box при запуске приложения"""
@@ -2119,173 +2172,197 @@ class StartSingBoxThread(QThread):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setApplicationName("SingBox-UI")
+    try:
+        # Создаем папки для логов ДО логирования
+        ensure_dirs()
+        
+        log_to_file(f"[Startup] Запуск приложения, PID: {os.getpid()}")
+        log_to_file(f"[Startup] Запущено от имени администратора: {is_admin()}")
+        log_to_file(f"[Startup] Путь к исполняемому файлу: {sys.executable}")
+        log_to_file(f"[Startup] Рабочий каталог: {os.getcwd()}")
+        
+        app = QApplication(sys.argv)
+        app.setApplicationName("SingBox-UI")
+        
+        # Загружаем настройки для проверки разрешения нескольких процессов
+        settings = SettingsManager()
+        allow_multiple = settings.get("allow_multiple_processes", True)
+        log_to_file(f"[Startup] Разрешено несколько процессов: {allow_multiple}")
     
-    # Загружаем настройки для проверки разрешения нескольких процессов
-    ensure_dirs()
-    settings = SettingsManager()
-    allow_multiple = settings.get("allow_multiple_processes", True)
-    
-    # Проверка единственного экземпляра приложения (только если не разрешены несколько процессов)
-    shared_memory = QSharedMemory("SingBox-UI-Instance")
-    if not allow_multiple and shared_memory.attach():
-        # Приложение уже запущено - проверяем, что процесс действительно работает
-        try:
-            import psutil
-            exe_name = Path(sys.executable).name
-            current_pid = os.getpid()
-            found_process = False
-            
-            for proc in psutil.process_iter(['pid', 'name', 'exe']):
-                try:
-                    if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
-                        if proc.info['pid'] != current_pid:
-                            # Проверяем, что процесс действительно работает
-                            if proc.is_running():
-                                found_process = True
-                                break
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    pass
-            
-            if found_process:
-                # Процесс работает, пытаемся активировать окно
+        # Проверка единственного экземпляра приложения (только если не разрешены несколько процессов)
+        shared_memory = QSharedMemory("SingBox-UI-Instance")
+        if not allow_multiple and shared_memory.attach():
+            # Приложение уже запущено - проверяем, что процесс действительно работает
+            try:
+                import psutil
+                exe_name = Path(sys.executable).name
+                current_pid = os.getpid()
+                found_process = False
+                
+                for proc in psutil.process_iter(['pid', 'name', 'exe']):
+                    try:
+                        if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
+                            if proc.info['pid'] != current_pid:
+                                # Проверяем, что процесс действительно работает
+                                if proc.is_running():
+                                    found_process = True
+                                    break
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        pass
+                
+                if found_process:
+                    # Процесс работает, пытаемся активировать окно
+                    try:
+                        import win32gui
+                        import win32con
+                        
+                        def enum_windows_callback(hwnd, windows):
+                            # Проверяем все окна, не только видимые (включая свернутые в трей)
+                            window_text = win32gui.GetWindowText(hwnd)
+                            if "SingBox-UI" in window_text:
+                                # Проверяем, что это действительно наше окно
+                                class_name = win32gui.GetClassName(hwnd)
+                                if "QWidget" in class_name or "Qt5QWindow" in class_name or "MainWindow" in class_name:
+                                    windows.append(hwnd)
+                            return True
+                        
+                        windows = []
+                        win32gui.EnumWindows(enum_windows_callback, windows)
+                        
+                        if windows:
+                            hwnd = windows[0]
+                            # Восстанавливаем окно (даже если оно скрыто)
+                            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                            # Активируем окно
+                            win32gui.SetForegroundWindow(hwnd)
+                            win32gui.BringWindowToTop(hwnd)
+                            # Отправляем сообщение для активации
+                            win32gui.SetActiveWindow(hwnd)
+                    except ImportError:
+                        try:
+                            user32 = ctypes.windll.user32
+                            def enum_windows_proc(hwnd, lParam):
+                                # Проверяем все окна, не только видимые
+                                length = user32.GetWindowTextLengthW(hwnd)
+                                if length > 0:
+                                    buffer = ctypes.create_unicode_buffer(length + 1)
+                                    user32.GetWindowTextW(hwnd, buffer, length + 1)
+                                    if "SingBox-UI" in buffer.value:
+                                        # Восстанавливаем и показываем окно
+                                        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                                        user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                                        user32.SetForegroundWindow(hwnd)
+                                        user32.BringWindowToTop(hwnd)
+                                        user32.SetActiveWindow(hwnd)
+                                return True
+                            EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+                            user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                    
+                    sys.exit(0)
+                else:
+                    # Процесс не найден, но shared memory существует - освобождаем и продолжаем
+                    shared_memory.detach()
+            except ImportError:
+                # Если psutil не доступен, просто пытаемся активировать окно
                 try:
                     import win32gui
                     import win32con
-                    
                     def enum_windows_callback(hwnd, windows):
-                        # Проверяем все окна, не только видимые (включая свернутые в трей)
-                        window_text = win32gui.GetWindowText(hwnd)
-                        if "SingBox-UI" in window_text:
-                            # Проверяем, что это действительно наше окно
-                            class_name = win32gui.GetClassName(hwnd)
-                            if "QWidget" in class_name or "Qt5QWindow" in class_name or "MainWindow" in class_name:
+                        if win32gui.IsWindowVisible(hwnd):
+                            window_text = win32gui.GetWindowText(hwnd)
+                            if "SingBox-UI" in window_text:
                                 windows.append(hwnd)
                         return True
-                    
                     windows = []
                     win32gui.EnumWindows(enum_windows_callback, windows)
-                    
                     if windows:
                         hwnd = windows[0]
-                        # Восстанавливаем окно (даже если оно скрыто)
                         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-                        # Активируем окно
                         win32gui.SetForegroundWindow(hwnd)
                         win32gui.BringWindowToTop(hwnd)
-                        # Отправляем сообщение для активации
-                        win32gui.SetActiveWindow(hwnd)
-                except ImportError:
-                    try:
-                        user32 = ctypes.windll.user32
-                        def enum_windows_proc(hwnd, lParam):
-                            # Проверяем все окна, не только видимые
-                            length = user32.GetWindowTextLengthW(hwnd)
-                            if length > 0:
-                                buffer = ctypes.create_unicode_buffer(length + 1)
-                                user32.GetWindowTextW(hwnd, buffer, length + 1)
-                                if "SingBox-UI" in buffer.value:
-                                    # Восстанавливаем и показываем окно
-                                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-                                    user32.ShowWindow(hwnd, 5)  # SW_SHOW
-                                    user32.SetForegroundWindow(hwnd)
-                                    user32.BringWindowToTop(hwnd)
-                                    user32.SetActiveWindow(hwnd)
-                            return True
-                        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
-                        user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
-                    except Exception:
-                        pass
+                        sys.exit(0)
                 except Exception:
                     pass
-                
-                sys.exit(0)
-            else:
-                # Процесс не найден, но shared memory существует - освобождаем и продолжаем
-                shared_memory.detach()
-        except ImportError:
-            # Если psutil не доступен, просто пытаемся активировать окно
-            try:
-                import win32gui
-                import win32con
-                def enum_windows_callback(hwnd, windows):
-                    if win32gui.IsWindowVisible(hwnd):
-                        window_text = win32gui.GetWindowText(hwnd)
-                        if "SingBox-UI" in window_text:
-                            windows.append(hwnd)
-                    return True
-                windows = []
-                win32gui.EnumWindows(enum_windows_callback, windows)
-                if windows:
-                    hwnd = windows[0]
-                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                    win32gui.SetForegroundWindow(hwnd)
-                    win32gui.BringWindowToTop(hwnd)
+        
+        # Создаем shared memory для этого экземпляра (только если не разрешены несколько процессов)
+        if not allow_multiple:
+            if not shared_memory.create(1):
+                # Если не удалось создать, возможно старый экземпляр завис - пробуем еще раз
+                try:
+                    shared_memory.detach()
+                    if not shared_memory.create(1):
+                        sys.exit(0)
+                except Exception:
                     sys.exit(0)
-            except Exception:
-                pass
-    
-    # Создаем shared memory для этого экземпляра (только если не разрешены несколько процессов)
-    if not allow_multiple:
-        if not shared_memory.create(1):
-            # Если не удалось создать, возможно старый экземпляр завис - пробуем еще раз
-            try:
-                shared_memory.detach()
-                if not shared_memory.create(1):
-                    sys.exit(0)
-            except Exception:
-                sys.exit(0)
-    
-    # Проверяем доступность системного трея
-    if not QSystemTrayIcon.isSystemTrayAvailable():
-        QMessageBox.critical(
-            None,
-            "Ошибка",
-            "Системный трей недоступен на этой системе."
-        )
-        sys.exit(1)
-    
-    apply_dark_theme(app)
-    
-    # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
-    if getattr(sys, 'frozen', False):
-        base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
-        icon_path = base_path / "icon.ico"
-        if not icon_path.exists():
-            icon_path = base_path / "icon.png"
-        if not icon_path.exists():
-            exe_path = Path(sys.executable)
-            icon_path = exe_path.parent / "icon.ico"
+        
+        # Проверяем доступность системного трея
+        # НЕ закрываем приложение если трей недоступен - просто не используем его
+        tray_available = QSystemTrayIcon.isSystemTrayAvailable()
+        if not tray_available:
+            log_to_file("[Startup] Предупреждение: Системный трей недоступен на этой системе.")
+        
+        log_to_file("[Startup] Применение темы...")
+        apply_dark_theme(app)
+        
+        # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
+        if getattr(sys, 'frozen', False):
+            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+            icon_path = base_path / "icon.ico"
             if not icon_path.exists():
-                icon_path = exe_path.parent / "icon.png"
-        if icon_path.exists():
-            app_icon = QIcon(str(icon_path))
-            if not app_icon.isNull():
-                app.setWindowIcon(app_icon)
-    else:
-        icon_path = Path(__file__).parent / "icon.ico"
-        if not icon_path.exists():
-            icon_path = Path(__file__).parent / "icon.png"
-        if icon_path.exists():
-            app_icon = QIcon(str(icon_path))
-            if not app_icon.isNull():
-                app.setWindowIcon(app_icon)
-    
-    win = MainWindow()
-    
-    # Устанавливаем поведение закрытия окна в зависимости от настройки трея
-    minimize_to_tray = win.settings.get("minimize_to_tray", True)
-    app.setQuitOnLastWindowClosed(not minimize_to_tray)
-    
-    # Убеждаемся, что трей показывается сразу после создания окна
-    # Проверяем оба варианта имени на случай, если где-то используется другое имя
-    if hasattr(win, 'tray_icon') and win.tray_icon:
-        win.tray_icon.show()
-    elif hasattr(win, 'trayicon') and win.trayicon:
-        win.trayicon.show()
-    
-    win.show()
-    sys.exit(app.exec_())
+                icon_path = base_path / "icon.png"
+            if not icon_path.exists():
+                exe_path = Path(sys.executable)
+                icon_path = exe_path.parent / "icon.ico"
+                if not icon_path.exists():
+                    icon_path = exe_path.parent / "icon.png"
+            if icon_path.exists():
+                app_icon = QIcon(str(icon_path))
+                if not app_icon.isNull():
+                    app.setWindowIcon(app_icon)
+        else:
+            icon_path = Path(__file__).parent / "icon.ico"
+            if not icon_path.exists():
+                icon_path = Path(__file__).parent / "icon.png"
+            if icon_path.exists():
+                app_icon = QIcon(str(icon_path))
+                if not app_icon.isNull():
+                    app.setWindowIcon(app_icon)
+        
+        log_to_file("[Startup] Создание главного окна...")
+        win = MainWindow()
+        
+        # Устанавливаем поведение закрытия окна в зависимости от настройки трея
+        minimize_to_tray = win.settings.get("minimize_to_tray", True)
+        app.setQuitOnLastWindowClosed(not minimize_to_tray)
+        
+        # Убеждаемся, что трей показывается сразу после создания окна
+        # Проверяем оба варианта имени на случай, если где-то используется другое имя
+        if hasattr(win, 'tray_icon') and win.tray_icon:
+            win.tray_icon.show()
+        elif hasattr(win, 'trayicon') and win.trayicon:
+            win.trayicon.show()
+        
+        log_to_file("[Startup] Показ главного окна...")
+        win.show()
+        log_to_file("[Startup] Запуск главного цикла приложения...")
+        sys.exit(app.exec_())
+    except Exception as e:
+        import traceback
+        error_msg = f"[Fatal Error] Критическая ошибка при запуске приложения: {e}\n{traceback.format_exc()}"
+        log_to_file(error_msg)
+        # Показываем сообщение об ошибке пользователю
+        try:
+            QMessageBox.critical(
+                None,
+                "Ошибка запуска",
+                f"Произошла критическая ошибка при запуске приложения:\n\n{str(e)}\n\nПроверьте файл логов: {LOG_FILE}"
+            )
+        except:
+            pass
+        sys.exit(1)
 
