@@ -31,6 +31,9 @@ def post_build():
     source_locales = Path('locales')
     if source_locales.exists():
         locales_dest = project_dir / 'locales'
+        # Удаляем существующую папку если есть
+        if locales_dest.exists():
+            shutil.rmtree(locales_dest)
         shutil.copytree(source_locales, locales_dest)
         print(f"Локали скопированы в: {locales_dest}")
     

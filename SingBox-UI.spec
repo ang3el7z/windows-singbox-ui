@@ -61,6 +61,10 @@ if icon_file.exists():
     icon_path = str(icon_file.resolve())
     print(f"Используем иконку: {icon_path}")
 else:
+    # Пробуем найти icon.png и конвертировать
+    icon_png = Path('icon.png')
+    if icon_png.exists():
+        print("ВНИМАНИЕ: icon.ico не найден, но найден icon.png. Используйте icon.ico для лучшей совместимости.")
     print("ВНИМАНИЕ: icon.ico не найден! Exe будет без иконки.")
 
 exe = EXE(
