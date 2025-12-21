@@ -94,8 +94,8 @@ def restart_as_admin():
                         stderr=subprocess.DEVNULL,
                         timeout=3
                     )
-                except Exception:
-                    pass
+            except Exception:
+                pass
             
             return True
         else:
@@ -198,15 +198,15 @@ class MainWindow(QMainWindow):
         # Устанавливаем язык из настроек
         language = self.settings.get("language", "ru")
         set_language(language)
-        
+
         self.proc: subprocess.Popen | None = None
         self.current_sub_index: int = 0
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
-        
+
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
-        
+
         # Устанавливаем иконку окна
         if getattr(sys, 'frozen', False):
             # Запущено как exe - используем иконку из exe файла
@@ -217,13 +217,13 @@ class MainWindow(QMainWindow):
             icon_path = Path(__file__).parent / "icon.png"
             if icon_path.exists():
                 self.setWindowIcon(QIcon(str(icon_path)))
-        
+
         central = QWidget()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        
+
         # Стек страниц
         self.stack = QStackedWidget()
         self.page_profile = self.build_profile_page()
@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.page_profile)
         self.stack.addWidget(self.page_home)
         self.stack.addWidget(self.page_settings)
-        
+
         # По умолчанию открываем home (индекс 1)
         self.stack.setCurrentIndex(1)
         
@@ -246,13 +246,13 @@ class MainWindow(QMainWindow):
         self.btn_nav_profile = self.make_nav_button(tr("nav.profile"), "mdi.account")
         self.btn_nav_home = self.make_nav_button(tr("nav.home"), "mdi.home")
         self.btn_nav_settings = self.make_nav_button(tr("nav.settings"), "mdi.cog")
-        
+
         for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
             btn.clicked.connect(lambda _, idx=i: self.switch_page(idx))
             nav_layout.addWidget(btn, 1)
-        
+
         self.btn_nav_home.setChecked(True)
-        
+
         nav.setStyleSheet("""
             QWidget {
                 background-color: #0f1419;
@@ -281,10 +281,10 @@ class MainWindow(QMainWindow):
                 border: none;
             }
         """)
-        
+
         root.addWidget(self.stack, 1)
         root.addWidget(nav)
-        
+
         # Инициализация
         # Проверяем права администратора
         self.is_admin = is_admin()
@@ -297,7 +297,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'lbl_admin_status'):
             self.update_admin_status_label()
         self.update_big_button_state()
-        
+
         # Обработка deep link (если передан URL как аргумент)
         self.handle_deep_link()
         
@@ -307,7 +307,11 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(500, self.start_singbox)
         
         # Инициализация системного трея
-        self.setup_tray()
+        # Настраиваем трей только если включена настройка
+        if self.settings.get("minimize_to_tray", True):
+            self.setup_tray()
+            if hasattr(self, 'tray_icon') and self.tray_icon:
+                self.tray_icon.show()
         
         # Таймеры
         self.update_info_timer = QTimer(self)
@@ -318,15 +322,15 @@ class MainWindow(QMainWindow):
         self.proc_timer = QTimer(self)
         self.proc_timer.timeout.connect(self.poll_process)
         self.proc_timer.start(700)
-        
+
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.auto_update_config)
         self.update_timer.start(self.settings.get("auto_update_minutes", 90) * 60 * 1000)
-        
+
         # Автозапуск
         if self.settings.get("start_with_windows", False):
             self.set_autostart(True)
-    
+
     # UI helpers
     def make_nav_button(self, text: str, icon_name: str) -> QPushButton:
         """Создает кнопку навигации"""
@@ -371,7 +375,7 @@ class MainWindow(QMainWindow):
         
         btn.toggled.connect(update_icon)
         return btn
-    
+
     def build_card(self) -> QWidget:
         """Создает карточку"""
         card = QWidget()
@@ -383,14 +387,14 @@ class MainWindow(QMainWindow):
             }
         """)
         return card
-    
+
     # Страницы (упрощенные версии - полный код будет в следующих итерациях)
     def build_profile_page(self):
         """Страница профилей"""
         w = QWidget()
         outer = QVBoxLayout(w)
         outer.setContentsMargins(16, 16, 16, 16)
-        
+
         card = self.build_card()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -399,7 +403,7 @@ class MainWindow(QMainWindow):
         title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
         title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
         layout.addWidget(title)
-        
+
         self.sub_list = QListWidget()
         self.sub_list.currentRowChanged.connect(self.on_sub_changed)
         self.sub_list.setStyleSheet("""
@@ -425,12 +429,12 @@ class MainWindow(QMainWindow):
             }
         """)
         layout.addWidget(self.sub_list, 1)
-        
+
         btn_row = QHBoxLayout()
         self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
         self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
         self.btn_test_sub = QPushButton(qta.icon("mdi.network"), tr("profile.test"))
-        
+
         for b in (self.btn_add_sub, self.btn_del_sub, self.btn_test_sub):
             b.setCursor(Qt.PointingHandCursor)
             b.setStyleSheet("""
@@ -448,15 +452,15 @@ class MainWindow(QMainWindow):
                 }
             """)
             btn_row.addWidget(b)
-        
+
         self.btn_add_sub.clicked.connect(self.on_add_sub)
         self.btn_del_sub.clicked.connect(self.on_del_sub)
         self.btn_test_sub.clicked.connect(self.on_test_sub)
-        
+
         layout.addLayout(btn_row)
         outer.addWidget(card)
         return w
-    
+
     def build_home_page(self):
         """Страница главная"""
         w = QWidget()
@@ -607,7 +611,7 @@ class MainWindow(QMainWindow):
         outer.addStretch()
         
         return w
-    
+
     def build_settings_page(self):
         """Страница настроек"""
         w = QWidget()
@@ -625,7 +629,7 @@ class MainWindow(QMainWindow):
         title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
         title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
         settings_layout.addWidget(title)
-        
+
         row = QHBoxLayout()
         row.setSpacing(12)
         row_label = QLabel(tr("settings.auto_update_interval"))
@@ -697,7 +701,7 @@ class MainWindow(QMainWindow):
         """)
         row.addWidget(self.spin_interval)
         settings_layout.addLayout(row)
-        
+
         self.cb_autostart = QCheckBox(tr("settings.autostart"))
         self.cb_autostart.setChecked(self.settings.get("start_with_windows", False))
         self.cb_autostart.stateChanged.connect(self.on_autostart_changed)
@@ -850,7 +854,7 @@ class MainWindow(QMainWindow):
         
         outer.addWidget(logs_card, 1)
         return w
-    
+
     # Навигация
     def switch_page(self, index: int):
         """Переключение страниц"""
@@ -859,7 +863,7 @@ class MainWindow(QMainWindow):
             btn.setChecked(i == index)
         if index == 2:  # Settings page
             self.load_logs()
-    
+
     # Подписки
     def refresh_subscriptions_ui(self):
         """Обновление списка подписок"""
@@ -870,13 +874,13 @@ class MainWindow(QMainWindow):
             self.sub_list.setCurrentRow(self.current_sub_index)
         else:
             self.current_sub_index = -1
-    
+
     def on_sub_changed(self, row: int):
         """Изменение выбранной подписки"""
         self.current_sub_index = row
         self.update_profile_info()
         self.update_big_button_state()
-    
+
     def on_add_sub(self):
         """Добавление подписки"""
         dialog = QDialog(self)
@@ -976,8 +980,8 @@ class MainWindow(QMainWindow):
             name = name_input.text().strip()
             url = url_input.text().strip()
             if name and url:
-                self.subs.add(name, url)
-                self.refresh_subscriptions_ui()
+        self.subs.add(name, url)
+        self.refresh_subscriptions_ui()
                 self.log(tr("profile.added", name=name))
                 dialog.accept()
             else:
@@ -993,7 +997,7 @@ class MainWindow(QMainWindow):
         
         if dialog.exec_() == QDialog.Accepted:
             pass  # Уже обработано в on_add_clicked
-    
+
     def on_del_sub(self):
         """Удаление подписки"""
         row = self.sub_list.currentRow()
@@ -1008,7 +1012,7 @@ class MainWindow(QMainWindow):
             self.subs.remove(row)
             self.refresh_subscriptions_ui()
             self.log(tr("profile.removed", name=sub['name']))
-    
+
     def on_test_sub(self):
         """Тест подписки"""
         row = self.sub_list.currentRow()
@@ -1040,7 +1044,7 @@ class MainWindow(QMainWindow):
                 if latest_version:
                     self.cached_latest_version = latest_version
                     self.version_check_failed_count = 0
-                else:
+        else:
                     self.version_check_failed_count += 1
                     # Используем кэш если есть
                     if self.cached_latest_version:
@@ -1300,7 +1304,7 @@ class MainWindow(QMainWindow):
         """Стиль большой кнопки"""
         # Обновляем подложку
         if hasattr(self, 'btn_wrapper'):
-            if running:
+        if running:
                 self.btn_wrapper.setStyleSheet("""
                     QWidget {
                         background-color: #1a1f2e;
@@ -1361,7 +1365,7 @@ class MainWindow(QMainWindow):
                     border: 2px solid #475569;
                 }
             """)
-    
+
     def update_big_button_state(self):
         """Обновление состояния большой кнопки"""
         core_ok = CORE_EXE.exists()
@@ -1370,14 +1374,14 @@ class MainWindow(QMainWindow):
         running = self.proc and self.proc.poll() is None
         self.style_big_btn_running(bool(running))
         self.lbl_state.setText(tr("home.state_running") if running else tr("home.state_stopped"))
-    
+
     def on_big_button(self):
         """Обработка нажатия большой кнопки"""
         if self.proc and self.proc.poll() is None:
             self.stop_singbox()
         else:
             self.start_singbox()
-    
+
     # Запуск/остановка
     def start_singbox(self):
         """Запуск SingBox"""
@@ -1438,9 +1442,9 @@ class MainWindow(QMainWindow):
     def on_singbox_start_error(self, error_msg):
         """Обработка ошибки запуска SingBox"""
         self.log(tr("messages.start_error", error=error_msg))
-        self.proc = None
+            self.proc = None
         self.update_big_button_state()
-    
+
     def stop_singbox(self):
         """Остановка SingBox"""
         if not self.proc:
@@ -1474,7 +1478,7 @@ class MainWindow(QMainWindow):
                 pass
         self.proc = None
         self.update_big_button_state()
-    
+
     def auto_update_config(self):
         """Автообновление конфига"""
         if self.current_sub_index < 0:
@@ -1490,7 +1494,7 @@ class MainWindow(QMainWindow):
             self.start_singbox()
         else:
             self.log(tr("messages.auto_update_not_running"))
-    
+
     def poll_process(self):
         """Опрос процесса - проверяем, не завершился ли процесс"""
         if self.proc and self.proc.poll() is not None:
@@ -1498,27 +1502,27 @@ class MainWindow(QMainWindow):
             self.log(tr("messages.stopped", code=code))
             self.proc = None
             self.update_big_button_state()
-    
+
     # Настройки
     def on_interval_changed(self, value: int):
         """Изменение интервала автообновления"""
         self.settings.set("auto_update_minutes", value)
         self.update_timer.start(value * 60 * 1000)
         self.log(tr("messages.interval_changed", value=value))
-    
+
     def set_autostart(self, enabled: bool):
         """Установка автозапуска"""
         import winreg
         run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
         app_name = "SingBox-UI"
-        
+
         if getattr(sys, "frozen", False):
             exe_path = sys.executable
         else:
             exe_path = str((Path(__file__).parent / "run_dev.bat").resolve())
         
         run_as_admin = self.settings.get("run_as_admin", False)
-        
+
         try:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
                 if enabled:
@@ -1527,7 +1531,7 @@ class MainWindow(QMainWindow):
                         ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
                         winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
                     else:
-                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
                 else:
                     try:
                         winreg.DeleteValue(key, app_name)
@@ -1535,7 +1539,7 @@ class MainWindow(QMainWindow):
                         pass
         except OSError as e:
             self.log(tr("messages.autostart_error", error=str(e)))
-    
+
     def on_autostart_changed(self, state: int):
         """Изменение автозапуска"""
         enabled = state == Qt.Checked
@@ -1578,6 +1582,18 @@ class MainWindow(QMainWindow):
         enabled = state == Qt.Checked
         self.settings.set("minimize_to_tray", enabled)
         self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
+        
+        # Динамически показываем/скрываем трей иконку
+        if enabled:
+            # Включаем трей режим
+            if not hasattr(self, 'tray_icon') or not self.tray_icon:
+                self.setup_tray()
+            if self.tray_icon:
+                self.tray_icon.show()
+        else:
+            # Выключаем трей режим
+            if hasattr(self, 'tray_icon') and self.tray_icon:
+                self.tray_icon.hide()
     
     def on_kill_all_clicked(self):
         """Обработка нажатия кнопки 'Убить' - полная остановка всех процессов"""
@@ -1687,7 +1703,7 @@ class MainWindow(QMainWindow):
                     self.logs.setTextCursor(cursor)
             except Exception:
                 pass
-    
+
     def log(self, msg: str):
         """Логирование"""
         ts = datetime.now().strftime("%H:%M:%S")
@@ -1695,18 +1711,18 @@ class MainWindow(QMainWindow):
         print(line)
         
         if hasattr(self, 'logs'):
-            self.logs.append(line)
+        self.logs.append(line)
             cursor = self.logs.textCursor()
             cursor.movePosition(cursor.End)
             self.logs.setTextCursor(cursor)
         
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with LOG_FILE.open("a", encoding="utf-8") as f:
-                f.write(line + "\n")
+        with LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
         except Exception as e:
             print(f"Ошибка записи в лог файл: {e}")
-    
+
     def closeEvent(self, event):
         """Закрытие окна"""
         # Если включен трей режим, сворачиваем в трей вместо закрытия
@@ -1753,7 +1769,7 @@ def apply_dark_theme(app: QApplication):
     card = QColor("#151a24")
     text = QColor("#f5f7ff")
     accent = QColor("#00f5d4")
-    
+
     palette.setColor(QPalette.Window, QColor("#0f1419"))
     palette.setColor(QPalette.WindowText, text)
     palette.setColor(QPalette.Base, QColor("#1a1f2e"))
@@ -1869,9 +1885,12 @@ if __name__ == "__main__":
                     import win32con
                     
                     def enum_windows_callback(hwnd, windows):
-                        if win32gui.IsWindowVisible(hwnd):
-                            window_text = win32gui.GetWindowText(hwnd)
-                            if "SingBox-UI" in window_text:
+                        # Проверяем все окна, не только видимые (включая свернутые в трей)
+                        window_text = win32gui.GetWindowText(hwnd)
+                        if "SingBox-UI" in window_text:
+                            # Проверяем, что это действительно наше окно
+                            class_name = win32gui.GetClassName(hwnd)
+                            if "QWidget" in class_name or "Qt5QWindow" in class_name or "MainWindow" in class_name:
                                 windows.append(hwnd)
                         return True
                     
@@ -1880,21 +1899,30 @@ if __name__ == "__main__":
                     
                     if windows:
                         hwnd = windows[0]
+                        # Восстанавливаем окно (даже если оно скрыто)
                         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                        # Активируем окно
                         win32gui.SetForegroundWindow(hwnd)
                         win32gui.BringWindowToTop(hwnd)
+                        # Отправляем сообщение для активации
+                        win32gui.SetActiveWindow(hwnd)
                 except ImportError:
                     try:
                         user32 = ctypes.windll.user32
                         def enum_windows_proc(hwnd, lParam):
-                            if user32.IsWindowVisible(hwnd):
-                                length = user32.GetWindowTextLengthW(hwnd)
+                            # Проверяем все окна, не только видимые
+                            length = user32.GetWindowTextLengthW(hwnd)
+                            if length > 0:
                                 buffer = ctypes.create_unicode_buffer(length + 1)
                                 user32.GetWindowTextW(hwnd, buffer, length + 1)
                                 if "SingBox-UI" in buffer.value:
-                                    user32.ShowWindow(hwnd, 9)
+                                    # Восстанавливаем и показываем окно
+                                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                                    user32.ShowWindow(hwnd, 5)  # SW_SHOW
                                     user32.SetForegroundWindow(hwnd)
                                     user32.BringWindowToTop(hwnd)
+                                    user32.SetActiveWindow(hwnd)
                             return True
                         EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
                         user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
