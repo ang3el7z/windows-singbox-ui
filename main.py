@@ -80,18 +80,14 @@ class MainWindow(QMainWindow):
         
         # Устанавливаем иконку окна
         if getattr(sys, 'frozen', False):
-            # Запущено как exe
+            # Запущено как exe - используем иконку из exe файла
             exe_path = Path(sys.executable)
-            if exe_path.parent.name == '_internal':
-                icon_path = exe_path.parent.parent / "icon.png"
-            else:
-                icon_path = exe_path.parent / "icon.png"
+            self.setWindowIcon(QIcon(str(exe_path)))
         else:
-            # Запущено как скрипт
+            # Запущено как скрипт - используем icon.png если есть
             icon_path = Path(__file__).parent / "icon.png"
-        
-        if icon_path.exists():
-            self.setWindowIcon(QIcon(str(icon_path)))
+            if icon_path.exists():
+                self.setWindowIcon(QIcon(str(icon_path)))
         
         central = QWidget()
         self.setCentralWidget(central)
@@ -1426,21 +1422,22 @@ class MainWindow(QMainWindow):
             print("Системный трей недоступен")
             return
         
-        # Создаем иконку для трея
+        # Создаем иконку для трея - используем иконку из exe файла или окна приложения
         if getattr(sys, 'frozen', False):
+            # В frozen режиме используем иконку из exe файла
             exe_path = Path(sys.executable)
-            if exe_path.parent.name == '_internal':
-                icon_path = exe_path.parent.parent / "icon.png"
-            else:
-                icon_path = exe_path.parent / "icon.png"
+            tray_icon = QIcon(str(exe_path))
         else:
-            icon_path = Path(__file__).parent / "icon.png"
-        
-        if not icon_path.exists():
-            # Используем иконку приложения по умолчанию
-            tray_icon = QIcon()
-        else:
-            tray_icon = QIcon(str(icon_path))
+            # В режиме разработки используем иконку окна или ищем icon.png
+            tray_icon = self.windowIcon()
+            if tray_icon.isNull():
+                # Если иконка окна не установлена, пробуем загрузить из файла
+                icon_path = Path(__file__).parent / "icon.png"
+                if icon_path.exists():
+                    tray_icon = QIcon(str(icon_path))
+                else:
+                    # Используем иконку приложения по умолчанию
+                    tray_icon = QIcon()
         
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(tray_icon)

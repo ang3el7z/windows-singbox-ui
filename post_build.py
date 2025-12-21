@@ -49,12 +49,7 @@ def post_build():
         core_dir.mkdir(parents=True, exist_ok=True)
         print(f"Создана структура папок: {core_dir} (sing-box.exe будет скачан при первом запуске)")
     
-    # Копируем иконку в папку проекта
-    source_icon = Path('icon.png')
-    if source_icon.exists():
-        icon_dest = project_dir / 'icon.png'
-        shutil.copy2(source_icon, icon_dest)
-        print(f"Иконка скопирована в: {icon_dest}")
+    # Иконка вшита в exe файл, не копируем отдельно
     
     print(f"\nСтруктура проекта создана:")
     print(f"  {project_dir}/")
