@@ -54,6 +54,15 @@ pyz = PYZ(a.pure)
 
 # Создаем один exe файл со всеми библиотеками внутри (onefile режим)
 # Это позволит не создавать папку _internal
+# Проверяем наличие иконки и используем абсолютный путь
+icon_path = None
+icon_file = Path('icon.ico')
+if icon_file.exists():
+    icon_path = str(icon_file.resolve())
+    print(f"Используем иконку: {icon_path}")
+else:
+    print("ВНИМАНИЕ: icon.ico не найден! Exe будет без иконки.")
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -74,6 +83,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=icon_path,  # Иконка для exe
     onefile=True,  # Все в одном файле - не будет _internal
 )
 

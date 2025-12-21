@@ -34,12 +34,14 @@
     "test_success": "Подписка работает, config.json загружен.",
     "test_error": "Ошибка загрузки конфига.",
     "added": "Добавлена подписка: {name}",
-    "removed": "Удалена подписка: {name}"
+    "removed": "Удалена подписка: {name}",
+    "fill_all_fields": "Пожалуйста, заполните все поля"
   },
   "settings": {
     "title": "Настройки",
     "auto_update_interval": "Интервал автообновления (мин):",
     "autostart": "Запускать вместе с Windows",
+    "run_as_admin": "Запускать от имени администратора",
     "logs": "Логи"
   },
   "download": {
@@ -73,7 +75,9 @@
     "interval_changed": "Интервал автоапдейта: {value} мин",
     "autostart_enabled": "Автозапуск включён",
     "autostart_disabled": "Автозапуск выключен",
-    "autostart_error": "Автозапуск: ошибка доступа к реестру: {error}"
+    "autostart_error": "Автозапуск: ошибка доступа к реестру: {error}",
+    "run_as_admin_enabled": "Запуск от имени администратора включён",
+    "run_as_admin_disabled": "Запуск от имени администратора выключен"
   }
 }
 

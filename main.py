@@ -7,10 +7,11 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
-    QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar
+    QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
+    QLineEdit
 )
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
 # Импорты из архитектуры проекта
@@ -46,6 +47,21 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
         
+        # Устанавливаем иконку окна
+        if getattr(sys, 'frozen', False):
+            # Запущено как exe
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                icon_path = exe_path.parent.parent / "icon.png"
+            else:
+                icon_path = exe_path.parent / "icon.png"
+        else:
+            # Запущено как скрипт
+            icon_path = Path(__file__).parent / "icon.png"
+        
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
+        
         central = QWidget()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
@@ -66,7 +82,7 @@ class MainWindow(QMainWindow):
         
         # Нижняя навигация
         nav = QWidget()
-        nav.setFixedHeight(90)
+        nav.setFixedHeight(110)
         nav_layout = QHBoxLayout(nav)
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(0)
@@ -90,7 +106,7 @@ class MainWindow(QMainWindow):
                 color: #64748b;
                 font-size: 14px;
                 font-weight: 500;
-                padding: 16px 8px;
+                padding: 24px 8px;
                 background-color: transparent;
                 border: none;
                 border-radius: 0px;
@@ -144,16 +160,16 @@ class MainWindow(QMainWindow):
         btn.setCheckable(True)
         btn.setCursor(Qt.PointingHandCursor)
         layout = QVBoxLayout()
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(6)
+        layout.setContentsMargins(0, 12, 0, 12)
+        layout.setSpacing(10)
         icon_label = QLabel()
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(28, 28))
+        icon_label.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(36, 36))
         icon_label.setStyleSheet("background-color: transparent; border: none;")
         text_label = QLabel(text)
         text_label.setAlignment(Qt.AlignCenter)
         text_label.setStyleSheet("""
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             background-color: transparent;
             border: none;
@@ -170,9 +186,9 @@ class MainWindow(QMainWindow):
         
         def update_icon(checked):
             color = "#00f5d4" if checked else "#64748b"
-            icon_label.setPixmap(qta.icon(icon_name, color=color).pixmap(28, 28))
+            icon_label.setPixmap(qta.icon(icon_name, color=color).pixmap(36, 36))
             text_label.setStyleSheet(f"""
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: {'600' if checked else '500'};
                 background-color: transparent;
                 border: none;
@@ -462,6 +478,31 @@ class MainWindow(QMainWindow):
         """)
         settings_layout.addWidget(self.cb_autostart)
         
+        self.cb_run_as_admin = QCheckBox(tr("settings.run_as_admin"))
+        self.cb_run_as_admin.setChecked(self.settings.get("run_as_admin", False))
+        self.cb_run_as_admin.stateChanged.connect(self.on_run_as_admin_changed)
+        self.cb_run_as_admin.setFont(QFont("Segoe UI", 13))
+        self.cb_run_as_admin.setStyleSheet("""
+            QCheckBox {
+                color: #e5e9ff;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QCheckBox::indicator {
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 2px solid #475569;
+                background-color: rgba(0,245,212,0.1);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00f5d4;
+                border-color: #00f5d4;
+            }
+        """)
+        settings_layout.addWidget(self.cb_run_as_admin)
+        
         outer.addWidget(settings_card)
         
         # Логи
@@ -522,15 +563,120 @@ class MainWindow(QMainWindow):
     
     def on_add_sub(self):
         """Добавление подписки"""
-        name, ok1 = QInputDialog.getText(self, tr("profile.add_subscription"), tr("profile.name"))
-        if not ok1 or not name:
-            return
-        url, ok2 = QInputDialog.getText(self, tr("profile.add_subscription"), tr("profile.url"))
-        if not ok2 or not url:
-            return
-        self.subs.add(name, url)
-        self.refresh_subscriptions_ui()
-        self.log(tr("profile.added", name=name))
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("profile.add_subscription"))
+        dialog.setMinimumWidth(420)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #0b0f1a;
+            }
+            QLabel {
+                color: #e5e9ff;
+                font-size: 14px;
+                font-weight: 500;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QLineEdit {
+                background-color: #1a1f2e;
+                color: #e5e9ff;
+                border: 1px solid rgba(0,245,212,0.2);
+                border-radius: 12px;
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #00f5d4;
+                background-color: #1f2937;
+            }
+            QPushButton {
+                border-radius: 12px;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border: none;
+            }
+            QPushButton#btnAdd {
+                background-color: #00f5d4;
+                color: #020617;
+            }
+            QPushButton#btnAdd:hover {
+                background-color: #5fffe3;
+            }
+            QPushButton#btnCancel {
+                background-color: rgba(255,255,255,0.05);
+                color: #9ca3af;
+            }
+            QPushButton#btnCancel:hover {
+                background-color: rgba(255,255,255,0.1);
+            }
+        """)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(20)
+        layout.setContentsMargins(24, 24, 24, 24)
+        
+        # Заголовок
+        title_label = QLabel(tr("profile.add_subscription"))
+        title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+        title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+        layout.addWidget(title_label)
+        
+        # Название
+        name_label = QLabel(tr("profile.name"))
+        name_label.setStyleSheet("margin-top: 8px;")
+        layout.addWidget(name_label)
+        
+        name_input = QLineEdit()
+        name_input.setPlaceholderText(tr("profile.name"))
+        layout.addWidget(name_input)
+        
+        # URL
+        url_label = QLabel(tr("profile.url"))
+        url_label.setStyleSheet("margin-top: 8px;")
+        layout.addWidget(url_label)
+        
+        url_input = QLineEdit()
+        url_input.setPlaceholderText("https://...")
+        layout.addWidget(url_input)
+        
+        # Кнопки
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
+        
+        btn_cancel = QPushButton(tr("download.cancel"))
+        btn_cancel.setObjectName("btnCancel")
+        btn_cancel.setCursor(Qt.PointingHandCursor)
+        btn_cancel.clicked.connect(dialog.reject)
+        btn_layout.addWidget(btn_cancel)
+        
+        btn_add = QPushButton(tr("profile.add"))
+        btn_add.setObjectName("btnAdd")
+        btn_add.setCursor(Qt.PointingHandCursor)
+        btn_add.setDefault(True)
+        
+        def on_add_clicked():
+            name = name_input.text().strip()
+            url = url_input.text().strip()
+            if name and url:
+                self.subs.add(name, url)
+                self.refresh_subscriptions_ui()
+                self.log(tr("profile.added", name=name))
+                dialog.accept()
+            else:
+                QMessageBox.warning(dialog, tr("profile.add_subscription"), tr("profile.fill_all_fields"))
+        
+        btn_add.clicked.connect(on_add_clicked)
+        btn_layout.addWidget(btn_add)
+        
+        layout.addLayout(btn_layout)
+        
+        # Фокус на первое поле
+        name_input.setFocus()
+        
+        if dialog.exec_() == QDialog.Accepted:
+            pass  # Уже обработано в on_add_clicked
     
     def on_del_sub(self):
         """Удаление подписки"""
@@ -568,24 +714,30 @@ class MainWindow(QMainWindow):
             # Проверяем наличие обновлений
             latest_version = get_latest_version()
             if latest_version:
+                print(f"[Version Check] Текущая версия: {version}, Последняя версия: {latest_version}")
                 comparison = compare_versions(version, latest_version)
+                print(f"[Version Check] Сравнение: {comparison} (< 0 означает что текущая старше)")
                 if comparison < 0:  # Текущая версия старше
                     self.lbl_version.setText(tr("home.update_available", version=latest_version))
                     self.lbl_version.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px;")
                     self.btn_version_warning.hide()
                     self.btn_version_update.show()
+                    print(f"[Version Check] Показано обновление: {latest_version}")
                 else:
                     self.lbl_version.setText(tr("home.installed", version=version))
                     self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
                     self.btn_version_warning.hide()
                     self.btn_version_update.hide()
+                    print(f"[Version Check] Версия актуальна: {version}")
             else:
                 # Не удалось проверить обновления, показываем текущую версию
+                print(f"[Version Check] Не удалось получить последнюю версию, показываем текущую: {version}")
                 self.lbl_version.setText(tr("home.installed", version=version))
                 self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
                 self.btn_version_warning.hide()
                 self.btn_version_update.hide()
         else:
+            print("[Version Check] SingBox не установлен")
             self.lbl_version.setText(tr("home.not_installed"))
             self.lbl_version.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
             self.btn_version_warning.show()
@@ -882,10 +1034,17 @@ class MainWindow(QMainWindow):
         else:
             exe_path = str((Path(__file__).parent / "run_dev.bat").resolve())
         
+        run_as_admin = self.settings.get("run_as_admin", False)
+        
         try:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
                 if enabled:
-                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+                    if run_as_admin:
+                        # Используем PowerShell для запуска от имени администратора
+                        ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
+                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
+                    else:
+                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
                 else:
                     try:
                         winreg.DeleteValue(key, app_name)
@@ -900,6 +1059,28 @@ class MainWindow(QMainWindow):
         self.settings.set("start_with_windows", enabled)
         self.set_autostart(enabled)
         self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+    
+    def on_run_as_admin_changed(self, state: int):
+        """Изменение настройки запуска от имени администратора"""
+        enabled = state == Qt.Checked
+        self.settings.set("run_as_admin", enabled)
+        
+        # Если автозапуск включен, обновляем его с новой настройкой
+        if self.settings.get("start_with_windows", False):
+            self.set_autostart(True)
+        
+        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
+    
+    def on_run_as_admin_changed(self, state: int):
+        """Изменение настройки запуска от имени администратора"""
+        enabled = state == Qt.Checked
+        self.settings.set("run_as_admin", enabled)
+        
+        # Если автозапуск включен, обновляем его с новой настройкой
+        if self.settings.get("start_with_windows", False):
+            self.set_autostart(True)
+        
+        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
     # Логи
     def load_logs(self):

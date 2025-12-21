@@ -34,12 +34,14 @@
     "test_success": "Subscription works, config.json downloaded.",
     "test_error": "Config download error.",
     "added": "Added subscription: {name}",
-    "removed": "Removed subscription: {name}"
+    "removed": "Removed subscription: {name}",
+    "fill_all_fields": "Please fill in all fields"
   },
   "settings": {
     "title": "Settings",
     "auto_update_interval": "Auto-update interval (min):",
     "autostart": "Start with Windows",
+    "run_as_admin": "Run as administrator",
     "logs": "Logs"
   },
   "download": {
@@ -73,7 +75,9 @@
     "interval_changed": "Auto-update interval: {value} min",
     "autostart_enabled": "Autostart enabled",
     "autostart_disabled": "Autostart disabled",
-    "autostart_error": "Autostart: registry access error: {error}"
+    "autostart_error": "Autostart: registry access error: {error}",
+    "run_as_admin_enabled": "Run as administrator enabled",
+    "run_as_admin_disabled": "Run as administrator disabled"
   }
 }
 

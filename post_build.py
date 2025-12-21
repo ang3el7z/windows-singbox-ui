@@ -14,9 +14,13 @@ def post_build():
     # Создаем папку проекта
     project_dir = dist_dir / 'SingBox-UI'
     if project_dir.exists():
-        shutil.rmtree(project_dir)
+        try:
+            shutil.rmtree(project_dir)
+        except PermissionError:
+            print(f"Предупреждение: Не удалось удалить {project_dir}, возможно файлы используются.")
+            print("Попытка продолжить без удаления...")
     project_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Создана папка проекта: {project_dir}")
+    print(f"Папка проекта: {project_dir}")
     
     # Перемещаем exe в папку проекта
     exe_dest = project_dir / 'SingBox-UI.exe'
@@ -44,6 +48,13 @@ def post_build():
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
         print(f"Создана структура папок: {core_dir} (sing-box.exe будет скачан при первом запуске)")
+    
+    # Копируем иконку в папку проекта
+    source_icon = Path('icon.png')
+    if source_icon.exists():
+        icon_dest = project_dir / 'icon.png'
+        shutil.copy2(source_icon, icon_dest)
+        print(f"Иконка скопирована в: {icon_dest}")
     
     print(f"\nСтруктура проекта создана:")
     print(f"  {project_dir}/")

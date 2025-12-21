@@ -10,6 +10,7 @@ class SettingsManager:
         self.data = {
             "auto_update_minutes": 90,
             "start_with_windows": False,
+            "run_as_admin": False,
             "language": "ru",  # Язык интерфейса
         }
         self.load()
