@@ -45,40 +45,61 @@ def restart_as_admin():
         else:
             exe_path = sys.executable
         
-        # Сначала убиваем все процессы приложения перед перезапуском
-        import psutil
-        current_pid = os.getpid()
-        exe_name = Path(exe_path).name
-        
-        for proc in psutil.process_iter(['pid', 'name']):
-            try:
-                if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
-                    if proc.info['pid'] != current_pid:
-                        proc.kill()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-    except ImportError:
-        # Если psutil не доступен, используем taskkill
-        try:
-            exe_name = Path(sys.executable).name
-            subprocess.run(
-                ["taskkill", "/F", "/IM", exe_name],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=3
-            )
-        except Exception:
-            pass
-    
-    try:
+        # Сначала запускаем новый процесс от имени администратора
         # Используем ShellExecute для запуска от имени администратора
-        ctypes.windll.shell32.ShellExecuteW(
+        result = ctypes.windll.shell32.ShellExecuteW(
             None, "runas", exe_path, "", None, 1
         )
-        # Даем время на запуск нового процесса
-        import time
-        time.sleep(0.5)
-        return True
+        
+        # Проверяем результат (если > 32, то успешно)
+        if result > 32:
+            # Даем время на запуск нового процесса
+            import time
+            time.sleep(1.0)
+            
+            # Теперь убиваем старые процессы (кроме нового)
+            try:
+                import psutil
+                current_pid = os.getpid()
+                exe_name = Path(exe_path).name
+                
+                # Получаем список всех процессов с таким именем
+                pids_to_kill = []
+                for proc in psutil.process_iter(['pid', 'name', 'create_time']):
+                    try:
+                        if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
+                            if proc.info['pid'] != current_pid:
+                                # Проверяем время создания - если процесс старше 2 секунд, убиваем
+                                if proc.info.get('create_time', 0) < time.time() - 2:
+                                    pids_to_kill.append(proc.info['pid'])
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                
+                # Убиваем старые процессы
+                for pid in pids_to_kill:
+                    try:
+                        proc = psutil.Process(pid)
+                        proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+            except ImportError:
+                # Если psutil не доступен, используем taskkill с задержкой
+                import time
+                time.sleep(0.5)
+                try:
+                    exe_name = Path(sys.executable).name
+                    subprocess.run(
+                        ["taskkill", "/F", "/IM", exe_name],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=3
+                    )
+                except Exception:
+                    pass
+            
+            return True
+        else:
+            return False
     except Exception as e:
         # Ошибка перезапуска от имени администратора
         return False
@@ -1591,10 +1612,12 @@ class MainWindow(QMainWindow):
             # Если иконка не загрузилась из exe, пробуем загрузить из icon.ico рядом с exe
             if tray_icon.isNull():
                 icon_path = exe_path.parent / "icon.ico"
-                if not icon_path.exists():
-                    icon_path = exe_path.parent / "icon.png"
                 if icon_path.exists():
                     tray_icon = QIcon(str(icon_path))
+                else:
+                    icon_path = exe_path.parent / "icon.png"
+                    if icon_path.exists():
+                        tray_icon = QIcon(str(icon_path))
         else:
             # В режиме разработки используем иконку окна или ищем icon.png
             tray_icon = self.windowIcon()
@@ -1602,10 +1625,14 @@ class MainWindow(QMainWindow):
                 icon_path = Path(__file__).parent / "icon.png"
                 if icon_path.exists():
                     tray_icon = QIcon(str(icon_path))
+                else:
+                    icon_path = Path(__file__).parent / "icon.ico"
+                    if icon_path.exists():
+                        tray_icon = QIcon(str(icon_path))
         
         self.tray_icon = QSystemTrayIcon(self)
-        if not tray_icon.isNull():
-            self.tray_icon.setIcon(tray_icon)
+        # Всегда устанавливаем иконку, даже если она пустая (система покажет дефолтную)
+        self.tray_icon.setIcon(tray_icon if not tray_icon.isNull() else QIcon())
         self.tray_icon.setToolTip(tr("app.title"))
         
         # Создаем контекстное меню для трея
@@ -1684,23 +1711,33 @@ class MainWindow(QMainWindow):
         """Закрытие окна"""
         # Если включен трей режим, сворачиваем в трей вместо закрытия
         if self.settings.get("minimize_to_tray", True):
-            # Убеждаемся, что трей иконка существует и показывается
+            # Убеждаемся, что трей иконка существует
             if not hasattr(self, 'tray_icon') or not self.tray_icon:
                 self.setup_tray()
             
             if self.tray_icon:
-                # Показываем иконку если она скрыта
+                # Всегда показываем иконку
+                self.tray_icon.show()
+                
+                # Проверяем, что иконка действительно видна
                 if not self.tray_icon.isVisible():
-                    self.tray_icon.show()
+                    # Если не видна, пробуем пересоздать
+                    self.tray_icon.hide()
+                    self.setup_tray()
+                    if self.tray_icon:
+                        self.tray_icon.show()
                 
                 event.ignore()
                 self.hide()
-                self.tray_icon.showMessage(
-                    tr("app.title"),
-                    tr("messages.minimized_to_tray"),
-                    QSystemTrayIcon.Information,
-                    2000
-                )
+                
+                # Показываем уведомление только если иконка видна
+                if self.tray_icon.isVisible():
+                    self.tray_icon.showMessage(
+                        tr("app.title"),
+                        tr("messages.minimized_to_tray"),
+                        QSystemTrayIcon.Information,
+                        2000
+                    )
                 return
         
         # Если трей режим выключен или пользователь хочет закрыть - убиваем все процессы
