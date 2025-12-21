@@ -1702,67 +1702,33 @@ class MainWindow(QMainWindow):
         if self.proc and self.proc.poll() is None:
             self.stop_singbox()
         
-        # Создаем диалог с прогрессом
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr("app.update_title"))
-        dialog.setMinimumWidth(400)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #151a24;
-                color: #f5f7ff;
-            }
-            QLabel {
-                color: #f5f7ff;
-                background-color: transparent;
-            }
-            QProgressBar {
-                border: 1px solid #00f5d4;
-                border-radius: 8px;
-                text-align: center;
-                background-color: rgba(0,245,212,0.1);
-                color: #f5f7ff;
-            }
-            QProgressBar::chunk {
-                background-color: #00f5d4;
-                border-radius: 7px;
-            }
-        """)
+        from config.paths import DATA_DIR
         
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        # Находим updater.exe в data
+        updater_exe = DATA_DIR / "updater.exe"
         
-        label = QLabel(tr("app.update_downloading", version=self.cached_app_latest_version))
-        label.setFont(QFont("Segoe UI", 12))
-        layout.addWidget(label)
+        if not updater_exe.exists():
+            QMessageBox.warning(self, tr("app.update_error_title"), f"updater.exe not found at {updater_exe}")
+            return
         
-        progress = QProgressBar()
-        progress.setRange(0, 100)
-        progress.setValue(0)
-        layout.addWidget(progress)
+        log_to_file(f"[App Update] Starting updater.exe with version: {self.cached_app_latest_version}")
         
-        status_label = QLabel(tr("app.update_preparing"))
-        status_label.setFont(QFont("Segoe UI", 10))
-        status_label.setStyleSheet("color: #9ca3af;")
-        layout.addWidget(status_label)
-        
-        dialog.show()
-        QApplication.processEvents()
-        
-        # Создаем поток обновления
-        self.app_update_thread = AppUpdateThread(self.cached_app_latest_version)
-        self.app_update_thread.progress.connect(progress.setValue)
-        self.app_update_thread.finished.connect(lambda success, msg: self._on_update_finished(dialog, success, msg))
-        self.app_update_thread.start()
-    
-    def _on_update_finished(self, dialog, success, message):
-        """Обработка завершения обновления"""
-        dialog.close()
-        if success:
+        # Запускаем updater.exe с версией
+        try:
+            subprocess.Popen(
+                [str(updater_exe), self.cached_app_latest_version],
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+            
+            # Даем время на запуск updater
+            time.sleep(1)
+            
+            # Закрываем приложение - updater сам все сделает
             self.log(tr("app.update_complete"))
-            # Приложение закроется автоматически через bat-скрипт
-        else:
-            QMessageBox.warning(self, tr("app.update_error_title"), message)
+            QApplication.quit()
+        except Exception as e:
+            log_to_file(f"[App Update] Error starting updater: {e}")
+            QMessageBox.warning(self, tr("app.update_error_title"), f"Error starting updater: {e}")
     
     def update_profile_info(self):
         """Обновление информации о профиле"""
@@ -2991,115 +2957,6 @@ def apply_dark_theme(app: QApplication):
     """)
 
 
-class AppUpdateThread(QThread):
-    """Поток для автоматического обновления приложения"""
-    progress = pyqtSignal(int)
-    finished = pyqtSignal(bool, str)  # success, message
-    
-    def __init__(self, version, repo_owner="ang3el7z", repo_name="windows-singbox-ui"):
-        super().__init__()
-        self.version = version
-        self.repo_owner = repo_owner
-        self.repo_name = repo_name
-    
-    def run(self):
-        try:
-            log_to_file(f"[App Update] Начало обновления до версии {self.version}")
-            
-            # Получаем информацию о релизе
-            self.progress.emit(10)
-            api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest"
-            response = requests.get(api_url, timeout=10)
-            response.raise_for_status()
-            release_data = response.json()
-            
-            # Ищем архив с обновлением
-            download_url = None
-            archive_name = None
-            for asset in release_data.get("assets", []):
-                if asset["name"].endswith(".zip") and "windows-singbox-ui" in asset["name"].lower():
-                    download_url = asset["browser_download_url"]
-                    archive_name = asset["name"]
-                    break
-            
-            if not download_url:
-                self.finished.emit(False, tr("app.update_error_not_found"))
-                return
-            
-            log_to_file(f"[App Update] Найден архив: {archive_name}")
-            
-            # Скачиваем архив
-            self.progress.emit(20)
-            temp_dir = Path(tempfile.gettempdir()) / "singbox-ui-update"
-            temp_dir.mkdir(exist_ok=True)
-            zip_path = temp_dir / archive_name
-            
-            response = requests.get(download_url, stream=True, timeout=30)
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            
-            with open(zip_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress_pct = 20 + int((downloaded / total_size) * 60)
-                            self.progress.emit(progress_pct)
-            
-            log_to_file(f"[App Update] Архив скачан: {zip_path}")
-            self.progress.emit(80)
-            
-            # Распаковываем архив
-            extract_dir = temp_dir / "extracted"
-            extract_dir.mkdir(exist_ok=True)
-            
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-            
-            log_to_file(f"[App Update] Архив распакован в: {extract_dir}")
-            self.progress.emit(90)
-            
-            # Создаем bat-скрипт для обновления
-            self._create_update_script(extract_dir, zip_path)
-            
-            self.progress.emit(100)
-            self.finished.emit(True, tr("app.update_success"))
-            
-        except Exception as e:
-            log_to_file(f"[App Update] Ошибка при обновлении: {e}")
-            import traceback
-            traceback.print_exc()
-            self.finished.emit(False, tr("app.update_error", error=str(e)))
-    
-    def _create_update_script(self, extract_dir, zip_path):
-        """Запускает updater.exe для обновления и перезапуска приложения"""
-        from config.paths import ROOT, DATA_DIR
-        
-        # Используем ROOT из config.paths, который уже правильно определяет путь
-        app_dir = ROOT
-        
-        # Находим updater.exe в data
-        updater_exe = DATA_DIR / "updater.exe"
-        
-        if not updater_exe.exists():
-            raise Exception(f"updater.exe не найден в {updater_exe}")
-        
-        log_to_file(f"[App Update] Запуск updater.exe: {updater_exe}")
-        log_to_file(f"[App Update] Extract dir: {extract_dir}")
-        log_to_file(f"[App Update] App dir: {app_dir}")
-        
-        # Запускаем updater.exe с параметрами: extract_dir и app_dir
-        subprocess.Popen(
-            [str(updater_exe), str(extract_dir), str(app_dir)],
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        )
-        
-        # Даем время на запуск updater
-        time.sleep(1)
-        
-        # Закрываем приложение
-        QApplication.quit()
 
 
 class StartSingBoxThread(QThread):

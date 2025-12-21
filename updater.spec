@@ -21,7 +21,12 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=icon_data,
-    hiddenimports=[],
+    hiddenimports=[
+        'config',
+        'config.paths',
+        'requests',
+        'zipfile',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -57,7 +62,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Показываем консоль для updater
+    console=False,  # GUI приложение, не показываем консоль
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
