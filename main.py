@@ -1586,9 +1586,19 @@ class MainWindow(QMainWindow):
             self.lbl_profile.setText(tr("home.profile_not_selected_click"))
             self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
             # Делаем кликабельным для перехода в профили
-            if not hasattr(self.lbl_profile, '_click_handler'):
-                self.lbl_profile.mousePressEvent = lambda e: self.on_page_changed(0) if e.button() == Qt.LeftButton else None
-                self.lbl_profile._click_handler = True
+            # Сохраняем оригинальный mousePressEvent если он есть
+            if not hasattr(self.lbl_profile, '_original_mousePressEvent'):
+                self.lbl_profile._original_mousePressEvent = self.lbl_profile.mousePressEvent
+            
+            def handle_click(event):
+                if event.button() == Qt.LeftButton:
+                    self.switch_page(0)  # Переход на страницу профилей (индекс 0)
+                else:
+                    # Вызываем оригинальный обработчик для других кнопок
+                    if hasattr(self.lbl_profile, '_original_mousePressEvent') and self.lbl_profile._original_mousePressEvent:
+                        self.lbl_profile._original_mousePressEvent(event)
+            
+            self.lbl_profile.mousePressEvent = handle_click
     
     def update_admin_status_label(self):
         """Обновление надписи о правах администратора"""
