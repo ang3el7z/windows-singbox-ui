@@ -14,6 +14,7 @@ class SettingsManager:
             "auto_start_singbox": False,  # Автозапуск sing-box при запуске приложения
             "minimize_to_tray": True,  # Сворачивать в трей (по умолчанию включено)
             "language": "ru",  # Язык интерфейса
+            "allow_multiple_processes": True,  # Разрешить несколько процессов одновременно
         }
         self.load()
     

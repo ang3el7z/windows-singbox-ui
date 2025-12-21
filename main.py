@@ -290,20 +290,57 @@ class MainWindow(QMainWindow):
         self.current_sub_index: int = 0
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
+        self.logs_click_count = 0  # Счетчик кликов по заголовку логов для дебаг меню
+        self.debug_section_visible = False  # Флаг видимости дебаг секции
 
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
 
         # Устанавливаем иконку окна
+        window_icon = QIcon()
         if getattr(sys, 'frozen', False):
-            # Запущено как exe - используем иконку из exe файла
-            exe_path = Path(sys.executable)
-            self.setWindowIcon(QIcon(str(exe_path)))
-        else:
-            # Запущено как скрипт - используем icon.png если есть
-            icon_path = Path(__file__).parent / "icon.png"
+            # В frozen режиме (PyInstaller) используем sys._MEIPASS для доступа к ресурсам
+            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+            
+            # Пробуем загрузить иконку из временной папки PyInstaller
+            icon_path = base_path / "icon.ico"
             if icon_path.exists():
-                self.setWindowIcon(QIcon(str(icon_path)))
+                window_icon = QIcon(str(icon_path))
+            
+            # Если не нашли .ico, пробуем .png
+            if window_icon.isNull():
+                icon_path = base_path / "icon.png"
+                if icon_path.exists():
+                    window_icon = QIcon(str(icon_path))
+            
+            # Если не нашли в _MEIPASS, пробуем рядом с exe
+            if window_icon.isNull():
+                exe_path = Path(sys.executable)
+                icon_path = exe_path.parent / "icon.ico"
+                if icon_path.exists():
+                    window_icon = QIcon(str(icon_path))
+                else:
+                    icon_path = exe_path.parent / "icon.png"
+                    if icon_path.exists():
+                        window_icon = QIcon(str(icon_path))
+            
+            # Если не нашли, пробуем извлечь из exe
+            if window_icon.isNull():
+                exe_path = Path(sys.executable)
+                window_icon = QIcon(str(exe_path))
+        else:
+            # В режиме разработки используем icon.ico или icon.png
+            icon_path = Path(__file__).parent / "icon.ico"
+            if icon_path.exists():
+                window_icon = QIcon(str(icon_path))
+            else:
+                icon_path = Path(__file__).parent / "icon.png"
+                if icon_path.exists():
+                    window_icon = QIcon(str(icon_path))
+        
+        # Устанавливаем иконку окна только если она загрузилась
+        if not window_icon.isNull():
+            self.setWindowIcon(window_icon)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -723,12 +760,12 @@ class MainWindow(QMainWindow):
         row_label.setFont(QFont("Segoe UI", 13))
         row_label.setStyleSheet("color: #e5e9ff; background-color: transparent; border: none; padding: 0px;")
         row.addWidget(row_label)
-        self.spin_interval = QSpinBox()
-        self.spin_interval.setRange(5, 1440)
-        self.spin_interval.setValue(self.settings.get("auto_update_minutes", 90))
-        self.spin_interval.valueChanged.connect(self.on_interval_changed)
-        self.spin_interval.setStyleSheet("""
-            QSpinBox {
+        self.edit_interval = QLineEdit()
+        self.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
+        self.edit_interval.setPlaceholderText("90")
+        self.edit_interval.editingFinished.connect(self.on_interval_changed)
+        self.edit_interval.setStyleSheet("""
+            QLineEdit {
                 background-color: rgba(0,245,212,0.1);
                 color: #00f5d4;
                 border-radius: 12px;
@@ -737,56 +774,12 @@ class MainWindow(QMainWindow):
                 font-size: 13px;
                 font-weight: 500;
             }
-            QSpinBox::up-button {
-                subcontrol-origin: border;
-                subcontrol-position: top right;
-                width: 24px;
-                height: 20px;
-                border-left: 1px solid rgba(0,245,212,0.2);
-                border-top-right-radius: 12px;
+            QLineEdit:focus {
                 background-color: rgba(0,245,212,0.15);
-            }
-            QSpinBox::up-button:hover {
-                background-color: rgba(0,245,212,0.25);
-            }
-            QSpinBox::up-button:pressed {
-                background-color: rgba(0,245,212,0.35);
-            }
-            QSpinBox::up-arrow {
-                image: none;
-                width: 0px;
-                height: 0px;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-bottom: 6px solid #00f5d4;
-                margin: 2px;
-            }
-            QSpinBox::down-button {
-                subcontrol-origin: border;
-                subcontrol-position: bottom right;
-                width: 24px;
-                height: 20px;
-                border-left: 1px solid rgba(0,245,212,0.2);
-                border-bottom-right-radius: 12px;
-                background-color: rgba(0,245,212,0.15);
-            }
-            QSpinBox::down-button:hover {
-                background-color: rgba(0,245,212,0.25);
-            }
-            QSpinBox::down-button:pressed {
-                background-color: rgba(0,245,212,0.35);
-            }
-            QSpinBox::down-arrow {
-                image: none;
-                width: 0px;
-                height: 0px;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid #00f5d4;
-                margin: 2px;
+                border: 1px solid rgba(0,245,212,0.3);
             }
         """)
-        row.addWidget(self.spin_interval)
+        row.addWidget(self.edit_interval)
         settings_layout.addLayout(row)
 
         self.cb_autostart = QCheckBox(tr("settings.autostart"))
@@ -918,10 +911,24 @@ class MainWindow(QMainWindow):
         logs_layout.setContentsMargins(20, 16, 20, 16)
         logs_layout.setSpacing(12)
         
-        logs_title = QLabel(tr("settings.logs"))
-        logs_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        logs_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
-        logs_layout.addWidget(logs_title)
+        # Создаем класс для обработки кликов
+        class ClickableLabel(QLabel):
+            def __init__(self, parent, callback):
+                super().__init__()
+                self.parent_window = parent
+                self.callback = callback
+                self.setCursor(Qt.PointingHandCursor)
+            
+            def mousePressEvent(self, event):
+                if event.button() == Qt.LeftButton:
+                    self.callback()
+                super().mousePressEvent(event)
+        
+        clickable_logs_title = ClickableLabel(self, self.on_logs_title_clicked)
+        clickable_logs_title.setText(tr("settings.logs"))
+        clickable_logs_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        clickable_logs_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        logs_layout.addWidget(clickable_logs_title)
         
         self.logs = QTextEdit()
         self.logs.setReadOnly(True)
@@ -940,6 +947,45 @@ class MainWindow(QMainWindow):
         self.load_logs()
         
         outer.addWidget(logs_card, 1)
+        
+        # Дебаг секция (скрыта по умолчанию, появляется снизу после логов)
+        self.debug_card = self.build_card()
+        self.debug_layout = QVBoxLayout(self.debug_card)
+        self.debug_layout.setContentsMargins(20, 16, 20, 16)
+        self.debug_layout.setSpacing(16)
+        
+        debug_title = QLabel("Debug Settings")
+        debug_title.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+        debug_title.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
+        self.debug_layout.addWidget(debug_title)
+        
+        self.cb_allow_multiple = QCheckBox("Разрешить несколько процессов одновременно")
+        self.cb_allow_multiple.setChecked(self.settings.get("allow_multiple_processes", True))
+        self.cb_allow_multiple.stateChanged.connect(self.on_allow_multiple_changed)
+        self.cb_allow_multiple.setFont(QFont("Segoe UI", 13))
+        self.cb_allow_multiple.setStyleSheet("""
+            QCheckBox {
+                color: #e5e9ff;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QCheckBox::indicator {
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 2px solid #475569;
+                background-color: rgba(255,107,107,0.1);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #ff6b6b;
+                border-color: #ff6b6b;
+            }
+        """)
+        self.debug_layout.addWidget(self.cb_allow_multiple)
+        
+        self.debug_card.setVisible(False)
+        outer.addWidget(self.debug_card)
         return w
 
     # Навигация
@@ -1591,11 +1637,43 @@ class MainWindow(QMainWindow):
             self.update_big_button_state()
 
     # Настройки
-    def on_interval_changed(self, value: int):
+    def on_interval_changed(self):
         """Изменение интервала автообновления"""
-        self.settings.set("auto_update_minutes", value)
-        self.update_timer.start(value * 60 * 1000)
-        self.log(tr("messages.interval_changed", value=value))
+        try:
+            value = int(self.edit_interval.text())
+            if 5 <= value <= 1440:
+                self.settings.set("auto_update_minutes", value)
+                self.update_timer.start(value * 60 * 1000)
+                self.log(tr("messages.interval_changed", value=value))
+            else:
+                # Восстанавливаем значение если вне диапазона
+                self.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
+        except ValueError:
+            # Восстанавливаем значение если не число
+            self.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
+    
+    def on_logs_title_clicked(self):
+        """Обработка клика по заголовку логов для показа дебаг меню"""
+        self.logs_click_count += 1
+        if self.logs_click_count >= 6:
+            self.debug_section_visible = not self.debug_section_visible
+            self.debug_card.setVisible(self.debug_section_visible)
+            self.logs_click_count = 0  # Сбрасываем счетчик
+            if self.debug_section_visible:
+                self.log("Debug меню активировано")
+    
+    def on_allow_multiple_changed(self, state: int):
+        """Изменение настройки разрешения нескольких процессов"""
+        enabled = state == Qt.Checked
+        try:
+            self.settings.set("allow_multiple_processes", enabled)
+            self.log(f"Разрешение нескольких процессов: {'включено' if enabled else 'выключено'}")
+        except Exception as e:
+            print(f"Ошибка при изменении настройки нескольких процессов: {e}")
+            # Восстанавливаем состояние чекбокса при ошибке
+            self.cb_allow_multiple.blockSignals(True)
+            self.cb_allow_multiple.setChecked(not enabled)
+            self.cb_allow_multiple.blockSignals(False)
 
     def set_autostart(self, enabled: bool):
         """Установка автозапуска"""
@@ -1630,20 +1708,33 @@ class MainWindow(QMainWindow):
     def on_autostart_changed(self, state: int):
         """Изменение автозапуска"""
         enabled = state == Qt.Checked
-        self.settings.set("start_with_windows", enabled)
-        self.set_autostart(enabled)
-        self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+        try:
+            self.settings.set("start_with_windows", enabled)
+            self.set_autostart(enabled)
+            self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+        except Exception as e:
+            print(f"Ошибка при изменении автозапуска: {e}")
+            # Восстанавливаем состояние чекбокса при ошибке
+            self.cb_autostart.blockSignals(True)
+            self.cb_autostart.setChecked(not enabled)
+            self.cb_autostart.blockSignals(False)
     
     def on_run_as_admin_changed(self, state: int):
         """Изменение настройки запуска от имени администратора"""
         enabled = state == Qt.Checked
+        
+        # Сохраняем настройку БЕЗ немедленного перезапуска
         self.settings.set("run_as_admin", enabled)
         
         # Если автозапуск включен, обновляем его с новой настройкой
         if self.settings.get("start_with_windows", False):
             self.set_autostart(True)
         
+        # Логируем изменение настройки
+        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
+        
         # Если включили запуск от имени администратора, предлагаем перезапустить
+        # НО только если пользователь явно согласится, и только тогда закрываем окно
         if enabled and not is_admin():
             if show_restart_admin_dialog(
                 self,
@@ -1651,36 +1742,62 @@ class MainWindow(QMainWindow):
                 tr("messages.restart_required_text")
             ):
                 if restart_as_admin():
-                    self.close()
+                    # Перезапуск будет выполнен через restart_as_admin(), который сам вызовет quit()
+                    # Не вызываем self.close() здесь, чтобы избежать двойного закрытия
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
-        
-        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
     def on_auto_start_singbox_changed(self, state: int):
         """Изменение настройки автозапуска sing-box при запуске приложения"""
         enabled = state == Qt.Checked
-        self.settings.set("auto_start_singbox", enabled)
-        self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
+        try:
+            self.settings.set("auto_start_singbox", enabled)
+            self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
+        except Exception as e:
+            print(f"Ошибка при изменении автозапуска sing-box: {e}")
+            # Восстанавливаем состояние чекбокса при ошибке
+            self.cb_auto_start_singbox.blockSignals(True)
+            self.cb_auto_start_singbox.setChecked(not enabled)
+            self.cb_auto_start_singbox.blockSignals(False)
     
     def on_minimize_to_tray_changed(self, state: int):
         """Изменение настройки сворачивания в трей"""
         enabled = state == Qt.Checked
-        self.settings.set("minimize_to_tray", enabled)
-        self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
         
-        # Динамически показываем/скрываем трей иконку
-        if enabled:
-            # Включаем трей режим
-            if not hasattr(self, 'tray_icon') or not self.tray_icon:
-                self.setup_tray()
-            if self.tray_icon:
-                self.tray_icon.show()
-        else:
-            # Выключаем трей режим
-            if hasattr(self, 'tray_icon') and self.tray_icon:
-                self.tray_icon.hide()
+        try:
+            # Обновляем настройку в памяти
+            self.settings.data["minimize_to_tray"] = enabled
+            
+            # Динамически показываем/скрываем трей иконку БЕЗ закрытия окна
+            if enabled:
+                # Включаем трей режим
+                if not hasattr(self, 'tray_icon') or not self.tray_icon:
+                    self.setup_tray()
+                if self.tray_icon:
+                    self.tray_icon.show()
+            else:
+                # Выключаем трей режим - скрываем иконку и удаляем её
+                if hasattr(self, 'tray_icon') and self.tray_icon:
+                    self.tray_icon.hide()
+                    self.tray_icon.deleteLater()
+                    self.tray_icon = None
+            
+            # Сохраняем настройки после всех изменений
+            self.settings.save()
+            
+            # Обновляем поведение закрытия окна в зависимости от настройки
+            app = QApplication.instance()
+            if app:
+                app.setQuitOnLastWindowClosed(not enabled)
+            
+            self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
+        except Exception as e:
+            print(f"Ошибка при изменении настройки трея: {e}")
+            # Восстанавливаем состояние чекбокса при ошибке
+            self.cb_minimize_to_tray.blockSignals(True)
+            self.cb_minimize_to_tray.setChecked(not enabled)
+            self.cb_minimize_to_tray.blockSignals(False)
     
     def kill_all_processes(self):
         """Остановка всех процессов SingBox"""
@@ -1749,11 +1866,23 @@ class MainWindow(QMainWindow):
         # Создаем иконку для трея
         tray_icon = QIcon()
         if getattr(sys, 'frozen', False):
-            # В frozen режиме используем иконку из exe файла
-            exe_path = Path(sys.executable)
-            tray_icon = QIcon(str(exe_path))
-            # Если иконка не загрузилась из exe, пробуем загрузить из icon.ico рядом с exe
+            # В frozen режиме (PyInstaller) используем sys._MEIPASS для доступа к ресурсам
+            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+            
+            # Пробуем загрузить иконку из временной папки PyInstaller
+            icon_path = base_path / "icon.ico"
+            if icon_path.exists():
+                tray_icon = QIcon(str(icon_path))
+            
+            # Если не нашли .ico, пробуем .png
             if tray_icon.isNull():
+                icon_path = base_path / "icon.png"
+                if icon_path.exists():
+                    tray_icon = QIcon(str(icon_path))
+            
+            # Если не нашли в _MEIPASS, пробуем рядом с exe
+            if tray_icon.isNull():
+                exe_path = Path(sys.executable)
                 icon_path = exe_path.parent / "icon.ico"
                 if icon_path.exists():
                     tray_icon = QIcon(str(icon_path))
@@ -1761,21 +1890,29 @@ class MainWindow(QMainWindow):
                     icon_path = exe_path.parent / "icon.png"
                     if icon_path.exists():
                         tray_icon = QIcon(str(icon_path))
+            
+            # Если не нашли, пробуем извлечь из exe
+            if tray_icon.isNull():
+                exe_path = Path(sys.executable)
+                tray_icon = QIcon(str(exe_path))
         else:
-            # В режиме разработки используем иконку окна или ищем icon.png
+            # В режиме разработки используем иконку окна или ищем icon.png/icon.ico
             tray_icon = self.windowIcon()
             if tray_icon.isNull():
-                icon_path = Path(__file__).parent / "icon.png"
+                icon_path = Path(__file__).parent / "icon.ico"
                 if icon_path.exists():
                     tray_icon = QIcon(str(icon_path))
                 else:
-                    icon_path = Path(__file__).parent / "icon.ico"
+                    icon_path = Path(__file__).parent / "icon.png"
                     if icon_path.exists():
                         tray_icon = QIcon(str(icon_path))
         
         self.tray_icon = QSystemTrayIcon(self)
-        # Всегда устанавливаем иконку, даже если она пустая (система покажет дефолтную)
-        self.tray_icon.setIcon(tray_icon if not tray_icon.isNull() else QIcon())
+        # Если иконка не найдена, используем системную иконку вместо пустой
+        if tray_icon.isNull():
+            from PyQt5.QtWidgets import QStyle
+            tray_icon = QApplication.instance().style().standardIcon(QStyle.SP_ComputerIcon)
+        self.tray_icon.setIcon(tray_icon)
         self.tray_icon.setToolTip(tr("app.title"))
         
         # Создаем контекстное меню для трея
@@ -1870,20 +2007,21 @@ class MainWindow(QMainWindow):
                     if self.tray_icon:
                         self.tray_icon.show()
                 
-                event.ignore()
-                self.hide()
-                
-                # Показываем уведомление только если иконка видна
+                # Сворачиваем в трей только если иконка видна
                 if self.tray_icon.isVisible():
+                    event.ignore()
+                    self.hide()
+                    
+                    # Показываем уведомление
                     self.tray_icon.showMessage(
                         tr("app.title"),
                         tr("messages.minimized_to_tray"),
                         QSystemTrayIcon.Information,
                         2000
                     )
-                return
+                    return
         
-        # Если трей режим выключен или пользователь хочет закрыть - убиваем все процессы
+        # Если трей режим выключен - закрываем приложение нормально
         self.kill_all_processes()
         event.accept()
 
@@ -1984,9 +2122,14 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("SingBox-UI")
     
-    # Проверка единственного экземпляра приложения
+    # Загружаем настройки для проверки разрешения нескольких процессов
+    ensure_dirs()
+    settings = SettingsManager()
+    allow_multiple = settings.get("allow_multiple_processes", True)
+    
+    # Проверка единственного экземпляра приложения (только если не разрешены несколько процессов)
     shared_memory = QSharedMemory("SingBox-UI-Instance")
-    if shared_memory.attach():
+    if not allow_multiple and shared_memory.attach():
         # Приложение уже запущено - проверяем, что процесс действительно работает
         try:
             import psutil
@@ -2084,15 +2227,16 @@ if __name__ == "__main__":
             except Exception:
                 pass
     
-    # Создаем shared memory для этого экземпляра
-    if not shared_memory.create(1):
-        # Если не удалось создать, возможно старый экземпляр завис - пробуем еще раз
-        try:
-            shared_memory.detach()
-            if not shared_memory.create(1):
+    # Создаем shared memory для этого экземпляра (только если не разрешены несколько процессов)
+    if not allow_multiple:
+        if not shared_memory.create(1):
+            # Если не удалось создать, возможно старый экземпляр завис - пробуем еще раз
+            try:
+                shared_memory.detach()
+                if not shared_memory.create(1):
+                    sys.exit(0)
+            except Exception:
                 sys.exit(0)
-        except Exception:
-            sys.exit(0)
     
     # Проверяем доступность системного трея
     if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -2103,11 +2247,37 @@ if __name__ == "__main__":
         )
         sys.exit(1)
     
-    # Не закрываем приложение при закрытии последнего окна, если трей включен
-    app.setQuitOnLastWindowClosed(False)
-    
     apply_dark_theme(app)
+    
+    # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
+    if getattr(sys, 'frozen', False):
+        base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+        icon_path = base_path / "icon.ico"
+        if not icon_path.exists():
+            icon_path = base_path / "icon.png"
+        if not icon_path.exists():
+            exe_path = Path(sys.executable)
+            icon_path = exe_path.parent / "icon.ico"
+            if not icon_path.exists():
+                icon_path = exe_path.parent / "icon.png"
+        if icon_path.exists():
+            app_icon = QIcon(str(icon_path))
+            if not app_icon.isNull():
+                app.setWindowIcon(app_icon)
+    else:
+        icon_path = Path(__file__).parent / "icon.ico"
+        if not icon_path.exists():
+            icon_path = Path(__file__).parent / "icon.png"
+        if icon_path.exists():
+            app_icon = QIcon(str(icon_path))
+            if not app_icon.isNull():
+                app.setWindowIcon(app_icon)
+    
     win = MainWindow()
+    
+    # Устанавливаем поведение закрытия окна в зависимости от настройки трея
+    minimize_to_tray = win.settings.get("minimize_to_tray", True)
+    app.setQuitOnLastWindowClosed(not minimize_to_tray)
     
     # Убеждаемся, что трей показывается сразу после создания окна
     # Проверяем оба варианта имени на случай, если где-то используется другое имя

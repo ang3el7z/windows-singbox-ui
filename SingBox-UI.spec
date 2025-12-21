@@ -21,11 +21,23 @@ if locales_dir.exists():
         locales_data.append((str(locale_file), 'locales'))
         print(f"Включаем локализацию: {locale_file}")
 
+# Добавляем иконку в сборку для использования в трее
+icon_data = []
+icon_file = Path('icon.ico')
+if icon_file.exists():
+    icon_data.append((str(icon_file), '.'))
+    print(f"Включаем иконку в сборку: {icon_file}")
+else:
+    icon_png = Path('icon.png')
+    if icon_png.exists():
+        icon_data.append((str(icon_png), '.'))
+        print(f"Включаем иконку PNG в сборку: {icon_png}")
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=binaries_list,
-    datas=locales_data,
+    datas=locales_data + icon_data,
     hiddenimports=[
         'qtawesome',
         'requests',
