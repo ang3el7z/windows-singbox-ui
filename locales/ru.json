@@ -69,6 +69,8 @@
     "run_as_admin": "Запускать от имени администратора",
     "auto_start_singbox": "Автозапуск SingBox при запуске приложения",
     "minimize_to_tray": "Сворачивать в трей при закрытии",
+    "language": "Язык интерфейса:",
+    "language_changed": "Язык изменен на {language}",
     "kill_all": "Убить все процессы",
     "logs": "Логи"
   },

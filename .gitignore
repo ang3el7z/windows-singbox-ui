@@ -23,7 +23,6 @@ dist/
 *.spec.bak
 
 # Data (но не структуру папок)
-data/core/*.exe
 data/logs/*.log
 data/*.json
 data/.subscriptions

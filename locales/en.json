@@ -69,6 +69,8 @@
     "run_as_admin": "Run as administrator",
     "auto_start_singbox": "Auto-start SingBox when application starts",
     "minimize_to_tray": "Minimize to tray when closing",
+    "language": "Interface language:",
+    "language_changed": "Language changed to {language}",
     "kill_all": "Kill all processes",
     "logs": "Logs"
   },

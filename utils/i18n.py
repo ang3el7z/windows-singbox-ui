@@ -110,10 +110,26 @@ class Translator:
     def get_available_languages(self) -> list:
         """Возвращает список доступных языков"""
         languages = []
-        for file in LOCALES_DIR.glob("*.json"):
-            lang = file.stem
-            languages.append(lang)
-        return sorted(languages)
+        # Определяем путь к папке locales
+        if getattr(sys, 'frozen', False):
+            # Запущено как exe
+            exe_path = Path(sys.executable)
+            if exe_path.parent.name == '_internal':
+                exe_dir = exe_path.parent.parent
+            else:
+                exe_dir = exe_path.parent
+            locales_path = exe_dir / "locales"
+        else:
+            # Запущено как скрипт
+            locales_path = LOCALES_DIR
+        
+        # Ищем все json файлы в папке locales
+        if locales_path.exists():
+            for file in locales_path.glob("*.json"):
+                lang = file.stem
+                languages.append(lang)
+        
+        return sorted(languages) if languages else ["en"]  # Fallback на английский
 
 
 # Глобальный экземпляр переводчика
@@ -133,4 +149,24 @@ def set_language(language: str):
 def get_translator() -> Translator:
     """Возвращает экземпляр переводчика"""
     return _translator
+
+
+def get_available_languages() -> list:
+    """Возвращает список доступных языков из папки locales"""
+    return _translator.get_available_languages()
+
+
+def get_language_name(lang_code: str) -> str:
+    """Возвращает название языка по коду"""
+    names = {
+        "en": "English",
+        "ru": "Русский",
+        "es": "Español",
+        "fr": "Français",
+        "de": "Deutsch",
+        "zh": "中文",
+        "ja": "日本語",
+        "ko": "한국어",
+    }
+    return names.get(lang_code, lang_code.upper())
 

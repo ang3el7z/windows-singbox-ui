@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
-    QLineEdit, QSystemTrayIcon, QMenu, QAction
+    QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSharedMemory
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -27,7 +27,7 @@ from config.paths import (
 )
 from managers.settings import SettingsManager
 from managers.subscriptions import SubscriptionManager
-from utils.i18n import tr, set_language
+from utils.i18n import tr, set_language, get_available_languages, get_language_name, Translator
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
 import requests
@@ -270,6 +270,78 @@ def show_kill_all_confirm_dialog(parent, title, message):
     return dialog.exec_() == QDialog.Accepted
 
 
+def show_language_selection_dialog(parent) -> str:
+    """Диалог выбора языка при первом запуске"""
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("Select Language / Выберите язык")
+    dialog.setMinimumWidth(400)
+    dialog.setModal(True)
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #0b0f1a;
+            border-radius: 12px;
+        }
+        QLabel {
+            color: #e5e9ff;
+            background-color: transparent;
+            border: none;
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 2px solid #00f5d4;
+            background-color: transparent;
+            color: #00f5d4;
+            margin: 4px;
+        }
+        QPushButton:hover {
+            background-color: rgba(0,245,212,0.1);
+        }
+        QPushButton:default {
+            background-color: #00f5d4;
+            color: #020617;
+        }
+    """)
+    
+    layout = QVBoxLayout(dialog)
+    layout.setSpacing(20)
+    layout.setContentsMargins(24, 24, 24, 24)
+    
+    # Заголовок
+    title_label = QLabel("Select Language / Выберите язык")
+    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+    title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+    layout.addWidget(title_label)
+    
+    # Список языков
+    available_languages = get_available_languages()
+    selected_language = ["en"]  # Используем список для изменения в lambda
+    
+    def select_language(lang_code):
+        selected_language[0] = lang_code
+        dialog.accept()
+    
+    for lang_code in available_languages:
+        lang_name = get_language_name(lang_code)
+        btn = QPushButton(lang_name)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda checked, l=lang_code: select_language(l))
+        layout.addWidget(btn)
+    
+    # Кнопка OK (используем английский по умолчанию)
+    btn_ok = QPushButton("OK")
+    btn_ok.setCursor(Qt.PointingHandCursor)
+    btn_ok.setDefault(True)
+    btn_ok.clicked.connect(dialog.accept)
+    layout.addWidget(btn_ok)
+    
+    if dialog.exec_() == QDialog.Accepted:
+        return selected_language[0]
+    return "en"  # Fallback на английский
+
+
 def show_kill_all_success_dialog(parent, title, message):
     """Кастомный диалог для уведомления об успешной остановке процессов"""
     dialog = QDialog(parent)
@@ -339,8 +411,19 @@ class MainWindow(QMainWindow):
         self.settings = SettingsManager()
         self.subs = SubscriptionManager()
         
-        # Устанавливаем язык из настроек
-        language = self.settings.get("language", "ru")
+        # Проверяем, выбран ли язык (первый запуск)
+        language = self.settings.get("language", "")
+        if not language or language == "":
+            # Первый запуск - показываем диалог выбора языка
+            # Сначала устанавливаем английский для отображения диалога
+            set_language("en")
+            # Показываем диалог выбора языка
+            language = show_language_selection_dialog(self)
+            # Сохраняем выбранный язык
+            self.settings.set("language", language)
+            self.settings.save()
+        
+        # Устанавливаем выбранный язык
         set_language(language)
 
         self.proc: subprocess.Popen | None = None
@@ -629,10 +712,10 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
         
-        title = QLabel(tr("profile.title"))
-        title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
-        layout.addWidget(title)
+        self.lbl_profile_title = QLabel(tr("profile.title"))
+        self.lbl_profile_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        self.lbl_profile_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        layout.addWidget(self.lbl_profile_title)
 
         self.sub_list = QListWidget()
         self.sub_list.currentRowChanged.connect(self.on_sub_changed)
@@ -775,10 +858,10 @@ class MainWindow(QMainWindow):
         profile_layout.setContentsMargins(20, 18, 20, 18)
         profile_layout.setSpacing(10)
         
-        profile_title = QLabel(tr("home.profile"))
-        profile_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
-        profile_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
-        profile_layout.addWidget(profile_title)
+        self.profile_title = QLabel(tr("home.profile"))
+        self.profile_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
+        self.profile_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        profile_layout.addWidget(self.profile_title)
         
         self.lbl_profile = QLabel(tr("home.not_selected"))
         self.lbl_profile.setFont(QFont("Segoe UI", 12))
@@ -851,10 +934,10 @@ class MainWindow(QMainWindow):
         settings_layout.setContentsMargins(20, 16, 20, 16)
         settings_layout.setSpacing(16)
         
-        title = QLabel(tr("settings.title"))
-        title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
-        settings_layout.addWidget(title)
+        self.settings_title = QLabel(tr("settings.title"))
+        self.settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        self.settings_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        settings_layout.addWidget(self.settings_title)
 
         row = QHBoxLayout()
         row.setSpacing(12)
@@ -983,6 +1066,65 @@ class MainWindow(QMainWindow):
             }
         """)
         settings_layout.addWidget(self.cb_minimize_to_tray)
+        
+        # Выбор языка
+        language_row = QHBoxLayout()
+        language_row.setSpacing(12)
+        self.language_label = QLabel(tr("settings.language"))
+        self.language_label.setFont(QFont("Segoe UI", 13))
+        self.language_label.setStyleSheet("color: #e5e9ff; background-color: transparent; border: none; padding: 0px;")
+        language_row.addWidget(self.language_label)
+        
+        self.combo_language = QComboBox()
+        available_languages = get_available_languages()
+        current_language = self.settings.get("language", "")
+        if not current_language:
+            current_language = "en"  # Fallback на английский если не выбран
+        for lang_code in available_languages:
+            lang_name = get_language_name(lang_code)
+            self.combo_language.addItem(lang_name, lang_code)
+            if lang_code == current_language:
+                self.combo_language.setCurrentIndex(self.combo_language.count() - 1)
+        self.combo_language.currentIndexChanged.connect(self.on_language_changed)
+        self.combo_language.setStyleSheet("""
+            QComboBox {
+                background-color: rgba(0,245,212,0.1);
+                color: #00f5d4;
+                border-radius: 12px;
+                padding: 10px 14px;
+                border: none;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            QComboBox:hover {
+                background-color: rgba(0,245,212,0.15);
+            }
+            QComboBox:focus {
+                background-color: rgba(0,245,212,0.15);
+                border: 1px solid rgba(0,245,212,0.3);
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #00f5d4;
+                width: 0;
+                height: 0;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #151a24;
+                color: #e5e9ff;
+                border: 1px solid #00f5d4;
+                border-radius: 8px;
+                selection-background-color: rgba(0,245,212,0.2);
+            }
+        """)
+        language_row.addWidget(self.combo_language)
+        settings_layout.addLayout(language_row)
         
         # Кнопка "Убить" для полной остановки всех процессов
         self.btn_kill_all = QPushButton(tr("settings.kill_all"))
@@ -2348,6 +2490,91 @@ class MainWindow(QMainWindow):
             self.cb_auto_start_singbox.blockSignals(True)
             self.cb_auto_start_singbox.setChecked(not enabled)
             self.cb_auto_start_singbox.blockSignals(False)
+    
+    def on_language_changed(self, index: int):
+        """Обработка изменения языка"""
+        if index >= 0:
+            lang_code = self.combo_language.itemData(index)
+            if lang_code:
+                old_language = self.settings.get("language", "en")
+                if lang_code != old_language:
+                    self.settings.set("language", lang_code)
+                    set_language(lang_code)
+                    self.log(tr("settings.language_changed", language=get_language_name(lang_code)))
+                    # Обновляем все тексты в интерфейсе
+                    self.refresh_ui_texts()
+    
+    def refresh_ui_texts(self):
+        """Обновление всех текстов в интерфейсе после смены языка"""
+        # Обновляем заголовок окна
+        self.setWindowTitle(tr("app.title"))
+        
+        # Обновляем кнопки навигации
+        if hasattr(self, 'btn_nav_profile'):
+            self._update_nav_button(self.btn_nav_profile, tr("nav.profile"), "mdi.account")
+        if hasattr(self, 'btn_nav_home'):
+            self._update_nav_button(self.btn_nav_home, tr("nav.home"), "mdi.home")
+        if hasattr(self, 'btn_nav_settings'):
+            self._update_nav_button(self.btn_nav_settings, tr("nav.settings"), "mdi.cog")
+        
+        # Обновляем заголовки страниц
+        if hasattr(self, 'lbl_profile_title'):
+            self.lbl_profile_title.setText(tr("profile.title"))
+        if hasattr(self, 'settings_title'):
+            self.settings_title.setText(tr("settings.title"))
+        if hasattr(self, 'profile_title'):
+            self.profile_title.setText(tr("home.profile"))
+        
+        # Обновляем кнопки на странице профилей
+        if hasattr(self, 'btn_add_sub'):
+            self.btn_add_sub.setText(tr("profile.add"))
+        if hasattr(self, 'btn_del_sub'):
+            self.btn_del_sub.setText(tr("profile.delete"))
+        if hasattr(self, 'btn_rename_sub'):
+            self.btn_rename_sub.setText(tr("profile.rename"))
+        if hasattr(self, 'btn_test_sub'):
+            self.btn_test_sub.setText(tr("profile.test"))
+        
+        # Обновляем настройки
+        if hasattr(self, 'cb_autostart'):
+            self.cb_autostart.setText(tr("settings.autostart"))
+        if hasattr(self, 'cb_run_as_admin'):
+            self.cb_run_as_admin.setText(tr("settings.run_as_admin"))
+        if hasattr(self, 'cb_auto_start_singbox'):
+            self.cb_auto_start_singbox.setText(tr("settings.auto_start_singbox"))
+        if hasattr(self, 'cb_minimize_to_tray'):
+            self.cb_minimize_to_tray.setText(tr("settings.minimize_to_tray"))
+        if hasattr(self, 'btn_kill_all'):
+            self.btn_kill_all.setText(tr("settings.kill_all"))
+        if hasattr(self, 'label_interval'):
+            self.label_interval.setText(tr("settings.auto_update_interval"))
+        if hasattr(self, 'language_label'):
+            self.language_label.setText(tr("settings.language"))
+        
+        # Обновляем информацию о профиле и версии
+        self.update_profile_info()
+        self.update_version_info()
+        self.update_app_version_display()
+        self.update_big_button_state()
+        self.update_admin_status_label()
+    
+    def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
+        """Обновляет текст и иконку кнопки навигации"""
+        # Находим label с текстом в layout кнопки
+        layout = btn.layout()
+        if layout:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item:
+                    widget = item.widget()
+                    if isinstance(widget, QLabel):
+                        # Проверяем, это текст или иконка
+                        if widget.pixmap() is None:
+                            # Это текстовый label
+                            widget.setText(text)
+                        else:
+                            # Это иконка - обновляем
+                            widget.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(36, 36))
     
     def on_minimize_to_tray_changed(self, state: int):
         """Изменение настройки сворачивания в трей"""
