@@ -32,14 +32,21 @@ jobs:
         python post_build.py
       continue-on-error: true  # Продолжаем даже если есть ошибки (например, файлы заблокированы)
       
+    - name: Extract tag name
+      id: get_tag
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref }}"
+        $tagName = $tag -replace "refs/tags/", ""
+        Write-Host "Tag: $tagName"
+        Write-Host "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+        
     - name: Extract version from tag
       id: get_version
       shell: pwsh
       run: |
-        $tag = "${{ github.ref }}"
-        $version = $tag -replace "refs/tags/v", ""
-        $version = $version -replace "refs/tags/", ""
-        Write-Host "VERSION=$version" >> $env:GITHUB_ENV
+        $tag = "${{ steps.get_tag.outputs.tag_name }}"
+        $version = $tag -replace "^v", ""
         Write-Host "Version: $version"
         Write-Host "version=$version" >> $env:GITHUB_OUTPUT
         
@@ -53,26 +60,12 @@ jobs:
         Write-Host "Created archive: $archiveName"
         Write-Host "archive_name=$archiveName" >> $env:GITHUB_OUTPUT
         
-    - name: Create Release
+    - name: Upload artifact to existing release
       uses: softprops/action-gh-release@v1
       with:
         files: ${{ steps.create_archive.outputs.archive_name }}
-        name: Release ${{ steps.get_version.outputs.version }}
-        body: |
-          ## Release ${{ steps.get_version.outputs.version }}
-          
-          Автоматически собранный релиз.
-          
-          ### Что включено:
-          - SingBox-UI.exe
-          - Локализации (ru.json, en.json)
-          - Структура папок data/
-          
-          ### Установка:
-          1. Распакуйте архив
-          2. Запустите SingBox-UI.exe
-        draft: false
-        prerelease: false
+        tag_name: ${{ steps.get_tag.outputs.tag_name }}
+        make_latest: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
