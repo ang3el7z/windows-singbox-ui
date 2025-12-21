@@ -34,28 +34,32 @@ jobs:
       
     - name: Extract version from tag
       id: get_version
+      shell: pwsh
       run: |
         $tag = "${{ github.ref }}"
         $version = $tag -replace "refs/tags/v", ""
         $version = $version -replace "refs/tags/", ""
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-        echo "Version: $version"
+        Write-Host "VERSION=$version" >> $env:GITHUB_ENV
+        Write-Host "Version: $version"
+        Write-Host "version=$version" >> $env:GITHUB_OUTPUT
         
     - name: Create archive
+      id: create_archive
+      shell: pwsh
       run: |
-        $version = $env:VERSION
+        $version = "${{ steps.get_version.outputs.version }}"
         $archiveName = "windows-singbox-ui-v-$version.zip"
         Compress-Archive -Path "dist\SingBox-UI\*" -DestinationPath $archiveName -Force
-        echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
-        echo "Created archive: $archiveName"
+        Write-Host "Created archive: $archiveName"
+        Write-Host "archive_name=$archiveName" >> $env:GITHUB_OUTPUT
         
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{ env.ARCHIVE_NAME }}
-        name: Release ${{ env.VERSION }}
+        files: ${{ steps.create_archive.outputs.archive_name }}
+        name: Release ${{ steps.get_version.outputs.version }}
         body: |
-          ## Release ${{ env.VERSION }}
+          ## Release ${{ steps.get_version.outputs.version }}
           
           Автоматически собранный релиз.
           
