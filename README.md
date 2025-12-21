@@ -46,7 +46,7 @@ SingBox-UI/
 │   ├── CHANGELOG_v1.0.1.md
 │   ├── CHANGELOG_v1.0.2.md
 │   ├── CHANGELOG_v1.0.3.md
-│   └── CHANGELOG_v1.0.4.md
+│   └── ...
 └── data/                 # Data (created automatically)
     ├── core/             # SingBox core
     ├── logs/             # Logs
