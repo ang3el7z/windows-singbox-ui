@@ -27,6 +27,41 @@ from core.downloader import DownloadThread
 from datetime import datetime
 
 
+def register_protocols():
+    """Регистрация протоколов sing-box:// и singbox-ui:// в Windows (без прав админа)"""
+    if sys.platform != "win32":
+        return False
+    
+    try:
+        import winreg
+        protocols = ["sing-box", "singbox-ui"]
+        
+        # Получаем путь к exe файлу
+        if getattr(sys, 'frozen', False):
+            exe_path = sys.executable
+        else:
+            exe_path = sys.executable
+            script_path = Path(__file__).parent / "main.py"
+            exe_path = f'"{exe_path}" "{script_path}"'
+        
+        for protocol in protocols:
+            key_path = f"Software\\Classes\\{protocol}"
+            
+            # Создаем ключ протокола
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                winreg.SetValue(key, "", winreg.REG_SZ, f"URL:{protocol} Protocol")
+                winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
+            
+            # Создаем ключ для команды по умолчанию
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"{key_path}\\shell\\open\\command") as key:
+                winreg.SetValue(key, "", winreg.REG_SZ, f'"{exe_path}" "%1"')
+        
+        return True
+    except Exception as e:
+        log_to_file(f"[Protocol Registration] Ошибка регистрации протокола: {e}")
+        return False
+
+
 def log_to_file(msg: str, log_file: Path = None):
     """Логирование в файл (работает до создания MainWindow)"""
     # Проверяем настройку isDebug из файла напрямую
@@ -340,6 +375,9 @@ class MainWindow(QMainWindow):
         self.current_sub_index: int = 0
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
+        self.version_check_retry_timer = None  # Таймер для повторных попыток проверки версии
+        self.version_check_retry_delay = 5 * 60 * 1000  # Начальная задержка: 5 минут
+        self.version_checked = False  # Флаг: была ли проверка версии выполнена в этой сессии
         self.logs_click_count = 0  # Счетчик кликов по заголовку логов для дебаг меню
         self.debug_section_visible = False  # Флаг видимости дебаг секции
 
@@ -468,6 +506,10 @@ class MainWindow(QMainWindow):
         self.refresh_subscriptions_ui()
         self.update_version_info()
         self.update_profile_info()
+        
+        # Очистка логов раз в сутки
+        self.cleanup_logs_if_needed()
+        
         if hasattr(self, 'lbl_admin_status'):
             self.update_admin_status_label()
         self.update_big_button_state()
@@ -488,10 +530,13 @@ class MainWindow(QMainWindow):
                 self.tray_icon.show()
         
         # Таймеры
+        # Проверка версии только при запуске, не периодически
         self.update_info_timer = QTimer(self)
-        self.update_info_timer.timeout.connect(self.update_version_info)
         self.update_info_timer.timeout.connect(self.update_profile_info)
-        self.update_info_timer.start(5000)
+        self.update_info_timer.start(5000)  # Обновление профиля каждые 5 секунд
+        
+        # Проверка версии один раз при запуске
+        QTimer.singleShot(1000, self.check_version_once)
         
         self.proc_timer = QTimer(self)
         self.proc_timer.timeout.connect(self.poll_process)
@@ -500,6 +545,11 @@ class MainWindow(QMainWindow):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.auto_update_config)
         self.update_timer.start(self.settings.get("auto_update_minutes", 90) * 60 * 1000)
+        
+        # Таймер для ежесуточной очистки логов (проверка раз в час)
+        self.log_cleanup_timer = QTimer(self)
+        self.log_cleanup_timer.timeout.connect(self.cleanup_logs_if_needed)
+        self.log_cleanup_timer.start(60 * 60 * 1000)  # Проверка каждый час
 
         # Автозапуск
         if self.settings.get("start_with_windows", False):
@@ -1209,9 +1259,13 @@ class MainWindow(QMainWindow):
         else:
             self.log(tr("profile.test_error"))
     
-    # Версия и профиль
-    def update_version_info(self):
-        """Обновление информации о версии"""
+    def _log_version_debug(self, msg: str):
+        """Логирование версий только в режиме отладки"""
+        if self.settings.get("isDebug", False):
+            self.log(msg)
+    
+    def check_version_once(self):
+        """Проверка версии один раз при запуске или по таймеру повторной попытки"""
         version = get_singbox_version()
         if version:
             # Всегда показываем текущую версию
@@ -1220,45 +1274,103 @@ class MainWindow(QMainWindow):
             self.btn_version_warning.hide()
             
             # Проверяем наличие обновлений
-            # Используем кэш если проверка не удалась несколько раз подряд
-            latest_version = None
-            if self.version_check_failed_count < 3:
-                latest_version = get_latest_version()
-                if latest_version:
-                    self.cached_latest_version = latest_version
-                    self.version_check_failed_count = 0
-                else:
-                    self.version_check_failed_count += 1
-                    # Используем кэш если есть
-                    if self.cached_latest_version:
-                        latest_version = self.cached_latest_version
-            else:
-                # Используем кэш после нескольких неудачных попыток
-                if self.cached_latest_version:
-                    latest_version = self.cached_latest_version
-            
+            latest_version = get_latest_version()
             if latest_version:
-                print(f"[Version Check] Текущая версия: {version}, Последняя версия: {latest_version}")
+                # Успешно получили версию
+                self.cached_latest_version = latest_version
+                self.version_check_failed_count = 0
+                self.version_checked = True
+                # Останавливаем таймер повторных попыток если был запущен
+                if self.version_check_retry_timer:
+                    self.version_check_retry_timer.stop()
+                    self.version_check_retry_timer = None
+                self.version_check_retry_delay = 5 * 60 * 1000  # Сбрасываем задержку
+                
+                self._log_version_debug(f"[Version Check] Текущая версия: {version}, Последняя версия: {latest_version}")
                 comparison = compare_versions(version, latest_version)
-                print(f"[Version Check] Сравнение: {comparison} (< 0 означает что текущая старше)")
+                self._log_version_debug(f"[Version Check] Сравнение: {comparison} (< 0 означает что текущая старше)")
+                
                 if comparison < 0:  # Текущая версия старше
                     # Показываем сообщение об обновлении под текущей версией
                     self.lbl_update_info.setText(tr("home.update_available", version=latest_version))
                     self.lbl_update_info.show()
                     self.btn_version_update.show()
-                    print(f"[Version Check] Показано обновление: {latest_version}")
+                    self._log_version_debug(f"[Version Check] Показано обновление: {latest_version}")
                 else:
                     # Версия актуальна, скрываем сообщение об обновлении
                     self.lbl_update_info.hide()
                     self.btn_version_update.hide()
-                    print(f"[Version Check] Версия актуальна: {version}")
+                    self._log_version_debug(f"[Version Check] Версия актуальна: {version}")
             else:
-                # Не удалось проверить обновления
-                print(f"[Version Check] Не удалось получить последнюю версию, показываем текущую: {version}")
+                # Не удалось получить версию
+                self.version_check_failed_count += 1
+                self._log_version_debug(f"[Version Check] Не удалось получить последнюю версию (попытка {self.version_check_failed_count})")
+                
+                # Используем кэш если есть
+                if self.cached_latest_version:
+                    latest_version = self.cached_latest_version
+                    comparison = compare_versions(version, latest_version)
+                    if comparison < 0:
+                        self.lbl_update_info.setText(tr("home.update_available", version=latest_version))
+                        self.lbl_update_info.show()
+                        self.btn_version_update.show()
+                    else:
+                        self.lbl_update_info.hide()
+                        self.btn_version_update.hide()
+                else:
+                    self.lbl_update_info.hide()
+                    self.btn_version_update.hide()
+                
+                # Планируем повторную попытку с экспоненциальной задержкой
+                if not self.version_check_retry_timer:
+                    self.version_check_retry_timer = QTimer(self)
+                    self.version_check_retry_timer.timeout.connect(self.check_version_once)
+                
+                # Экспоненциальная задержка: 5 мин, 15 мин, 30 мин, затем каждые 60 мин
+                if self.version_check_failed_count == 1:
+                    delay = 5 * 60 * 1000  # 5 минут
+                elif self.version_check_failed_count == 2:
+                    delay = 15 * 60 * 1000  # 15 минут
+                elif self.version_check_failed_count == 3:
+                    delay = 30 * 60 * 1000  # 30 минут
+                else:
+                    delay = 60 * 60 * 1000  # 60 минут
+                
+                self.version_check_retry_delay = delay
+                self.version_check_retry_timer.start(delay)
+                self._log_version_debug(f"[Version Check] Следующая попытка через {delay // 60000} минут")
+        else:
+            self._log_version_debug("[Version Check] SingBox не установлен")
+            self.lbl_version.setText(tr("home.not_installed"))
+            self.lbl_version.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
+            self.lbl_update_info.hide()
+            self.btn_version_warning.show()
+            self.btn_version_update.hide()
+    
+    # Версия и профиль
+    def update_version_info(self):
+        """Обновление информации о версии (только UI, без проверки)"""
+        version = get_singbox_version()
+        if version:
+            # Всегда показываем текущую версию
+            self.lbl_version.setText(tr("home.installed", version=version))
+            self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            self.btn_version_warning.hide()
+            
+            # Используем кэшированную версию если есть
+            if self.cached_latest_version:
+                comparison = compare_versions(version, self.cached_latest_version)
+                if comparison < 0:
+                    self.lbl_update_info.setText(tr("home.update_available", version=self.cached_latest_version))
+                    self.lbl_update_info.show()
+                    self.btn_version_update.show()
+                else:
+                    self.lbl_update_info.hide()
+                    self.btn_version_update.hide()
+            else:
                 self.lbl_update_info.hide()
                 self.btn_version_update.hide()
         else:
-            print("[Version Check] SingBox не установлен")
             self.lbl_version.setText(tr("home.not_installed"))
             self.lbl_version.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
             self.lbl_update_info.hide()
@@ -1309,6 +1421,9 @@ class MainWindow(QMainWindow):
         """Обработка deep link для импорта подписки (поддержка sing-box:// и singbox-ui://)"""
         # Проверяем аргументы командной строки
         args = sys.argv[1:] if len(sys.argv) > 1 else []
+        
+        if not args:
+            return
         
         for arg in args:
             # Проверяем, является ли аргумент URL
@@ -1738,6 +1853,7 @@ class MainWindow(QMainWindow):
         import winreg
         run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
         app_name = "SingBox-UI"
+        task_name = "SingBox-UI-AutoStart"
 
         if getattr(sys, "frozen", False):
             exe_path = sys.executable
@@ -1747,19 +1863,91 @@ class MainWindow(QMainWindow):
         run_as_admin = self.settings.get("run_as_admin", False)
 
         try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
-                if enabled:
-                    if run_as_admin:
-                        # Используем PowerShell для запуска от имени администратора
-                        ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
-                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
-                    else:
-                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
-                else:
+            if enabled:
+                if run_as_admin:
+                    # Используем Task Scheduler для запуска от имени администратора
+                    xml_content = f'''<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions>
+    <Exec>
+      <Command>"{exe_path}"</Command>
+      <WorkingDirectory>{Path(exe_path).parent}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>'''
+                    xml_file = Path(os.getenv("TEMP")) / f"{task_name}.xml"
+                    xml_file.write_text(xml_content, encoding="utf-16")
                     try:
-                        winreg.DeleteValue(key, app_name)
-                    except FileNotFoundError:
+                        # Удаляем старую задачу если есть
+                        subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
+                                     capture_output=True, check=False)
+                        # Создаем новую задачу
+                        result = subprocess.run(["schtasks", "/create", "/tn", task_name, "/xml", str(xml_file), "/f"], 
+                                             check=True, capture_output=True, text=True)
+                        xml_file.unlink()
+                        self.log("Автозапуск от имени администратора настроен через Task Scheduler")
+                    except subprocess.CalledProcessError as e:
+                        self.log(f"Ошибка создания задачи автозапуска: {e.stderr if e.stderr else str(e)}")
+                        # Fallback: используем реестр с PowerShell
+                        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                            ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
+                            winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
+                        self.log("Автозапуск настроен через реестр (PowerShell)")
+                    except Exception as e:
+                        self.log(f"Ошибка настройки автозапуска: {e}")
+                        xml_file.unlink(missing_ok=True)
+                else:
+                    # Обычный автозапуск без прав админа через реестр
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+                    # Удаляем задачу если есть
+                    try:
+                        subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
+                                     capture_output=True, check=False)
+                    except:
                         pass
+            else:
+                # Отключаем автозапуск
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                        winreg.DeleteValue(key, app_name)
+                except FileNotFoundError:
+                    pass
+                # Удаляем задачу если есть
+                try:
+                    subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
+                                 capture_output=True, check=False)
+                except:
+                    pass
         except OSError as e:
             self.log(tr("messages.autostart_error", error=str(e)))
 
@@ -1798,6 +1986,35 @@ class MainWindow(QMainWindow):
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
+                    # Восстанавливаем состояние чекбокса при ошибке
+                    self.cb_run_as_admin.blockSignals(True)
+                    self.cb_run_as_admin.setChecked(False)
+                    self.settings.set("run_as_admin", False)
+                    self.cb_run_as_admin.blockSignals(False)
+        elif not enabled and is_admin():
+            # Если выключили галочку, но приложение запущено от админа
+            # Предлагаем перезапустить без прав админа
+            if show_restart_admin_dialog(
+                self,
+                tr("messages.restart_required_title"),
+                "Для применения настройки 'Запускать от имени администратора' требуется перезапустить приложение.\n\nПерезапустить сейчас?"
+            ):
+                # Перезапускаем без прав админа
+                try:
+                    exe_path = sys.executable
+                    work_dir = str(Path(exe_path).parent)
+                    # Запускаем новый процесс без прав админа
+                    result = ctypes.windll.shell32.ShellExecuteW(
+                        None, "open", exe_path, "", work_dir, 1
+                    )
+                    if result > 32:
+                        app = QApplication.instance()
+                        if app:
+                            QTimer.singleShot(2000, lambda: app.quit() if app else None)
+                        self.close()
+                        return
+                except Exception as e:
+                    self.log(f"Ошибка перезапуска без прав админа: {e}")
         
         self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
@@ -2021,24 +2238,64 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
+    def cleanup_logs_if_needed(self):
+        """Очистка логов раз в сутки (полная очистка файла)"""
+        try:
+            last_cleanup = self.settings.get("last_log_cleanup", None)
+            now = datetime.now()
+            
+            if last_cleanup:
+                # Парсим дату последней очистки
+                try:
+                    last_date = datetime.fromisoformat(last_cleanup)
+                    # Проверяем, прошло ли больше суток
+                    time_diff = now - last_date
+                    if time_diff.total_seconds() < 24 * 60 * 60:  # Меньше 24 часов
+                        return  # Еще не прошло сутки
+                except (ValueError, TypeError):
+                    # Если дата некорректная, считаем что нужно очистить
+                    pass
+            
+            # Полностью очищаем файл логов
+            if LOG_FILE.exists():
+                try:
+                    # Получаем размер файла для информации
+                    file_size = LOG_FILE.stat().st_size
+                    # Полностью очищаем файл
+                    LOG_FILE.write_text("", encoding="utf-8")
+                    self._log_version_debug(f"[Log Cleanup] Логи полностью очищены (было {file_size} байт)")
+                except Exception as e:
+                    self._log_version_debug(f"[Log Cleanup] Ошибка при очистке логов: {e}")
+            
+            # Сохраняем дату последней очистки
+            self.settings.data["last_log_cleanup"] = now.isoformat()
+            self.settings.save()
+        except Exception as e:
+            # Не критично, просто логируем
+            print(f"[Log Cleanup] Ошибка: {e}")
+    
     def log(self, msg: str):
         """Логирование"""
         ts = datetime.now().strftime("%H:%M:%S")
         line = f"[{ts}] {msg}"
         print(line)
         
+        # Всегда показываем в UI
         if hasattr(self, 'logs'):
             self.logs.append(line)
             cursor = self.logs.textCursor()
             cursor.movePosition(cursor.End)
             self.logs.setTextCursor(cursor)
         
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with LOG_FILE.open("a", encoding="utf-8") as f:
-                f.write(line + "\n")
-        except Exception as e:
-            print(f"Ошибка записи в лог файл: {e}")
+        # Записываем в файл только если включен режим отладки
+        is_debug = self.settings.get("isDebug", False)
+        if is_debug:
+            LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with LOG_FILE.open("a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+            except Exception as e:
+                print(f"Ошибка записи в лог файл: {e}")
 
     def closeEvent(self, event):
         """Закрытие окна"""
@@ -2188,6 +2445,25 @@ if __name__ == "__main__":
         settings = SettingsManager()
         allow_multiple = settings.get("allow_multiple_processes", True)
         log_to_file(f"[Startup] Разрешено несколько процессов: {allow_multiple}")
+        
+        # Регистрируем протоколы при первом запуске (если еще не зарегистрированы)
+        try:
+            import winreg
+            protocol_registered = False
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\singbox-ui"):
+                    protocol_registered = True
+            except FileNotFoundError:
+                pass
+            
+            if not protocol_registered:
+                log_to_file("[Startup] Регистрация протоколов sing-box:// и singbox-ui://...")
+                if register_protocols():
+                    log_to_file("[Startup] Протоколы успешно зарегистрированы")
+                else:
+                    log_to_file("[Startup] Не удалось зарегистрировать протоколы")
+        except Exception as e:
+            log_to_file(f"[Startup] Ошибка при проверке/регистрации протоколов: {e}")
     
         # Проверка единственного экземпляра приложения (только если не разрешены несколько процессов)
         shared_memory = QSharedMemory("SingBox-UI-Instance")
@@ -2335,6 +2611,15 @@ if __name__ == "__main__":
         
         log_to_file("[Startup] Создание главного окна...")
         win = MainWindow()
+        
+        # Проверяем настройку run_as_admin при запуске
+        run_as_admin_setting = win.settings.get("run_as_admin", False)
+        if run_as_admin_setting and not is_admin():
+            log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
+            if restart_as_admin():
+                sys.exit(0)
+            else:
+                log_to_file("[Startup] Не удалось перезапустить от имени администратора")
         
         # Устанавливаем поведение закрытия окна в зависимости от настройки трея
         minimize_to_tray = win.settings.get("minimize_to_tray", True)
