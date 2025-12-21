@@ -1,4 +1,6 @@
 """Главный файл приложения SingBox-UI"""
+__version__ = "1.0.0"  # Версия приложения
+
 import sys
 import subprocess
 import ctypes
@@ -344,6 +346,9 @@ class MainWindow(QMainWindow):
         self.version_check_retry_timer = None  # Таймер для повторных попыток проверки версии
         self.version_check_retry_delay = 5 * 60 * 1000  # Начальная задержка: 5 минут
         self.version_checked = False  # Флаг: была ли проверка версии выполнена в этой сессии
+        self.app_version = __version__  # Версия приложения
+        self.cached_app_latest_version = None  # Кэш последней версии приложения
+        self.app_update_checked = False  # Флаг: была ли проверка обновлений приложения выполнена
         self.logs_click_count = 0  # Счетчик кликов по заголовку логов для дебаг меню
         self.debug_section_visible = False  # Флаг видимости дебаг секции
 
@@ -461,6 +466,28 @@ class MainWindow(QMainWindow):
         """)
 
         root.addWidget(self.stack, 1)
+        
+        # Версия приложения над навигацией
+        version_container = QWidget()
+        version_container.setFixedHeight(30)
+        version_layout = QHBoxLayout(version_container)
+        version_layout.setContentsMargins(16, 0, 16, 0)
+        version_layout.setAlignment(Qt.AlignCenter)
+        
+        self.lbl_app_version = QLabel()
+        self.lbl_app_version.setFont(QFont("Segoe UI", 10))
+        self.lbl_app_version.setStyleSheet("color: #64748b; background-color: transparent; border: none; padding: 0px;")
+        self.lbl_app_version.setAlignment(Qt.AlignCenter)
+        version_layout.addWidget(self.lbl_app_version)
+        
+        version_container.setStyleSheet("""
+            QWidget {
+                background-color: #0f1419;
+                border: none;
+            }
+        """)
+        
+        root.addWidget(version_container)
         root.addWidget(nav)
 
         # Инициализация
@@ -472,6 +499,9 @@ class MainWindow(QMainWindow):
         self.refresh_subscriptions_ui()
         self.update_version_info()
         self.update_profile_info()
+        self.update_app_version_display()
+        # Проверяем обновления приложения при запуске
+        QTimer.singleShot(2000, self.check_app_update_once)
         
         # Очистка логов раз в сутки
         self.cleanup_logs_if_needed()
@@ -1430,6 +1460,80 @@ class MainWindow(QMainWindow):
             self.lbl_update_info.hide()
             self.btn_version_warning.show()
             self.btn_version_update.hide()
+    
+    def update_app_version_display(self):
+        """Обновление отображения версии приложения"""
+        if self.cached_app_latest_version:
+            comparison = compare_versions(self.app_version, self.cached_app_latest_version)
+            if comparison < 0:
+                # Есть обновление
+                self.lbl_app_version.setText(tr("app.update_available", version=self.cached_app_latest_version))
+                self.lbl_app_version.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+                # Делаем кликабельным для открытия диалога обновления
+                if not hasattr(self.lbl_app_version, '_click_handler'):
+                    self.lbl_app_version.mousePressEvent = lambda e: self.show_app_update_dialog() if e.button() == Qt.LeftButton else None
+                    self.lbl_app_version._click_handler = True
+            else:
+                # Нет обновления
+                self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+                self.lbl_app_version.setStyleSheet("color: #64748b; background-color: transparent; border: none; padding: 0px;")
+                if hasattr(self.lbl_app_version, '_click_handler'):
+                    self.lbl_app_version.mousePressEvent = None
+                    delattr(self.lbl_app_version, '_click_handler')
+        else:
+            # Показываем текущую версию
+            self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+            self.lbl_app_version.setStyleSheet("color: #64748b; background-color: transparent; border: none; padding: 0px;")
+            if hasattr(self.lbl_app_version, '_click_handler'):
+                self.lbl_app_version.mousePressEvent = None
+                delattr(self.lbl_app_version, '_click_handler')
+    
+    def check_app_update_once(self):
+        """Проверка обновлений приложения один раз при запуске"""
+        if self.app_update_checked:
+            return
+        
+        try:
+            latest_version = get_app_latest_version()
+            if latest_version:
+                self.cached_app_latest_version = latest_version
+                self.app_update_checked = True
+                log_to_file(f"[App Update Check] Текущая версия: {self.app_version}, Последняя версия: {latest_version}")
+                
+                comparison = compare_versions(self.app_version, latest_version)
+                if comparison < 0:
+                    # Есть обновление - показываем диалог
+                    log_to_file(f"[App Update Check] Доступно обновление: {latest_version}")
+                    QTimer.singleShot(3000, self.show_app_update_dialog)  # Показываем через 3 секунды после запуска
+                
+                self.update_app_version_display()
+            else:
+                log_to_file("[App Update Check] Не удалось получить последнюю версию приложения")
+                self.update_app_version_display()
+        except Exception as e:
+            log_to_file(f"[App Update Check] Ошибка при проверке обновлений: {e}")
+            self.update_app_version_display()
+    
+    def show_app_update_dialog(self):
+        """Показать диалог обновления приложения"""
+        if not self.cached_app_latest_version:
+            return
+        
+        comparison = compare_versions(self.app_version, self.cached_app_latest_version)
+        if comparison >= 0:
+            # Нет обновления
+            return
+        
+        # Используем красивое диалоговое окно
+        if show_kill_all_success_dialog(
+            self,
+            tr("app.update_title"),
+            tr("app.update_message", version=self.cached_app_latest_version, current=self.app_version)
+        ):
+            # Пользователь хочет обновиться - открываем страницу релизов
+            import webbrowser
+            # Открываем страницу релизов репозитория
+            webbrowser.open("https://github.com/ang3el7z/windows-singbox-ui/releases/latest")
     
     def update_profile_info(self):
         """Обновление информации о профиле"""

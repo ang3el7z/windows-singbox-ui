@@ -92,6 +92,50 @@ def get_latest_version() -> str:
         return None
 
 
+def get_app_latest_version(repo_owner: str = "ang3el7z", repo_name: str = "windows-singbox-ui") -> str:
+    """
+    Получить последнюю версию приложения с GitHub
+    Args:
+        repo_owner: Владелец репозитория (по умолчанию "Ang3el")
+        repo_name: Название репозитория (по умолчанию "SingBox-UI")
+    Returns: версия в формате "x.y.z" или None при ошибке
+    """
+    try:
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        response = requests.get(api_url, timeout=10)
+        response.raise_for_status()
+        release_data = response.json()
+        tag_name = release_data.get("tag_name", "")
+        
+        if not tag_name:
+            _log_version_check(f"[App Update Check] Пустой tag_name в ответе API для {repo_owner}/{repo_name}")
+            return None
+        
+        # Убираем 'v' из начала если есть (например, "v1.0.0" -> "1.0.0")
+        version = tag_name.lstrip('v')
+        
+        # Проверяем формат версии (может быть "1.0.0" или "1.0.0-beta.1")
+        match = re.match(r'^(\d+\.\d+\.\d+)', version)
+        if match:
+            version = match.group(1)
+            _log_version_check(f"[App Update Check] Получена последняя версия приложения: {version}")
+            return version
+        else:
+            _log_version_check(f"[App Update Check] Неверный формат версии: {tag_name} -> {version}")
+            return None
+    except requests.exceptions.Timeout:
+        _log_version_check(f"[App Update Check] Таймаут при запросе к GitHub API для {repo_owner}/{repo_name}")
+        return None
+    except requests.exceptions.RequestException as e:
+        _log_version_check(f"[App Update Check] Ошибка запроса к GitHub API для {repo_owner}/{repo_name}: {e}")
+        return None
+    except Exception as e:
+        _log_version_check(f"[App Update Check] Неожиданная ошибка при получении версии приложения: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def compare_versions(current: str, latest: str) -> int:
     """
     Сравнивает версии

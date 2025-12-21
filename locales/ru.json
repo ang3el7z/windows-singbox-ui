@@ -1,6 +1,12 @@
 {
   "app": {
-    "title": "SingBox-UI"
+    "title": "SingBox-UI",
+    "version": "Версия {version}",
+    "update_available": "Доступно обновление: {version}",
+    "update_title": "Доступно обновление",
+    "update_message": "Доступна новая версия приложения: {version}\n\nТекущая версия: {current}\n\nХотите открыть страницу загрузки?",
+    "update_yes": "Обновить",
+    "update_no": "Позже"
   },
   "nav": {
     "profile": "Профиль",
