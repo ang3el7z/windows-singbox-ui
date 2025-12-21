@@ -50,15 +50,35 @@ def post_build():
             # print("Skipping exe update.")  # Removed to avoid encoding issues in CI
             pass
     
-    # Копируем локали из исходников в папку проекта
+    # Копируем локали из исходников в data/locales в папке проекта
     source_locales = Path('locales')
     if source_locales.exists():
-        locales_dest = project_dir / 'locales'
+        data_dir = project_dir / 'data'
+        locales_dest = data_dir / 'locales'
         # Удаляем существующую папку если есть
         if locales_dest.exists():
             shutil.rmtree(locales_dest)
+        locales_dest.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source_locales, locales_dest)
         # print(f"Locales copied to: {locales_dest}")  # Removed to avoid encoding issues in CI
+    
+    # Копируем updater.exe из dist в data в папке проекта
+    dist_updater = dist_dir / 'updater.exe'
+    if dist_updater.exists():
+        data_dir = project_dir / 'data'
+        data_dir.mkdir(parents=True, exist_ok=True)
+        updater_dest = data_dir / 'updater.exe'
+        if updater_dest.exists():
+            try:
+                updater_dest.unlink()
+            except PermissionError:
+                pass
+        try:
+            shutil.copy2(dist_updater, updater_dest)
+            # print(f"updater.exe copied to: {updater_dest}")  # Removed to avoid encoding issues in CI
+        except Exception as e:
+            # print(f"Error copying updater.exe: {e}")  # Removed to avoid encoding issues in CI
+            pass
     
     # Копируем sing-box.exe из исходников в data/core в папке проекта
     source_core_exe = Path('data/core/sing-box.exe')

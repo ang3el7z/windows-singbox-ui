@@ -24,23 +24,20 @@ class Translator:
     
     def load_translations(self):
         """Загружает переводы из файла"""
-        # Сначала проверяем папку рядом с exe (для собранного приложения)
-        if getattr(sys, 'frozen', False):
-            # Запущено как exe - локали должны быть рядом с exe
+        # Используем LOCALES_DIR из config.paths (теперь это data/locales)
+        locale_file = LOCALES_DIR / f"{self.language}.json"
+        
+        # Для обратной совместимости проверяем старые пути
+        if not locale_file.exists() and getattr(sys, 'frozen', False):
             exe_path = Path(sys.executable)
-            # Если exe в _internal, берем родительскую папку
             if exe_path.parent.name == '_internal':
                 exe_dir = exe_path.parent.parent
             else:
                 exe_dir = exe_path.parent
-            # Сначала проверяем в корне папки проекта
-            locale_file = exe_dir / "locales" / f"{self.language}.json"
-            # Если нет, проверяем в _internal/locales
-            if not locale_file.exists():
-                locale_file = exe_dir / "_internal" / "locales" / f"{self.language}.json"
-        else:
-            # Запущено как скрипт - используем LOCALES_DIR
-            locale_file = LOCALES_DIR / f"{self.language}.json"
+            # Проверяем старый путь рядом с exe
+            old_locale_file = exe_dir / "locales" / f"{self.language}.json"
+            if old_locale_file.exists():
+                locale_file = old_locale_file
         
         if locale_file.exists():
             try:
@@ -58,17 +55,18 @@ class Translator:
     
     def load_fallback(self):
         """Загружает русский язык как fallback"""
-        if getattr(sys, 'frozen', False):
+        locale_file = LOCALES_DIR / "ru.json"
+        
+        # Для обратной совместимости проверяем старые пути
+        if not locale_file.exists() and getattr(sys, 'frozen', False):
             exe_path = Path(sys.executable)
             if exe_path.parent.name == '_internal':
                 exe_dir = exe_path.parent.parent
             else:
                 exe_dir = exe_path.parent
-            locale_file = exe_dir / "locales" / "ru.json"
-            if not locale_file.exists():
-                locale_file = exe_dir / "_internal" / "locales" / "ru.json"
-        else:
-            locale_file = LOCALES_DIR / "ru.json"
+            old_locale_file = exe_dir / "locales" / "ru.json"
+            if old_locale_file.exists():
+                locale_file = old_locale_file
         
         if locale_file.exists():
             try:
@@ -110,18 +108,19 @@ class Translator:
     def get_available_languages(self) -> list:
         """Возвращает список доступных языков"""
         languages = []
-        # Определяем путь к папке locales
-        if getattr(sys, 'frozen', False):
-            # Запущено как exe
+        # Используем LOCALES_DIR из config.paths (теперь это data/locales)
+        locales_path = LOCALES_DIR
+        
+        # Для обратной совместимости проверяем старые пути
+        if not locales_path.exists() and getattr(sys, 'frozen', False):
             exe_path = Path(sys.executable)
             if exe_path.parent.name == '_internal':
                 exe_dir = exe_path.parent.parent
             else:
                 exe_dir = exe_path.parent
-            locales_path = exe_dir / "locales"
-        else:
-            # Запущено как скрипт
-            locales_path = LOCALES_DIR
+            old_locales_path = exe_dir / "locales"
+            if old_locales_path.exists():
+                locales_path = old_locales_path
         
         # Ищем все json файлы в папке locales
         if locales_path.exists():

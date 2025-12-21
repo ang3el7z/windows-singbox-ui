@@ -13,12 +13,12 @@ if core_exe_path.exists():
     binaries_list = [(str(core_exe_path), 'data/core')]
     # print(f"Including sing-box.exe in build: {core_exe_path}")  # Removed to avoid encoding issues in CI
 
-# Собираем все локали
+# Собираем все локали в data/locales
 locales_data = []
 locales_dir = Path('locales')
 if locales_dir.exists():
     for locale_file in locales_dir.glob('*.json'):
-        locales_data.append((str(locale_file), 'locales'))
+        locales_data.append((str(locale_file), 'data/locales'))
         # print(f"Including locale: {locale_file}")  # Removed to avoid encoding issues in CI
 
 # Добавляем иконку в сборку для использования в трее

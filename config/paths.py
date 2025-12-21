@@ -27,7 +27,7 @@ else:
 DATA_DIR = ROOT / "data"
 CORE_DIR = DATA_DIR / "core"
 LOG_DIR = DATA_DIR / "logs"
-LOCALES_DIR = ROOT / "locales"
+LOCALES_DIR = DATA_DIR / "locales"
 
 # Файлы
 SUB_FILE = DATA_DIR / ".subscriptions"

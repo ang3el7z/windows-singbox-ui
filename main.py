@@ -1662,9 +1662,9 @@ class MainWindow(QMainWindow):
                 
                 comparison = compare_versions(self.app_version, latest_version)
                 if comparison < 0:
-                    # Есть обновление - показываем диалог
+                    # Есть обновление - обновляем отображение, но не показываем диалог автоматически
                     log_to_file(f"[App Update Check] Доступно обновление: {latest_version}")
-                    QTimer.singleShot(3000, self.show_app_update_dialog)  # Показываем через 3 секунды после запуска
+                    # Пользователь сам нажмет на версию, если захочет обновиться
                 
                 self.update_app_version_display()
             else:
@@ -3073,20 +3073,8 @@ class AppUpdateThread(QThread):
             self.finished.emit(False, tr("app.update_error", error=str(e)))
     
     def _create_update_script(self, extract_dir, zip_path):
-        """Создает bat-скрипт для обновления и перезапуска приложения"""
-        from config.paths import ROOT
-        
-        # Находим exe в распакованных файлах
-        new_exe = None
-        for file in extract_dir.rglob("SingBox-UI.exe"):
-            new_exe = file
-            break
-        
-        if not new_exe:
-            raise Exception("SingBox-UI.exe не найден в архиве")
-        
-        # Создаем bat-скрипт
-        bat_path = Path(tempfile.gettempdir()) / "singbox-ui-update.bat"
+        """Запускает updater.exe для обновления и перезапуска приложения"""
+        from config.paths import ROOT, DATA_DIR
         
         current_exe = Path(sys.executable)
         if current_exe.parent.name == '_internal':
@@ -3095,55 +3083,23 @@ class AppUpdateThread(QThread):
         else:
             app_dir = current_exe.parent
         
-        # Находим папку SingBox-UI в распакованном архиве
-        new_app_dir = None
-        for item in extract_dir.iterdir():
-            if item.is_dir() and item.name == "SingBox-UI":
-                new_app_dir = item
-                break
+        # Находим updater.exe в data
+        updater_exe = DATA_DIR / "updater.exe"
         
-        if not new_app_dir:
-            # Если папка SingBox-UI не найдена, возможно файлы в корне
-            new_app_dir = extract_dir
+        if not updater_exe.exists():
+            raise Exception(f"updater.exe не найден в {updater_exe}")
         
-        bat_content = f"""@echo off
-chcp 65001 >nul
-echo Обновление SingBox-UI...
-timeout /t 2 /nobreak >nul
-
-REM Закрываем приложение если запущено
-taskkill /F /IM "{current_exe.name}" >nul 2>&1
-timeout /t 1 /nobreak >nul
-
-REM Копируем новые файлы (включая locales)
-xcopy /E /Y /I "{new_app_dir}\\*" "{app_dir}\\" >nul
-
-REM Убеждаемся что locales скопированы
-if exist "{new_app_dir}\\locales" (
-    if not exist "{app_dir}\\locales" (
-        xcopy /E /Y /I "{new_app_dir}\\locales" "{app_dir}\\locales" >nul
-    ) else (
-        xcopy /E /Y /I "{new_app_dir}\\locales\\*" "{app_dir}\\locales\\" >nul
-    )
-)
-
-REM Удаляем временные файлы обновления
-rd /S /Q "{extract_dir.parent}" >nul 2>&1
-del "{bat_path}" >nul 2>&1
-
-REM Запускаем обновленное приложение
-start "" "{app_dir}\\SingBox-UI.exe"
-"""
+        log_to_file(f"[App Update] Запуск updater.exe: {updater_exe}")
+        log_to_file(f"[App Update] Extract dir: {extract_dir}")
+        log_to_file(f"[App Update] App dir: {app_dir}")
         
-        with open(bat_path, 'w', encoding='utf-8') as f:
-            f.write(bat_content)
+        # Запускаем updater.exe с параметрами: extract_dir и app_dir
+        subprocess.Popen(
+            [str(updater_exe), str(extract_dir), str(app_dir)],
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        )
         
-        log_to_file(f"[App Update] Создан скрипт обновления: {bat_path}")
-        
-        # Запускаем bat-скрипт
-        subprocess.Popen([str(bat_path)], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        
-        # Даем время на запуск скрипта
+        # Даем время на запуск updater
         time.sleep(1)
         
         # Закрываем приложение
