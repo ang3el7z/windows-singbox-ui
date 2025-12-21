@@ -57,10 +57,14 @@ def post_build():
         locales_dest = data_dir / 'locales'
         # Remove existing directory if exists
         if locales_dest.exists():
-            shutil.rmtree(locales_dest)
-        locales_dest.mkdir(parents=True, exist_ok=True)
+            try:
+                shutil.rmtree(locales_dest)
+                log(f"[post_build] Removed existing locales directory")
+            except Exception as e:
+                log(f"[post_build] WARNING: Could not remove existing locales directory: {e}")
         try:
-            shutil.copytree(source_locales, locales_dest)
+            # Use dirs_exist_ok=True for Python 3.8+ to handle existing directories
+            shutil.copytree(source_locales, locales_dest, dirs_exist_ok=True)
             log(f"[post_build] Locales copied to: {locales_dest}")
         except Exception as e:
             log(f"[post_build] ERROR copying locales: {e}")
