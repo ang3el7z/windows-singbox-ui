@@ -19,7 +19,7 @@ locales_dir = Path('locales')
 if locales_dir.exists():
     for locale_file in locales_dir.glob('*.json'):
         locales_data.append((str(locale_file), 'locales'))
-        print(f"Включаем локализацию: {locale_file}")
+        # print(f"Including locale: {locale_file}")  # Removed to avoid encoding issues in CI
 
 # Добавляем иконку в сборку для использования в трее
 icon_data = []
