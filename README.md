@@ -9,6 +9,14 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 
 [Read in Russian](./README.ru.md)
 
+## Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7b10bc3c-4a28-4688-8f3e-042eb6784aa0" width="320" alt="Profile"/>
+  <img src="https://github.com/user-attachments/assets/9f89cf4e-e367-4fca-bff5-81872ac73a20" width="320" alt="Home"/>
+  <img src="https://github.com/user-attachments/assets/f2bd3451-5913-45a2-8e02-6ef70667ec15" width="320" alt="Settings"/>
+</p>
+
 ## Features
 
 - 🎨 Modern mobile design
