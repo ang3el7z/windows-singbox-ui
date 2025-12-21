@@ -77,7 +77,13 @@
     "autostart_disabled": "Autostart disabled",
     "autostart_error": "Autostart: registry access error: {error}",
     "run_as_admin_enabled": "Run as administrator enabled",
-    "run_as_admin_disabled": "Run as administrator disabled"
+    "run_as_admin_disabled": "Run as administrator disabled",
+    "admin_required_title": "Administrator rights required",
+    "admin_required_start": "Administrator rights are required to start SingBox.\n\nRestart the application as administrator?",
+    "admin_required_stop": "Administrator rights are required to stop SingBox.\n\nRestart the application as administrator?",
+    "restart_required_title": "Restart required",
+    "restart_required_text": "To apply the 'Run as administrator' setting, the application needs to be restarted.\n\nRestart now?",
+    "admin_restart_failed": "Failed to restart the application as administrator"
   }
 }
 

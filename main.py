@@ -1,6 +1,8 @@
 """Главный файл приложения SingBox-UI"""
 import sys
 import subprocess
+import ctypes
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -10,7 +12,7 @@ from PyQt5.QtWidgets import (
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
     QLineEdit
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
@@ -23,6 +25,35 @@ from managers.subscriptions import SubscriptionManager
 from utils.i18n import tr, set_language
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions
 from core.downloader import DownloadThread
+
+
+def is_admin():
+    """Проверка, запущено ли приложение от имени администратора"""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception:
+        return False
+
+
+def restart_as_admin():
+    """Перезапуск приложения от имени администратора"""
+    if is_admin():
+        return False  # Уже запущено от имени администратора
+    
+    try:
+        if getattr(sys, 'frozen', False):
+            exe_path = sys.executable
+        else:
+            exe_path = sys.executable
+        
+        # Используем ShellExecute для запуска от имени администратора
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", exe_path, "", None, 1
+        )
+        return True
+    except Exception as e:
+        print(f"Ошибка перезапуска от имени администратора: {e}")
+        return False
 
 
 class MainWindow(QMainWindow):
@@ -130,6 +161,11 @@ class MainWindow(QMainWindow):
         root.addWidget(nav)
         
         # Инициализация
+        # Проверяем права администратора
+        self.is_admin = is_admin()
+        if not self.is_admin:
+            print("[Admin Check] Приложение запущено без прав администратора")
+        
         self.refresh_subscriptions_ui()
         self.update_version_info()
         self.update_profile_info()
@@ -939,38 +975,76 @@ class MainWindow(QMainWindow):
         if self.current_sub_index < 0:
             self.log(tr("messages.no_subscription"))
             return
+        
+        # Проверяем права администратора
+        if not is_admin():
+            reply = QMessageBox.question(
+                self,
+                tr("messages.admin_required_title"),
+                tr("messages.admin_required_start"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                if restart_as_admin():
+                    self.close()
+                    return
+                else:
+                    self.log(tr("messages.admin_restart_failed"))
+                    return
+            else:
+                return
+        
         self.log(tr("messages.downloading_config"))
         ok = self.subs.download_config(self.current_sub_index)
         if not ok:
             self.log(tr("messages.config_error"))
             return
-        try:
-            self.log(tr("messages.starting"))
-            # Скрываем окно консоли
-            startupinfo = None
-            if sys.platform == "win32":
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            self.proc = subprocess.Popen(
-                [str(CORE_EXE), "run", "-c", str(CONFIG_FILE)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=str(CORE_DIR),
-                startupinfo=startupinfo,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-            )
-        except Exception as e:
-            self.log(tr("messages.start_error", error=str(e)))
-            self.proc = None
+        
+        # Запускаем в отдельном потоке чтобы не блокировать UI
+        self.start_thread = StartSingBoxThread(CORE_EXE, CONFIG_FILE, CORE_DIR)
+        self.start_thread.finished.connect(self.on_singbox_started)
+        self.start_thread.error.connect(self.on_singbox_start_error)
+        self.start_thread.start()
+        self.log(tr("messages.starting"))
+        self.update_big_button_state()
+    
+    def on_singbox_started(self, proc):
+        """Обработка успешного запуска SingBox"""
+        self.proc = proc
+        self.update_big_button_state()
+    
+    def on_singbox_start_error(self, error_msg):
+        """Обработка ошибки запуска SingBox"""
+        self.log(tr("messages.start_error", error=error_msg))
+        self.proc = None
         self.update_big_button_state()
     
     def stop_singbox(self):
         """Остановка SingBox"""
         if not self.proc:
             return
+        
+        # Проверяем права администратора перед остановкой
+        if not is_admin():
+            reply = QMessageBox.question(
+                self,
+                tr("messages.admin_required_title"),
+                tr("messages.admin_required_stop"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                if restart_as_admin():
+                    # Закрываем текущее приложение
+                    self.close()
+                    return
+                else:
+                    self.log(tr("messages.admin_restart_failed"))
+                    return
+            else:
+                return
+        
         self.log(tr("messages.stopping"))
         try:
             self.proc.terminate()
@@ -1069,16 +1143,21 @@ class MainWindow(QMainWindow):
         if self.settings.get("start_with_windows", False):
             self.set_autostart(True)
         
-        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
-    
-    def on_run_as_admin_changed(self, state: int):
-        """Изменение настройки запуска от имени администратора"""
-        enabled = state == Qt.Checked
-        self.settings.set("run_as_admin", enabled)
-        
-        # Если автозапуск включен, обновляем его с новой настройкой
-        if self.settings.get("start_with_windows", False):
-            self.set_autostart(True)
+        # Если включили запуск от имени администратора, предлагаем перезапустить
+        if enabled and not is_admin():
+            reply = QMessageBox.question(
+                self,
+                tr("messages.restart_required_title"),
+                tr("messages.restart_required_text"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                if restart_as_admin():
+                    self.close()
+                    return
+                else:
+                    self.log(tr("messages.admin_restart_failed"))
         
         self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
@@ -1167,6 +1246,40 @@ def apply_dark_theme(app: QApplication):
             outline: none;
         }
     """)
+
+
+class StartSingBoxThread(QThread):
+    """Поток для запуска SingBox без блокировки UI"""
+    finished = pyqtSignal(object)  # subprocess.Popen
+    error = pyqtSignal(str)
+    
+    def __init__(self, core_exe, config_file, core_dir):
+        super().__init__()
+        self.core_exe = core_exe
+        self.config_file = config_file
+        self.core_dir = core_dir
+    
+    def run(self):
+        try:
+            # Скрываем окно консоли
+            startupinfo = None
+            if sys.platform == "win32":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+            
+            proc = subprocess.Popen(
+                [str(self.core_exe), "run", "-c", str(self.config_file)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=str(self.core_dir),
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+            self.finished.emit(proc)
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 if __name__ == "__main__":
