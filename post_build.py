@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 
 def log(msg: str):
-    """Логирование для CI"""
+    """Logging for CI"""
     print(msg, file=sys.stderr)
     sys.stderr.flush()
 
 def post_build():
-    """Настраивает структуру папки проекта после сборки"""
+    """Sets up project structure after build"""
     dist_dir = Path('dist')
     standalone_exe = dist_dir / 'SingBox-UI.exe'
     
@@ -20,52 +20,42 @@ def post_build():
         log(f"[post_build] ERROR: SingBox-UI.exe not found at {standalone_exe}")
         return
     
-    # Создаем папку проекта
+    # Create project directory
     project_dir = dist_dir / 'SingBox-UI'
     if project_dir.exists():
         try:
             shutil.rmtree(project_dir)
         except PermissionError:
-            # print(f"Warning: Could not delete {project_dir}, files may be in use.")  # Removed to avoid encoding issues in CI
-            # print("Attempting to continue without deletion...")  # Removed to avoid encoding issues in CI
             pass
     project_dir.mkdir(parents=True, exist_ok=True)
-    # print(f"Project directory: {project_dir}")  # Removed to avoid encoding issues in CI
     
-    # Перемещаем exe в папку проекта
+    # Move exe to project directory
     exe_dest = project_dir / 'SingBox-UI.exe'
-    # Удаляем старый exe файл, если он существует
+    # Remove old exe file if it exists
     if exe_dest.exists():
         try:
-            # Пробуем переименовать старый файл, затем удалить
+            # Try to rename old file, then delete
             old_exe = project_dir / 'SingBox-UI.exe.old'
             if old_exe.exists():
                 old_exe.unlink()
             exe_dest.rename(old_exe)
             old_exe.unlink()
         except (PermissionError, OSError) as e:
-            # print(f"Warning: Could not delete {exe_dest}, file may be in use.")  # Removed to avoid encoding issues in CI
-            # print(f"Error: {e}")  # Removed to avoid encoding issues in CI
-            # print("Skipping exe update. New file is in dist\\SingBox-UI.exe")  # Removed to avoid encoding issues in CI
             pass
-            # Продолжаем с остальными файлами
     else:
-        # Если файла нет, просто перемещаем
+        # If file doesn't exist, just move
         try:
             shutil.move(str(standalone_exe), str(exe_dest))
-            # print(f"Exe moved to project directory: {exe_dest}")  # Removed to avoid encoding issues in CI
         except Exception as e:
-            # print(f"Error moving exe: {e}")  # Removed to avoid encoding issues in CI
-            # print("Skipping exe update.")  # Removed to avoid encoding issues in CI
             pass
     
-    # Копируем локали из исходников в data/locales в папке проекта
+    # Copy locales from source to data/locales in project directory
     source_locales = Path('locales')
     log(f"[post_build] Checking for locales: {source_locales}")
     if source_locales.exists():
         data_dir = project_dir / 'data'
         locales_dest = data_dir / 'locales'
-        # Удаляем существующую папку если есть
+        # Remove existing directory if exists
         if locales_dest.exists():
             shutil.rmtree(locales_dest)
         locales_dest.mkdir(parents=True, exist_ok=True)
@@ -77,7 +67,7 @@ def post_build():
     else:
         log(f"[post_build] WARNING: locales directory not found at {source_locales}")
     
-    # Копируем updater.exe из dist в data в папке проекта
+    # Copy updater.exe from dist to data in project directory
     dist_updater = dist_dir / 'updater.exe'
     log(f"[post_build] Checking for updater.exe: {dist_updater}")
     if dist_updater.exists():
@@ -98,7 +88,7 @@ def post_build():
     else:
         log(f"[post_build] WARNING: updater.exe not found at {dist_updater}")
     
-    # Копируем sing-box.exe из исходников в data/core в папке проекта
+    # Copy sing-box.exe from source to data/core in project directory
     source_core_exe = Path('data/core/sing-box.exe')
     log(f"[post_build] Checking for sing-box.exe: {source_core_exe}")
     if source_core_exe.exists():
@@ -113,7 +103,7 @@ def post_build():
             log(f"[post_build] ERROR copying sing-box.exe: {e}")
     else:
         log(f"[post_build] WARNING: sing-box.exe not found at {source_core_exe}")
-        # Создаем структуру папок даже если sing-box.exe нет
+        # Create directory structure even if sing-box.exe is missing
         data_dir = project_dir / 'data'
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
