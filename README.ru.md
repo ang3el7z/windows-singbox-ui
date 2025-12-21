@@ -24,6 +24,7 @@
 ```
 SingBox-UI/
 ├── main.py                 # Главный файл приложения
+├── updater.py              # Утилита обновления (собирается как updater.exe)
 ├── config/                 # Конфигурация
 │   └── paths.py           # Пути к файлам
 ├── managers/              # Менеджеры данных
@@ -31,15 +32,20 @@ SingBox-UI/
 │   └── subscriptions.py   # Подписки
 ├── utils/                 # Утилиты
 │   ├── i18n.py           # Локализация
+│   ├── logger.py         # Логирование
 │   └── singbox.py        # Утилиты SingBox
 ├── core/                  # Основная логика
 │   └── downloader.py     # Загрузка ядра
-├── locales/              # Локализация
+├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
 │   └── en.json           # Английский
 └── data/                 # Данные (создается автоматически)
     ├── core/             # Ядро SingBox
     ├── logs/             # Логи
+    ├── locales/          # Файлы локализации (копируются из locales/)
+    │   ├── ru.json       # Русский
+    │   └── en.json       # Английский
+    ├── updater.exe       # Утилита обновления
     └── config.json       # Конфиг
 ```
 
@@ -60,11 +66,21 @@ SingBox-UI/
 ### Сборка exe
 
 ```bash
+# Сборка основного приложения
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
+
+# Сборка утилиты обновления
+py -m PyInstaller updater.spec --clean --noconfirm
+
+# Запуск post-build скрипта для организации файлов
 py post_build.py
 ```
 
-Результат будет в папке `dist/SingBox-UI/`
+Результат будет в папке `dist/SingBox-UI/` со следующей структурой:
+- `SingBox-UI.exe` - Основное приложение
+- `data/updater.exe` - Утилита обновления
+- `data/locales/` - Файлы локализации
+- `data/core/` - Ядро SingBox (скачивается при первом запуске)
 
 ## Использование
 
@@ -78,7 +94,13 @@ py post_build.py
 При первом запуске приложение автоматически создает:
 
 - `data/core/sing-box.exe` - Ядро SingBox (можно скачать автоматически)
-- `data/logs/singbox.log` - Логи приложения
+- `data/logs/` - Папка с логами приложения
+  - `singbox.log` - Логи SingBox
+  - `debug.log` - Отладочные логи
+- `data/locales/` - Файлы локализации (копируются при сборке)
+  - `ru.json` - Русские переводы
+  - `en.json` - Английские переводы
+- `data/updater.exe` - Утилита обновления (используется для автоматических обновлений)
 - `data/config.json` - Конфигурационный файл (скачивается из подписки)
 - `data/.subscriptions` - Список подписок
 - `data/.settings` - Настройки приложения

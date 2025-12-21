@@ -23,9 +23,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Build with PyInstaller
+    - name: Build main application with PyInstaller
       run: |
         python -m PyInstaller SingBox-UI.spec --clean --noconfirm
+        
+    - name: Build updater with PyInstaller
+      run: |
+        python -m PyInstaller updater.spec --clean --noconfirm
         
     - name: Run post-build script
       run: |

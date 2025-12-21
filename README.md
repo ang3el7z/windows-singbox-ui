@@ -24,6 +24,7 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 ```
 SingBox-UI/
 ├── main.py                 # Main application file
+├── updater.py              # Update utility (built as updater.exe)
 ├── config/                 # Configuration
 │   └── paths.py           # File paths
 ├── managers/              # Data managers
@@ -31,15 +32,20 @@ SingBox-UI/
 │   └── subscriptions.py   # Subscriptions
 ├── utils/                 # Utilities
 │   ├── i18n.py           # Localization
+│   ├── logger.py         # Logging
 │   └── singbox.py        # SingBox utilities
 ├── core/                  # Core logic
 │   └── downloader.py     # Core download
-├── locales/              # Localization
+├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   └── en.json           # English
 └── data/                 # Data (created automatically)
     ├── core/             # SingBox core
     ├── logs/             # Logs
+    ├── locales/          # Localization files (copied from locales/)
+    │   ├── ru.json       # Russian
+    │   └── en.json       # English
+    ├── updater.exe       # Update utility executable
     └── config.json       # Config
 ```
 
@@ -60,11 +66,21 @@ SingBox-UI/
 ### Build exe
 
 ```bash
+# Build main application
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
+
+# Build updater
+py -m PyInstaller updater.spec --clean --noconfirm
+
+# Run post-build script to organize files
 py post_build.py
 ```
 
-The result will be in the `dist/SingBox-UI/` folder
+The result will be in the `dist/SingBox-UI/` folder with the following structure:
+- `SingBox-UI.exe` - Main application
+- `data/updater.exe` - Update utility
+- `data/locales/` - Localization files
+- `data/core/` - SingBox core (downloaded on first run)
 
 ## Usage
 
@@ -78,7 +94,13 @@ The result will be in the `dist/SingBox-UI/` folder
 On first launch, the application automatically creates:
 
 - `data/core/sing-box.exe` - SingBox core (can be downloaded automatically)
-- `data/logs/singbox.log` - Application logs
+- `data/logs/` - Application logs directory
+  - `singbox.log` - SingBox logs
+  - `debug.log` - Debug logs
+- `data/locales/` - Localization files (copied during build)
+  - `ru.json` - Russian translations
+  - `en.json` - English translations
+- `data/updater.exe` - Update utility (used for automatic updates)
 - `data/config.json` - Configuration file (downloaded from subscription)
 - `data/.subscriptions` - Subscription list
 - `data/.settings` - Application settings

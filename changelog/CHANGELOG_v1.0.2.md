@@ -26,6 +26,8 @@
 - 📦 **Build system updates**: Added `updater.spec` for building updater executable
 - 🔄 **Post-build script**: Updated to copy locales to `data/locales` and include updater.exe
 - 📝 **Code cleanup**: Removed batch script generation, replaced with cleaner updater.exe approach
+- 🚀 **CI/CD improvements**: Updated GitHub Actions workflow to build both main app and updater.exe
+- 📚 **Documentation updates**: Updated README files to reflect new project structure with updater.exe and data/locales
 
 ## 🎯 User Experience
 
