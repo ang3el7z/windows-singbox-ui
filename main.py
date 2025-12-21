@@ -37,73 +37,25 @@ def is_admin():
 def restart_as_admin():
     """Перезапуск приложения от имени администратора"""
     if is_admin():
-        return False  # Уже запущено от имени администратора
-    
-    try:
-        if getattr(sys, 'frozen', False):
-            exe_path = sys.executable
-        else:
-            exe_path = sys.executable
-        
-        # Сначала запускаем новый процесс от имени администратора
-        # Используем ShellExecute для запуска от имени администратора
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", exe_path, "", None, 1
-        )
-        
-        # Проверяем результат (если > 32, то успешно)
-        if result > 32:
-            # Даем время на запуск нового процесса
-            import time
-            time.sleep(1.0)
-            
-            # Теперь убиваем старые процессы (кроме нового)
-            try:
-                import psutil
-                current_pid = os.getpid()
-                exe_name = Path(exe_path).name
-                
-                # Получаем список всех процессов с таким именем
-                pids_to_kill = []
-                for proc in psutil.process_iter(['pid', 'name', 'create_time']):
-                    try:
-                        if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
-                            if proc.info['pid'] != current_pid:
-                                # Проверяем время создания - если процесс старше 2 секунд, убиваем
-                                if proc.info.get('create_time', 0) < time.time() - 2:
-                                    pids_to_kill.append(proc.info['pid'])
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
-                
-                # Убиваем старые процессы
-                for pid in pids_to_kill:
-                    try:
-                        proc = psutil.Process(pid)
-                        proc.kill()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
-            except ImportError:
-                # Если psutil не доступен, используем taskkill с задержкой
-                import time
-                time.sleep(0.5)
-                try:
-                    exe_name = Path(sys.executable).name
-                    subprocess.run(
-                        ["taskkill", "/F", "/IM", exe_name],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        timeout=3
-                    )
-                except Exception:
-                    pass
-            
-            return True
-        else:
-            return False
-    except Exception as e:
-        # Ошибка перезапуска от имени администратора
         return False
 
+    try:
+        exe_path = sys.executable  # PyInstaller: это ваш .exe
+        params = ""  # при желании: " ".join(map(shlex.quote, sys.argv[1:]))
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", exe_path, params, None, 1
+        )
+        if result <= 32:
+            return False
+
+        # Даем время новому процессу запуститься перед закрытием старого
+        # Это важно для корректной работы QSharedMemory и трея
+        app = QApplication.instance()
+        if app:
+            QTimer.singleShot(500, app.quit)
+        return True
+    except Exception:
+        return False
 
 def show_restart_admin_dialog(parent, title, message):
     """Кастомный диалог для перезапуска от имени администратора"""
@@ -1983,8 +1935,11 @@ if __name__ == "__main__":
     win = MainWindow()
     
     # Убеждаемся, что трей показывается сразу после создания окна
+    # Проверяем оба варианта имени на случай, если где-то используется другое имя
     if hasattr(win, 'tray_icon') and win.tray_icon:
         win.tray_icon.show()
+    elif hasattr(win, 'trayicon') and win.trayicon:
+        win.trayicon.show()
     
     win.show()
     sys.exit(app.exec_())
