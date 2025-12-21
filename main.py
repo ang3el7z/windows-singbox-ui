@@ -2127,6 +2127,8 @@ class MainWindow(QMainWindow):
                 tr("messages.kill_all_title"),
                 tr("messages.kill_all_done")
             )
+            # Закрываем приложение после остановки всех процессов
+            QApplication.quit()
     
     def setup_tray(self):
         """Настройка системного трея"""
