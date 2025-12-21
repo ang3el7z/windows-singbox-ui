@@ -2,9 +2,7 @@
 import sys
 import subprocess
 import ctypes
-import os
 from pathlib import Path
-from datetime import datetime
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -52,7 +50,7 @@ def restart_as_admin():
         )
         return True
     except Exception as e:
-        print(f"Ошибка перезапуска от имени администратора: {e}")
+        # Ошибка перезапуска от имени администратора
         return False
 
 
@@ -996,12 +994,10 @@ class MainWindow(QMainWindow):
                     # Используем кэш если есть
                     if self.cached_latest_version:
                         latest_version = self.cached_latest_version
-                        print(f"[Version Check] Используем кэшированную версию: {latest_version}")
             else:
                 # Используем кэш после нескольких неудачных попыток
                 if self.cached_latest_version:
                     latest_version = self.cached_latest_version
-                    print(f"[Version Check] Используем кэшированную версию после неудачных попыток: {latest_version}")
             
             if latest_version:
                 print(f"[Version Check] Текущая версия: {version}, Последняя версия: {latest_version}")
