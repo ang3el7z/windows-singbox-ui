@@ -1,14 +1,23 @@
-"""Post-build скрипт для настройки структуры проекта"""
+"""Post-build script for project structure setup"""
 import shutil
+import sys
 from pathlib import Path
+
+def log(msg: str):
+    """Логирование для CI"""
+    print(msg, file=sys.stderr)
+    sys.stderr.flush()
 
 def post_build():
     """Настраивает структуру папки проекта после сборки"""
     dist_dir = Path('dist')
     standalone_exe = dist_dir / 'SingBox-UI.exe'
     
+    log(f"[post_build] Starting post-build script")
+    log(f"[post_build] Checking for SingBox-UI.exe: {standalone_exe}")
+    
     if not standalone_exe.exists():
-        # print("Exe file not found!")  # Removed to avoid encoding issues in CI
+        log(f"[post_build] ERROR: SingBox-UI.exe not found at {standalone_exe}")
         return
     
     # Создаем папку проекта
@@ -52,6 +61,7 @@ def post_build():
     
     # Копируем локали из исходников в data/locales в папке проекта
     source_locales = Path('locales')
+    log(f"[post_build] Checking for locales: {source_locales}")
     if source_locales.exists():
         data_dir = project_dir / 'data'
         locales_dest = data_dir / 'locales'
@@ -59,12 +69,19 @@ def post_build():
         if locales_dest.exists():
             shutil.rmtree(locales_dest)
         locales_dest.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(source_locales, locales_dest)
-        # print(f"Locales copied to: {locales_dest}")  # Removed to avoid encoding issues in CI
+        try:
+            shutil.copytree(source_locales, locales_dest)
+            log(f"[post_build] Locales copied to: {locales_dest}")
+        except Exception as e:
+            log(f"[post_build] ERROR copying locales: {e}")
+    else:
+        log(f"[post_build] WARNING: locales directory not found at {source_locales}")
     
     # Копируем updater.exe из dist в data в папке проекта
     dist_updater = dist_dir / 'updater.exe'
+    log(f"[post_build] Checking for updater.exe: {dist_updater}")
     if dist_updater.exists():
+        log(f"[post_build] Found updater.exe, copying to data/")
         data_dir = project_dir / 'data'
         data_dir.mkdir(parents=True, exist_ok=True)
         updater_dest = data_dir / 'updater.exe'
@@ -75,31 +92,40 @@ def post_build():
                 pass
         try:
             shutil.copy2(dist_updater, updater_dest)
-            # print(f"updater.exe copied to: {updater_dest}")  # Removed to avoid encoding issues in CI
+            log(f"[post_build] updater.exe copied to: {updater_dest}")
         except Exception as e:
-            # print(f"Error copying updater.exe: {e}")  # Removed to avoid encoding issues in CI
-            pass
+            log(f"[post_build] ERROR copying updater.exe: {e}")
+    else:
+        log(f"[post_build] WARNING: updater.exe not found at {dist_updater}")
     
     # Копируем sing-box.exe из исходников в data/core в папке проекта
     source_core_exe = Path('data/core/sing-box.exe')
+    log(f"[post_build] Checking for sing-box.exe: {source_core_exe}")
     if source_core_exe.exists():
+        log(f"[post_build] Found sing-box.exe, copying to data/core/")
         data_dir = project_dir / 'data'
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_core_exe, core_dir / 'sing-box.exe')
-        # print(f"sing-box.exe copied to: {core_dir / 'sing-box.exe'}")  # Removed to avoid encoding issues in CI
+        try:
+            shutil.copy2(source_core_exe, core_dir / 'sing-box.exe')
+            log(f"[post_build] sing-box.exe copied to: {core_dir / 'sing-box.exe'}")
+        except Exception as e:
+            log(f"[post_build] ERROR copying sing-box.exe: {e}")
     else:
+        log(f"[post_build] WARNING: sing-box.exe not found at {source_core_exe}")
         # Создаем структуру папок даже если sing-box.exe нет
         data_dir = project_dir / 'data'
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
-        # print(f"Created directory structure: {core_dir} (sing-box.exe will be downloaded on first run)")  # Removed to avoid encoding issues in CI
+        log(f"[post_build] Created directory structure: {core_dir} (sing-box.exe will be downloaded on first run)")
     
-    # print(f"\nProject structure created:")  # Removed to avoid encoding issues in CI
-    # print(f"  {project_dir}/")  # Removed to avoid encoding issues in CI
-    # print(f"    - SingBox-UI.exe")  # Removed to avoid encoding issues in CI
-    # print(f"    - locales/")  # Removed to avoid encoding issues in CI
-    # print(f"    - data/core/")  # Removed to avoid encoding issues in CI
+    log(f"[post_build] Post-build script completed")
+    log(f"[post_build] Project structure:")
+    log(f"[post_build]   {project_dir}/")
+    log(f"[post_build]     - SingBox-UI.exe")
+    log(f"[post_build]     - data/locales/")
+    log(f"[post_build]     - data/core/")
+    log(f"[post_build]     - data/updater.exe")
 
 if __name__ == '__main__':
     post_build()
