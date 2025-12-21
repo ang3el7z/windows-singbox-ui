@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build
+build/
+dist/
+*.spec.bak
+
+# Data (но не структуру папок)
+data/core/*.exe
+data/logs/*.log
+data/*.json
+data/.subscriptions
+data/.settings
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+*.manifest
+*.spec.bak
+

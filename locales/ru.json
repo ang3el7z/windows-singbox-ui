@@ -1,0 +1,79 @@
+{
+  "app": {
+    "title": "SingBox-UI"
+  },
+  "nav": {
+    "profile": "Профиль",
+    "home": "Главная",
+    "settings": "Настройки"
+  },
+  "home": {
+    "version": "Версия SingBox",
+    "installed": "Установлено: версия {version}",
+    "not_installed": "Не установлено",
+    "update_available": "Доступно обновление: версия {version}",
+    "profile": "Профиль",
+    "not_selected": "Не выбран",
+    "state_stopped": "Остановлено",
+    "state_running": "Запущено",
+    "button_start": "START",
+    "button_stop": "STOP"
+  },
+  "profile": {
+    "title": "Подписки",
+    "add": "Добавить",
+    "delete": "Удалить",
+    "test": "Тест",
+    "add_subscription": "Новая подписка",
+    "name": "Название:",
+    "url": "URL конфига:",
+    "delete_question": "Удалить?",
+    "delete_confirm": "Удалить '{name}'?",
+    "select_for_test": "Выбери подписку для теста",
+    "test_loading": "Тест загрузки конфига...",
+    "test_success": "Подписка работает, config.json загружен.",
+    "test_error": "Ошибка загрузки конфига.",
+    "added": "Добавлена подписка: {name}",
+    "removed": "Удалена подписка: {name}"
+  },
+  "settings": {
+    "title": "Настройки",
+    "auto_update_interval": "Интервал автообновления (мин):",
+    "autostart": "Запускать вместе с Windows",
+    "logs": "Логи"
+  },
+  "download": {
+    "title": "Установка SingBox",
+    "not_installed": "SingBox не установлен",
+    "description": "Для работы приложения необходимо установить ядро SingBox.\n\nНажмите кнопку 'Скачать', чтобы автоматически загрузить\nпоследнюю версию с GitHub и установить её.",
+    "cancel": "Отмена",
+    "download": "Скачать",
+    "downloading": "Скачивание...",
+    "success": "Успешно",
+    "error": "Ошибка",
+    "success_message": "Успешно установлена версия {version}",
+    "error_not_found": "Не найден архив для Windows",
+    "error_extract": "Не найден sing-box.exe в архиве",
+    "error_general": "Ошибка: {error}"
+  },
+  "messages": {
+    "no_core": "Нет ядра sing-box.exe",
+    "no_subscription": "Нет выбранной подписки",
+    "downloading_config": "Скачиваю config.json...",
+    "config_error": "Не удалось скачать конфиг, старт отменён.",
+    "starting": "Запускаю sing-box...",
+    "start_error": "Ошибка запуска: {error}",
+    "stopping": "Останавливаю sing-box...",
+    "stopped": "sing-box завершился, код {code}",
+    "reload": "Ручной reload: перезапуск с новым конфигом",
+    "auto_update": "Автообновление конфига по подписке...",
+    "auto_update_error": "Автообновление: не удалось скачать конфиг.",
+    "auto_update_restart": "Перезапуск sing-box после автообновления.",
+    "auto_update_not_running": "Автообновление: sing-box сейчас не запущен.",
+    "interval_changed": "Интервал автоапдейта: {value} мин",
+    "autostart_enabled": "Автозапуск включён",
+    "autostart_disabled": "Автозапуск выключен",
+    "autostart_error": "Автозапуск: ошибка доступа к реестру: {error}"
+  }
+}
+

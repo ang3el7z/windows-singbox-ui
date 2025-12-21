@@ -1,0 +1,79 @@
+{
+  "app": {
+    "title": "SingBox-UI"
+  },
+  "nav": {
+    "profile": "Profile",
+    "home": "Home",
+    "settings": "Settings"
+  },
+  "home": {
+    "version": "SingBox Version",
+    "installed": "Installed: version {version}",
+    "not_installed": "Not installed",
+    "update_available": "Update available: version {version}",
+    "profile": "Profile",
+    "not_selected": "Not selected",
+    "state_stopped": "Stopped",
+    "state_running": "Running",
+    "button_start": "START",
+    "button_stop": "STOP"
+  },
+  "profile": {
+    "title": "Subscriptions",
+    "add": "Add",
+    "delete": "Delete",
+    "test": "Test",
+    "add_subscription": "New Subscription",
+    "name": "Name:",
+    "url": "Config URL:",
+    "delete_question": "Delete?",
+    "delete_confirm": "Delete '{name}'?",
+    "select_for_test": "Select subscription for test",
+    "test_loading": "Testing config download...",
+    "test_success": "Subscription works, config.json downloaded.",
+    "test_error": "Config download error.",
+    "added": "Added subscription: {name}",
+    "removed": "Removed subscription: {name}"
+  },
+  "settings": {
+    "title": "Settings",
+    "auto_update_interval": "Auto-update interval (min):",
+    "autostart": "Start with Windows",
+    "logs": "Logs"
+  },
+  "download": {
+    "title": "Install SingBox",
+    "not_installed": "SingBox is not installed",
+    "description": "To use the application, you need to install the SingBox core.\n\nClick the 'Download' button to automatically download\nand install the latest version from GitHub.",
+    "cancel": "Cancel",
+    "download": "Download",
+    "downloading": "Downloading...",
+    "success": "Success",
+    "error": "Error",
+    "success_message": "Successfully installed version {version}",
+    "error_not_found": "Windows archive not found",
+    "error_extract": "sing-box.exe not found in archive",
+    "error_general": "Error: {error}"
+  },
+  "messages": {
+    "no_core": "No sing-box.exe core",
+    "no_subscription": "No subscription selected",
+    "downloading_config": "Downloading config.json...",
+    "config_error": "Failed to download config, start cancelled.",
+    "starting": "Starting sing-box...",
+    "start_error": "Start error: {error}",
+    "stopping": "Stopping sing-box...",
+    "stopped": "sing-box exited with code {code}",
+    "reload": "Manual reload: restarting with new config",
+    "auto_update": "Auto-updating config from subscription...",
+    "auto_update_error": "Auto-update: failed to download config.",
+    "auto_update_restart": "Restarting sing-box after auto-update.",
+    "auto_update_not_running": "Auto-update: sing-box is not running.",
+    "interval_changed": "Auto-update interval: {value} min",
+    "autostart_enabled": "Autostart enabled",
+    "autostart_disabled": "Autostart disabled",
+    "autostart_error": "Autostart: registry access error: {error}"
+  }
+}
+

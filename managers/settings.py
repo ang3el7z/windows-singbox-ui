@@ -1,0 +1,43 @@
+"""Менеджер настроек приложения"""
+import json
+from config.paths import SETTINGS_FILE
+
+
+class SettingsManager:
+    """Управление настройками приложения"""
+    
+    def __init__(self):
+        self.data = {
+            "auto_update_minutes": 90,
+            "start_with_windows": False,
+            "language": "ru",  # Язык интерфейса
+        }
+        self.load()
+    
+    def load(self):
+        """Загружает настройки из файла"""
+        if SETTINGS_FILE.exists():
+            try:
+                self.data.update(json.loads(SETTINGS_FILE.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    
+    def save(self):
+        """Сохраняет настройки в файл"""
+        # Убеждаемся что папка существует
+        SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SETTINGS_FILE.write_text(
+            json.dumps(self.data, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        print(f"Настройки сохранены в: {SETTINGS_FILE}")
+    
+    def get(self, key: str, default=None):
+        """Получить значение настройки"""
+        return self.data.get(key, default)
+    
+    def set(self, key: str, value):
+        """Установить значение настройки"""
+        self.data[key] = value
+        self.save()
+

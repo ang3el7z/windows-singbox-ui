@@ -1,0 +1,56 @@
+"""Post-build скрипт для настройки структуры проекта"""
+import shutil
+from pathlib import Path
+
+def post_build():
+    """Настраивает структуру папки проекта после сборки"""
+    dist_dir = Path('dist')
+    standalone_exe = dist_dir / 'SingBox-UI.exe'
+    
+    if not standalone_exe.exists():
+        print("Exe файл не найден!")
+        return
+    
+    # Создаем папку проекта
+    project_dir = dist_dir / 'SingBox-UI'
+    if project_dir.exists():
+        shutil.rmtree(project_dir)
+    project_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Создана папка проекта: {project_dir}")
+    
+    # Перемещаем exe в папку проекта
+    exe_dest = project_dir / 'SingBox-UI.exe'
+    shutil.move(str(standalone_exe), str(exe_dest))
+    print(f"Exe перемещен в папку проекта: {exe_dest}")
+    
+    # Копируем локали из исходников в папку проекта
+    source_locales = Path('locales')
+    if source_locales.exists():
+        locales_dest = project_dir / 'locales'
+        shutil.copytree(source_locales, locales_dest)
+        print(f"Локали скопированы в: {locales_dest}")
+    
+    # Копируем sing-box.exe из исходников в data/core в папке проекта
+    source_core_exe = Path('data/core/sing-box.exe')
+    if source_core_exe.exists():
+        data_dir = project_dir / 'data'
+        core_dir = data_dir / 'core'
+        core_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_core_exe, core_dir / 'sing-box.exe')
+        print(f"sing-box.exe скопирован в: {core_dir / 'sing-box.exe'}")
+    else:
+        # Создаем структуру папок даже если sing-box.exe нет
+        data_dir = project_dir / 'data'
+        core_dir = data_dir / 'core'
+        core_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Создана структура папок: {core_dir} (sing-box.exe будет скачан при первом запуске)")
+    
+    print(f"\nСтруктура проекта создана:")
+    print(f"  {project_dir}/")
+    print(f"    - SingBox-UI.exe")
+    print(f"    - locales/")
+    print(f"    - data/core/")
+
+if __name__ == '__main__':
+    post_build()
+

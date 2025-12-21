@@ -1,0 +1,997 @@
+"""Главный файл приложения SingBox-UI"""
+import sys
+import subprocess
+from pathlib import Path
+from datetime import datetime
+
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
+    QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar
+)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QFont, QPalette, QColor
+import qtawesome as qta
+
+# Импорты из архитектуры проекта
+from config.paths import (
+    ensure_dirs, CORE_EXE, CONFIG_FILE, LOG_FILE, CORE_DIR
+)
+from managers.settings import SettingsManager
+from managers.subscriptions import SubscriptionManager
+from utils.i18n import tr, set_language
+from utils.singbox import get_singbox_version, get_latest_version, compare_versions
+from core.downloader import DownloadThread
+
+
+class MainWindow(QMainWindow):
+    """Главное окно приложения"""
+    
+    def __init__(self):
+        super().__init__()
+        # Сначала создаем папки
+        ensure_dirs()
+        
+        # Инициализируем менеджеры
+        self.settings = SettingsManager()
+        self.subs = SubscriptionManager()
+        
+        # Устанавливаем язык из настроек
+        language = self.settings.get("language", "ru")
+        set_language(language)
+        
+        self.proc: subprocess.Popen | None = None
+        self.current_sub_index: int = 0
+        
+        self.setWindowTitle(tr("app.title"))
+        self.setMinimumSize(420, 780)
+        
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        
+        # Стек страниц
+        self.stack = QStackedWidget()
+        self.page_profile = self.build_profile_page()
+        self.page_home = self.build_home_page()
+        self.page_settings = self.build_settings_page()
+        self.stack.addWidget(self.page_profile)
+        self.stack.addWidget(self.page_home)
+        self.stack.addWidget(self.page_settings)
+        
+        # По умолчанию открываем home (индекс 1)
+        self.stack.setCurrentIndex(1)
+        
+        # Нижняя навигация
+        nav = QWidget()
+        nav.setFixedHeight(90)
+        nav_layout = QHBoxLayout(nav)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(0)
+        
+        self.btn_nav_profile = self.make_nav_button(tr("nav.profile"), "mdi.account")
+        self.btn_nav_home = self.make_nav_button(tr("nav.home"), "mdi.home")
+        self.btn_nav_settings = self.make_nav_button(tr("nav.settings"), "mdi.cog")
+        
+        for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
+            btn.clicked.connect(lambda _, idx=i: self.switch_page(idx))
+            nav_layout.addWidget(btn, 1)
+        
+        self.btn_nav_home.setChecked(True)
+        
+        nav.setStyleSheet("""
+            QWidget {
+                background-color: #0f1419;
+                border: none;
+            }
+            QPushButton {
+                color: #64748b;
+                font-size: 14px;
+                font-weight: 500;
+                padding: 16px 8px;
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+            }
+            QPushButton:hover {
+                background-color: rgba(0,245,212,0.06);
+            }
+            QPushButton:checked {
+                color: #00f5d4;
+                font-weight: 600;
+                background-color: transparent;
+            }
+            QLabel {
+                color: inherit;
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        
+        root.addWidget(self.stack, 1)
+        root.addWidget(nav)
+        
+        # Инициализация
+        self.refresh_subscriptions_ui()
+        self.update_version_info()
+        self.update_profile_info()
+        self.update_big_button_state()
+        
+        # Таймеры
+        self.update_info_timer = QTimer(self)
+        self.update_info_timer.timeout.connect(self.update_version_info)
+        self.update_info_timer.timeout.connect(self.update_profile_info)
+        self.update_info_timer.start(5000)
+        
+        self.proc_timer = QTimer(self)
+        self.proc_timer.timeout.connect(self.poll_process)
+        self.proc_timer.start(700)
+        
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.auto_update_config)
+        self.update_timer.start(self.settings.get("auto_update_minutes", 90) * 60 * 1000)
+        
+        # Автозапуск
+        if self.settings.get("start_with_windows", False):
+            self.set_autostart(True)
+    
+    # UI helpers
+    def make_nav_button(self, text: str, icon_name: str) -> QPushButton:
+        """Создает кнопку навигации"""
+        btn = QPushButton()
+        btn.setCheckable(True)
+        btn.setCursor(Qt.PointingHandCursor)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(6)
+        icon_label = QLabel()
+        icon_label.setAlignment(Qt.AlignCenter)
+        icon_label.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(28, 28))
+        icon_label.setStyleSheet("background-color: transparent; border: none;")
+        text_label = QLabel(text)
+        text_label.setAlignment(Qt.AlignCenter)
+        text_label.setStyleSheet("""
+            font-size: 13px;
+            font-weight: 500;
+            background-color: transparent;
+            border: none;
+            color: #64748b;
+        """)
+        container = QWidget()
+        container.setStyleSheet("background-color: transparent; border: none;")
+        layout.addWidget(icon_label)
+        layout.addWidget(text_label)
+        container.setLayout(layout)
+        h = QHBoxLayout(btn)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.addWidget(container)
+        
+        def update_icon(checked):
+            color = "#00f5d4" if checked else "#64748b"
+            icon_label.setPixmap(qta.icon(icon_name, color=color).pixmap(28, 28))
+            text_label.setStyleSheet(f"""
+                font-size: 13px;
+                font-weight: {'600' if checked else '500'};
+                background-color: transparent;
+                border: none;
+                color: {color};
+            """)
+        
+        btn.toggled.connect(update_icon)
+        return btn
+    
+    def build_card(self) -> QWidget:
+        """Создает карточку"""
+        card = QWidget()
+        card.setStyleSheet("""
+            QWidget {
+                background-color: #1a1f2e;
+                border-radius: 16px;
+                border: none;
+            }
+        """)
+        return card
+    
+    # Страницы (упрощенные версии - полный код будет в следующих итерациях)
+    def build_profile_page(self):
+        """Страница профилей"""
+        w = QWidget()
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(16, 16, 16, 16)
+        
+        card = self.build_card()
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 18, 20, 18)
+        
+        title = QLabel(tr("profile.title"))
+        title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        layout.addWidget(title)
+        
+        self.sub_list = QListWidget()
+        self.sub_list.currentRowChanged.connect(self.on_sub_changed)
+        self.sub_list.setStyleSheet("""
+            QListWidget {
+                background-color: transparent;
+                border: none;
+                color: #e5e9ff;
+                font-size: 14px;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 14px 12px;
+                border: none;
+                border-radius: 12px;
+                margin: 4px 0px;
+            }
+            QListWidget::item:hover {
+                background-color: rgba(255,255,255,0.05);
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0,245,212,0.15);
+                color: #00f5d4;
+            }
+        """)
+        layout.addWidget(self.sub_list, 1)
+        
+        btn_row = QHBoxLayout()
+        self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
+        self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
+        self.btn_test_sub = QPushButton(qta.icon("mdi.network"), tr("profile.test"))
+        
+        for b in (self.btn_add_sub, self.btn_del_sub, self.btn_test_sub):
+            b.setCursor(Qt.PointingHandCursor)
+            b.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(0,245,212,0.1);
+                    color: #00f5d4;
+                    border-radius: 12px;
+                    padding: 12px 20px;
+                    border: none;
+                    font-size: 13px;
+                    font-weight: 500;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0,245,212,0.2);
+                }
+            """)
+            btn_row.addWidget(b)
+        
+        self.btn_add_sub.clicked.connect(self.on_add_sub)
+        self.btn_del_sub.clicked.connect(self.on_del_sub)
+        self.btn_test_sub.clicked.connect(self.on_test_sub)
+        
+        layout.addLayout(btn_row)
+        outer.addWidget(card)
+        return w
+    
+    def build_home_page(self):
+        """Страница главная"""
+        w = QWidget()
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(16, 20, 16, 20)
+        outer.setSpacing(12)
+        
+        # Карточка версии
+        version_card = self.build_card()
+        version_layout = QVBoxLayout(version_card)
+        version_layout.setContentsMargins(20, 18, 20, 18)
+        version_layout.setSpacing(10)
+        
+        version_title = QLabel(tr("home.version"))
+        version_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
+        version_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        version_layout.addWidget(version_title)
+        
+        version_row = QHBoxLayout()
+        version_row.setSpacing(10)
+        
+        self.lbl_version = QLabel()
+        self.lbl_version.setFont(QFont("Segoe UI", 12))
+        self.lbl_version.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        version_row.addWidget(self.lbl_version)
+        
+        self.btn_version_warning = QPushButton()
+        self.btn_version_warning.setIcon(qta.icon("mdi.alert-circle", color="#ff6b6b"))
+        self.btn_version_warning.setFixedSize(28, 28)
+        self.btn_version_warning.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 14px;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 107, 107, 0.15);
+            }
+        """)
+        self.btn_version_warning.setCursor(Qt.PointingHandCursor)
+        self.btn_version_warning.clicked.connect(self.show_download_dialog)
+        self.btn_version_warning.hide()
+        version_row.addWidget(self.btn_version_warning)
+        
+        self.btn_version_update = QPushButton()
+        self.btn_version_update.setIcon(qta.icon("mdi.download", color="#00f5d4"))
+        self.btn_version_update.setFixedSize(28, 28)
+        self.btn_version_update.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 14px;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 245, 212, 0.15);
+            }
+        """)
+        self.btn_version_update.setCursor(Qt.PointingHandCursor)
+        self.btn_version_update.clicked.connect(self.show_download_dialog)
+        self.btn_version_update.hide()
+        version_row.addWidget(self.btn_version_update)
+        
+        version_row.addStretch()
+        version_layout.addLayout(version_row)
+        
+        outer.addWidget(version_card)
+        
+        # Карточка профиля
+        profile_card = self.build_card()
+        profile_layout = QVBoxLayout(profile_card)
+        profile_layout.setContentsMargins(20, 18, 20, 18)
+        profile_layout.setSpacing(10)
+        
+        profile_title = QLabel(tr("home.profile"))
+        profile_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
+        profile_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        profile_layout.addWidget(profile_title)
+        
+        self.lbl_profile = QLabel(tr("home.not_selected"))
+        self.lbl_profile.setFont(QFont("Segoe UI", 12))
+        self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        profile_layout.addWidget(self.lbl_profile)
+        
+        outer.addWidget(profile_card)
+        
+        # Кнопка Start/Stop
+        btn_container = QWidget()
+        btn_container.setStyleSheet("background-color: transparent; border: none;")
+        btn_layout = QVBoxLayout(btn_container)
+        btn_layout.setContentsMargins(0, 30, 0, 30)
+        btn_layout.setAlignment(Qt.AlignCenter)
+        
+        # Подложка для кнопки
+        self.btn_wrapper = QWidget()
+        self.btn_wrapper.setFixedSize(220, 220)
+        self.btn_wrapper.setStyleSheet("""
+            QWidget {
+                background-color: #1a1f2e;
+                border-radius: 110px;
+                border: 2px solid rgba(0,245,212,0.3);
+            }
+        """)
+        wrapper_layout = QVBoxLayout(self.btn_wrapper)
+        wrapper_layout.setContentsMargins(10, 10, 10, 10)
+        wrapper_layout.setAlignment(Qt.AlignCenter)
+        
+        self.big_btn = QPushButton(tr("home.button_start"))
+        self.big_btn.setFixedSize(200, 200)
+        self.style_big_btn_running(False)
+        self.big_btn.clicked.connect(self.on_big_button)
+        self.big_btn.setCursor(Qt.PointingHandCursor)
+        wrapper_layout.addWidget(self.big_btn)
+        
+        btn_layout.addWidget(self.btn_wrapper, alignment=Qt.AlignCenter)
+        
+        self.lbl_state = QLabel(tr("home.state_stopped"))
+        self.lbl_state.setAlignment(Qt.AlignCenter)
+        self.lbl_state.setFont(QFont("Segoe UI", 14))
+        self.lbl_state.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; margin-top: 16px; padding: 0px;")
+        btn_layout.addWidget(self.lbl_state)
+        
+        outer.addWidget(btn_container)
+        outer.addStretch()
+        
+        return w
+    
+    def build_settings_page(self):
+        """Страница настроек"""
+        w = QWidget()
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(20, 20, 20, 20)
+        outer.setSpacing(16)
+        
+        # Настройки
+        settings_card = self.build_card()
+        settings_layout = QVBoxLayout(settings_card)
+        settings_layout.setContentsMargins(20, 16, 20, 16)
+        settings_layout.setSpacing(16)
+        
+        title = QLabel(tr("settings.title"))
+        title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        settings_layout.addWidget(title)
+        
+        row = QHBoxLayout()
+        row.setSpacing(12)
+        row_label = QLabel(tr("settings.auto_update_interval"))
+        row_label.setFont(QFont("Segoe UI", 13))
+        row_label.setStyleSheet("color: #e5e9ff; background-color: transparent; border: none; padding: 0px;")
+        row.addWidget(row_label)
+        self.spin_interval = QSpinBox()
+        self.spin_interval.setRange(5, 1440)
+        self.spin_interval.setValue(self.settings.get("auto_update_minutes", 90))
+        self.spin_interval.valueChanged.connect(self.on_interval_changed)
+        self.spin_interval.setStyleSheet("""
+            QSpinBox {
+                background-color: rgba(0,245,212,0.1);
+                color: #00f5d4;
+                border-radius: 12px;
+                padding: 10px 14px;
+                border: none;
+                font-size: 13px;
+                font-weight: 500;
+            }
+        """)
+        row.addWidget(self.spin_interval)
+        settings_layout.addLayout(row)
+        
+        self.cb_autostart = QCheckBox(tr("settings.autostart"))
+        self.cb_autostart.setChecked(self.settings.get("start_with_windows", False))
+        self.cb_autostart.stateChanged.connect(self.on_autostart_changed)
+        self.cb_autostart.setFont(QFont("Segoe UI", 13))
+        self.cb_autostart.setStyleSheet("""
+            QCheckBox {
+                color: #e5e9ff;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QCheckBox::indicator {
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 2px solid #475569;
+                background-color: rgba(0,245,212,0.1);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00f5d4;
+                border-color: #00f5d4;
+            }
+        """)
+        settings_layout.addWidget(self.cb_autostart)
+        
+        outer.addWidget(settings_card)
+        
+        # Логи
+        logs_card = self.build_card()
+        logs_layout = QVBoxLayout(logs_card)
+        logs_layout.setContentsMargins(20, 16, 20, 16)
+        logs_layout.setSpacing(12)
+        
+        logs_title = QLabel(tr("settings.logs"))
+        logs_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        logs_title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        logs_layout.addWidget(logs_title)
+        
+        self.logs = QTextEdit()
+        self.logs.setReadOnly(True)
+        self.logs.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(0,245,212,0.05);
+                color: #e5e9ff;
+                border-radius: 16px;
+                padding: 16px;
+                border: none;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 11px;
+            }
+        """)
+        logs_layout.addWidget(self.logs, 1)
+        self.load_logs()
+        
+        outer.addWidget(logs_card, 1)
+        return w
+    
+    # Навигация
+    def switch_page(self, index: int):
+        """Переключение страниц"""
+        self.stack.setCurrentIndex(index)
+        for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
+            btn.setChecked(i == index)
+        if index == 2:  # Settings page
+            self.load_logs()
+    
+    # Подписки
+    def refresh_subscriptions_ui(self):
+        """Обновление списка подписок"""
+        self.sub_list.clear()
+        for name in self.subs.list_names():
+            self.sub_list.addItem(name)
+        if self.sub_list.count() > 0:
+            self.sub_list.setCurrentRow(self.current_sub_index)
+        else:
+            self.current_sub_index = -1
+    
+    def on_sub_changed(self, row: int):
+        """Изменение выбранной подписки"""
+        self.current_sub_index = row
+        self.update_profile_info()
+        self.update_big_button_state()
+    
+    def on_add_sub(self):
+        """Добавление подписки"""
+        name, ok1 = QInputDialog.getText(self, tr("profile.add_subscription"), tr("profile.name"))
+        if not ok1 or not name:
+            return
+        url, ok2 = QInputDialog.getText(self, tr("profile.add_subscription"), tr("profile.url"))
+        if not ok2 or not url:
+            return
+        self.subs.add(name, url)
+        self.refresh_subscriptions_ui()
+        self.log(tr("profile.added", name=name))
+    
+    def on_del_sub(self):
+        """Удаление подписки"""
+        row = self.sub_list.currentRow()
+        if row < 0:
+            return
+        sub = self.subs.get(row)
+        if not sub:
+            return
+        if QMessageBox.question(self, tr("profile.delete_question"),
+                                tr("profile.delete_confirm", name=sub['name']),
+                                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+            self.subs.remove(row)
+            self.refresh_subscriptions_ui()
+            self.log(tr("profile.removed", name=sub['name']))
+    
+    def on_test_sub(self):
+        """Тест подписки"""
+        row = self.sub_list.currentRow()
+        if row < 0:
+            self.log(tr("profile.select_for_test"))
+            return
+        self.log(tr("profile.test_loading"))
+        ok = self.subs.download_config(row)
+        if ok:
+            self.log(tr("profile.test_success"))
+        else:
+            self.log(tr("profile.test_error"))
+    
+    # Версия и профиль
+    def update_version_info(self):
+        """Обновление информации о версии"""
+        version = get_singbox_version()
+        if version:
+            # Проверяем наличие обновлений
+            latest_version = get_latest_version()
+            if latest_version:
+                comparison = compare_versions(version, latest_version)
+                if comparison < 0:  # Текущая версия старше
+                    self.lbl_version.setText(tr("home.update_available", version=latest_version))
+                    self.lbl_version.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px;")
+                    self.btn_version_warning.hide()
+                    self.btn_version_update.show()
+                else:
+                    self.lbl_version.setText(tr("home.installed", version=version))
+                    self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+                    self.btn_version_warning.hide()
+                    self.btn_version_update.hide()
+            else:
+                # Не удалось проверить обновления, показываем текущую версию
+                self.lbl_version.setText(tr("home.installed", version=version))
+                self.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+                self.btn_version_warning.hide()
+                self.btn_version_update.hide()
+        else:
+            self.lbl_version.setText(tr("home.not_installed"))
+            self.lbl_version.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
+            self.btn_version_warning.show()
+            self.btn_version_update.hide()
+    
+    def update_profile_info(self):
+        """Обновление информации о профиле"""
+        if self.current_sub_index >= 0:
+            sub = self.subs.get(self.current_sub_index)
+            if sub:
+                self.lbl_profile.setText(sub.get("name", "Неизвестно"))
+                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            else:
+                self.lbl_profile.setText(tr("home.not_selected"))
+                self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        else:
+            self.lbl_profile.setText(tr("home.not_selected"))
+            self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+    
+    def show_download_dialog(self):
+        """Диалог загрузки SingBox"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("download.title"))
+        dialog.setMinimumWidth(400)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #0b0f1a;
+            }
+            QLabel {
+                color: #e5e9ff;
+            }
+            QPushButton {
+                background-color: #00f5d4;
+                color: #020617;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #5fffe3;
+            }
+            QPushButton:disabled {
+                background-color: #475569;
+                color: #94a3b8;
+            }
+        """)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+        
+        title = QLabel(tr("download.not_installed"))
+        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        layout.addWidget(title)
+        
+        info = QLabel(tr("download.description"))
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        self.download_progress = QProgressBar()
+        self.download_progress.setRange(0, 100)
+        self.download_progress.setValue(0)
+        self.download_progress.hide()
+        layout.addWidget(self.download_progress)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        btn_cancel = QPushButton(tr("download.cancel"))
+        btn_cancel.clicked.connect(dialog.reject)
+        btn_layout.addWidget(btn_cancel)
+        
+        btn_download = QPushButton(tr("download.download"))
+        btn_download.clicked.connect(lambda: self.start_download(dialog, btn_download))
+        btn_layout.addWidget(btn_download)
+        
+        layout.addLayout(btn_layout)
+        
+        dialog.exec_()
+    
+    def start_download(self, dialog, btn_download):
+        """Начало загрузки"""
+        btn_download.setEnabled(False)
+        btn_download.setText(tr("download.downloading"))
+        
+        self.download_progress.show()
+        self.download_progress.setValue(0)
+        
+        self.download_thread = DownloadThread()
+        self.download_thread.progress.connect(self.download_progress.setValue)
+        self.download_thread.finished.connect(
+            lambda success, msg: self.on_download_finished(success, msg, dialog, btn_download)
+        )
+        self.download_thread.start()
+    
+    def on_download_finished(self, success: bool, message: str, dialog: QDialog, btn_download):
+        """Завершение загрузки"""
+        self.download_progress.hide()
+        if success:
+            QMessageBox.information(dialog, tr("download.success"), message)
+            dialog.accept()
+            self.update_version_info()
+        else:
+            QMessageBox.warning(dialog, tr("download.error"), message)
+            btn_download.setEnabled(True)
+            btn_download.setText(tr("download.download"))
+    
+    # Кнопка Start/Stop
+    def style_big_btn_running(self, running: bool):
+        """Стиль большой кнопки"""
+        # Обновляем подложку
+        if hasattr(self, 'btn_wrapper'):
+            if running:
+                self.btn_wrapper.setStyleSheet("""
+                    QWidget {
+                        background-color: #1a1f2e;
+                        border-radius: 110px;
+                        border: 2px solid rgba(255,107,107,0.5);
+                    }
+                """)
+            else:
+                self.btn_wrapper.setStyleSheet("""
+                    QWidget {
+                        background-color: #1a1f2e;
+                        border-radius: 110px;
+                        border: 2px solid rgba(0,245,212,0.5);
+                    }
+                """)
+        
+        if running:
+            self.big_btn.setText(tr("home.button_stop"))
+            self.big_btn.setStyleSheet("""
+                QPushButton {
+                    border-radius: 100px;
+                    background-color: #1a1f2e;
+                    color: #ff6b6b;
+                    font-size: 28px;
+                    font-weight: 700;
+                    font-family: 'Segoe UI', sans-serif;
+                    border: 2px solid #ff6b6b;
+                }
+                QPushButton:hover {
+                    background-color: rgba(255,107,107,0.1);
+                    border: 2px solid #ff8787;
+                }
+                QPushButton:disabled {
+                    background-color: #475569;
+                    color: #94a3b8;
+                    border: 2px solid #475569;
+                }
+            """)
+        else:
+            self.big_btn.setText(tr("home.button_start"))
+            self.big_btn.setStyleSheet("""
+                QPushButton {
+                    border-radius: 100px;
+                    background-color: #1a1f2e;
+                    color: #00f5d4;
+                    font-size: 28px;
+                    font-weight: 700;
+                    font-family: 'Segoe UI', sans-serif;
+                    border: 2px solid #00f5d4;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0,245,212,0.1);
+                    border: 2px solid #5fffe3;
+                }
+                QPushButton:disabled {
+                    background-color: #475569;
+                    color: #94a3b8;
+                    border: 2px solid #475569;
+                }
+            """)
+    
+    def update_big_button_state(self):
+        """Обновление состояния большой кнопки"""
+        core_ok = CORE_EXE.exists()
+        has_sub = self.sub_list.count() > 0 and self.current_sub_index >= 0
+        self.big_btn.setEnabled(core_ok and has_sub)
+        running = self.proc and self.proc.poll() is None
+        self.style_big_btn_running(bool(running))
+        self.lbl_state.setText(tr("home.state_running") if running else tr("home.state_stopped"))
+    
+    def on_big_button(self):
+        """Обработка нажатия большой кнопки"""
+        if self.proc and self.proc.poll() is None:
+            self.stop_singbox()
+        else:
+            self.start_singbox()
+    
+    # Запуск/остановка
+    def start_singbox(self):
+        """Запуск SingBox"""
+        if not CORE_EXE.exists():
+            self.log(tr("messages.no_core"))
+            self.update_version_info()
+            return
+        if self.current_sub_index < 0:
+            self.log(tr("messages.no_subscription"))
+            return
+        self.log(tr("messages.downloading_config"))
+        ok = self.subs.download_config(self.current_sub_index)
+        if not ok:
+            self.log(tr("messages.config_error"))
+            return
+        try:
+            self.log(tr("messages.starting"))
+            # Скрываем окно консоли
+            startupinfo = None
+            if sys.platform == "win32":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+            
+            self.proc = subprocess.Popen(
+                [str(CORE_EXE), "run", "-c", str(CONFIG_FILE)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=str(CORE_DIR),
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+        except Exception as e:
+            self.log(tr("messages.start_error", error=str(e)))
+            self.proc = None
+        self.update_big_button_state()
+    
+    def stop_singbox(self):
+        """Остановка SingBox"""
+        if not self.proc:
+            return
+        self.log(tr("messages.stopping"))
+        try:
+            self.proc.terminate()
+            self.proc.wait(timeout=5)
+        except Exception:
+            try:
+                self.proc.kill()
+            except Exception:
+                pass
+        self.proc = None
+        self.update_big_button_state()
+    
+    def auto_update_config(self):
+        """Автообновление конфига"""
+        if self.current_sub_index < 0:
+            return
+        self.log(tr("messages.auto_update"))
+        ok = self.subs.download_config(self.current_sub_index)
+        if not ok:
+            self.log(tr("messages.auto_update_error"))
+            return
+        if self.proc and self.proc.poll() is None:
+            self.log(tr("messages.auto_update_restart"))
+            self.stop_singbox()
+            self.start_singbox()
+        else:
+            self.log(tr("messages.auto_update_not_running"))
+    
+    def poll_process(self):
+        """Опрос процесса"""
+        if self.proc and self.proc.stdout:
+            try:
+                while True:
+                    line = self.proc.stdout.readline()
+                    if not line:
+                        break
+                    self.log(line.rstrip())
+            except Exception:
+                pass
+        if self.proc and self.proc.poll() is not None:
+            code = self.proc.returncode
+            self.log(tr("messages.stopped", code=code))
+            self.proc = None
+            self.update_big_button_state()
+    
+    # Настройки
+    def on_interval_changed(self, value: int):
+        """Изменение интервала автообновления"""
+        self.settings.set("auto_update_minutes", value)
+        self.update_timer.start(value * 60 * 1000)
+        self.log(tr("messages.interval_changed", value=value))
+    
+    def set_autostart(self, enabled: bool):
+        """Установка автозапуска"""
+        import winreg
+        run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        app_name = "SingBox-UI"
+        
+        if getattr(sys, "frozen", False):
+            exe_path = sys.executable
+        else:
+            exe_path = str((Path(__file__).parent / "run_dev.bat").resolve())
+        
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                if enabled:
+                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+                else:
+                    try:
+                        winreg.DeleteValue(key, app_name)
+                    except FileNotFoundError:
+                        pass
+        except OSError as e:
+            self.log(tr("messages.autostart_error", error=str(e)))
+    
+    def on_autostart_changed(self, state: int):
+        """Изменение автозапуска"""
+        enabled = state == Qt.Checked
+        self.settings.set("start_with_windows", enabled)
+        self.set_autostart(enabled)
+        self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+    
+    # Логи
+    def load_logs(self):
+        """Загрузка логов"""
+        if LOG_FILE.exists():
+            try:
+                with LOG_FILE.open("r", encoding="utf-8") as f:
+                    content = f.read()
+                    self.logs.setPlainText(content)
+                    cursor = self.logs.textCursor()
+                    cursor.movePosition(cursor.End)
+                    self.logs.setTextCursor(cursor)
+            except Exception:
+                pass
+    
+    def log(self, msg: str):
+        """Логирование"""
+        ts = datetime.now().strftime("%H:%M:%S")
+        line = f"[{ts}] {msg}"
+        print(line)
+        
+        if hasattr(self, 'logs'):
+            self.logs.append(line)
+            cursor = self.logs.textCursor()
+            cursor.movePosition(cursor.End)
+            self.logs.setTextCursor(cursor)
+        
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with LOG_FILE.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except Exception as e:
+            print(f"Ошибка записи в лог файл: {e}")
+    
+    def closeEvent(self, event):
+        """Закрытие окна"""
+        if self.proc and self.proc.poll() is None:
+            self.stop_singbox()
+        event.accept()
+
+
+def apply_dark_theme(app: QApplication):
+    """Применение темной темы"""
+    app.setStyle("Fusion")
+    palette = QPalette()
+    bg = QColor("#0b0f1a")
+    card = QColor("#151a24")
+    text = QColor("#f5f7ff")
+    accent = QColor("#00f5d4")
+    
+    palette.setColor(QPalette.Window, QColor("#0f1419"))
+    palette.setColor(QPalette.WindowText, text)
+    palette.setColor(QPalette.Base, QColor("#1a1f2e"))
+    palette.setColor(QPalette.AlternateBase, QColor("#1a1f2e"))
+    palette.setColor(QPalette.ToolTipBase, QColor("#1a1f2e"))
+    palette.setColor(QPalette.ToolTipText, text)
+    palette.setColor(QPalette.Text, text)
+    palette.setColor(QPalette.Button, QColor("#1a1f2e"))
+    palette.setColor(QPalette.ButtonText, text)
+    palette.setColor(QPalette.BrightText, QColor("#ff6b6b"))
+    palette.setColor(QPalette.Highlight, accent)
+    palette.setColor(QPalette.HighlightedText, QColor("#000000"))
+    app.setPalette(palette)
+    
+    app.setStyleSheet("""
+        QWidget {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        QLabel {
+            background-color: transparent;
+            border: none;
+        }
+        QPushButton {
+            background-color: transparent;
+            border: none;
+        }
+        QListWidget {
+            outline: none;
+        }
+        QSpinBox {
+            outline: none;
+        }
+        QTextEdit {
+            outline: none;
+        }
+    """)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    apply_dark_theme(app)
+    win = MainWindow()
+    win.show()
+    sys.exit(app.exec_())
+
