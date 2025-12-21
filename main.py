@@ -24,7 +24,7 @@ from config.paths import (
 from managers.settings import SettingsManager
 from managers.subscriptions import SubscriptionManager
 from utils.i18n import tr, set_language
-from utils.singbox import get_singbox_version, get_latest_version, compare_versions
+from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
 from datetime import datetime
 from utils.logger import log_to_file, set_main_window
@@ -1281,7 +1281,9 @@ class MainWindow(QMainWindow):
     def on_del_sub(self):
         """Удаление подписки"""
         row = self.sub_list.currentRow()
-        if row < 0:
+        if row < 0 or self.sub_list.count() == 0:
+            return
+        if row >= self.sub_list.count():
             return
         sub = self.subs.get(row)
         if not sub:
@@ -1313,7 +1315,9 @@ class MainWindow(QMainWindow):
     def on_rename_sub(self):
         """Переименование подписки"""
         row = self.sub_list.currentRow()
-        if row < 0:
+        if row < 0 or self.sub_list.count() == 0:
+            return
+        if row >= self.sub_list.count():
             return
         sub = self.subs.get(row)
         if not sub:
@@ -1341,8 +1345,10 @@ class MainWindow(QMainWindow):
     def on_test_sub(self):
         """Тест подписки"""
         row = self.sub_list.currentRow()
-        if row < 0:
+        if row < 0 or self.sub_list.count() == 0:
             self.log(tr("profile.select_for_test"))
+            return
+        if row >= self.sub_list.count():
             return
         self.log(tr("profile.test_loading"))
         ok = self.subs.download_config(row)
