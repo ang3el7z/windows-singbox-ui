@@ -12,8 +12,8 @@
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/19ce8dce-89c5-48fe-a07f-df35f94d807e" width="320" alt="Home"/>
   <img src="https://github.com/user-attachments/assets/147dbbec-c702-4c36-b518-c71dd9fc4a02" width="320" alt="Profile"/>
+  <img src="https://github.com/user-attachments/assets/19ce8dce-89c5-48fe-a07f-df35f94d807e" width="320" alt="Home"/>
   <img src="https://github.com/user-attachments/assets/77995e07-5bbf-4e4b-88d5-cb9f41106e09" width="320" alt="Settings"/>
 </p>
 
