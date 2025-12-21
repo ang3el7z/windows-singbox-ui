@@ -35,3 +35,5 @@
 
 **Full Changelog**: https://github.com/ang3el7z/windows-singbox-ui/compare/v1.0.5...v1.1.0
 
+
+

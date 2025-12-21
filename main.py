@@ -1497,12 +1497,78 @@ class MainWindow(QMainWindow):
             return
         if row >= self.sub_list.count():
             return
+        
+        # Получаем название подписки для отображения
+        sub = self.subs.get(row)
+        sub_name = sub.get("name", "Unknown") if sub else "Unknown"
+        
         self.log(tr("profile.test_loading"))
-        ok = self.subs.download_config(row)
-        if ok:
-            self.log(tr("profile.test_success"))
-        else:
-            self.log(tr("profile.test_error"))
+        # Отключаем кнопку на время теста
+        self.btn_test_sub.setEnabled(False)
+        self.btn_test_sub.setText(tr("profile.test") + "...")
+        
+        try:
+            ok = self.subs.download_config(row)
+            if ok:
+                self.log(tr("profile.test_success"))
+                # Показываем успешное сообщение более заметно
+                msg = QMessageBox(self)
+                msg.setWindowTitle(tr("profile.test"))
+                msg.setText(tr("profile.test_success"))
+                msg.setInformativeText(f"Subscription '{sub_name}' works correctly. Config downloaded successfully.")
+                msg.setIcon(QMessageBox.Information)
+                msg.setStyleSheet("""
+                    QMessageBox {
+                        background-color: #0b0f1a;
+                    }
+                    QLabel {
+                        color: #e5e9ff;
+                    }
+                    QPushButton {
+                        background-color: #1a1f2e;
+                        color: #00f5d4;
+                        border: 2px solid #00f5d4;
+                        border-radius: 8px;
+                        padding: 8px 16px;
+                        min-width: 80px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(0,245,212,0.1);
+                    }
+                """)
+                msg.exec_()
+            else:
+                self.log(tr("profile.test_error"))
+                # Показываем ошибку более заметно
+                msg = QMessageBox(self)
+                msg.setWindowTitle(tr("profile.test"))
+                msg.setText(tr("profile.test_error"))
+                msg.setInformativeText(f"Failed to download config from subscription '{sub_name}'. Please check the URL.")
+                msg.setIcon(QMessageBox.Warning)
+                msg.setStyleSheet("""
+                    QMessageBox {
+                        background-color: #0b0f1a;
+                    }
+                    QLabel {
+                        color: #e5e9ff;
+                    }
+                    QPushButton {
+                        background-color: #1a1f2e;
+                        color: #00f5d4;
+                        border: 2px solid #00f5d4;
+                        border-radius: 8px;
+                        padding: 8px 16px;
+                        min-width: 80px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(0,245,212,0.1);
+                    }
+                """)
+                msg.exec_()
+        finally:
+            # Восстанавливаем кнопку
+            self.btn_test_sub.setEnabled(True)
+            self.btn_test_sub.setText(tr("profile.test"))
     
     def _log_version_debug(self, msg: str):
         """Логирование версий в debug логи"""
@@ -1749,20 +1815,20 @@ class MainWindow(QMainWindow):
             if self.running_sub_index == self.current_sub_index:
                 # Профили совпадают
                 self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", "Неизвестно")))
-                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
             else:
-                # Профили разные
-                text = f"{tr('home.current_profile', name=running_sub.get('name', 'Неизвестно'))}\n{tr('home.selected_profile', name=selected_sub.get('name', 'Неизвестно'))}"
+                # Профили разные - добавляем отступ для второй строки
+                text = f"{tr('home.current_profile', name=running_sub.get('name', 'Неизвестно'))}\n    {tr('home.selected_profile', name=selected_sub.get('name', 'Неизвестно'))}"
                 self.lbl_profile.setText(text)
-                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         elif running_sub:
             # Только запущенный профиль
             self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", "Неизвестно")))
-            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         elif selected_sub:
             # Только выбранный профиль
             self.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", "Неизвестно")))
-            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         else:
             # Нет профиля
             self.lbl_profile.setText(tr("home.profile_not_selected_click"))
@@ -1991,15 +2057,26 @@ class MainWindow(QMainWindow):
     # Кнопка Start/Stop
     def style_big_btn_running(self, running: bool):
         """Стиль большой кнопки"""
+        # Проверяем, нужно ли показать "Сменить" (оранжевый цвет)
+        is_change_mode = (running and 
+                         self.running_sub_index != self.current_sub_index and 
+                         self.current_sub_index >= 0)
+        
         # Обновляем подложку
         if hasattr(self, 'btn_wrapper'):
             if running:
-                self.btn_wrapper.setStyleSheet("""
-                    QWidget {
+                if is_change_mode:
+                    # Оранжевый для режима "Сменить"
+                    border_color = "rgba(255,165,0,0.5)"  # Оранжевый
+                else:
+                    # Красный для режима "Остановить"
+                    border_color = "rgba(255,107,107,0.5)"
+                self.btn_wrapper.setStyleSheet(f"""
+                    QWidget {{
                         background-color: #1a1f2e;
                         border-radius: 110px;
-                        border: 2px solid rgba(255,107,107,0.5);
-                    }
+                        border: 2px solid {border_color};
+                    }}
                 """)
             else:
                 self.btn_wrapper.setStyleSheet("""
@@ -2011,29 +2088,53 @@ class MainWindow(QMainWindow):
                 """)
         
         if running:
-            self.big_btn.setText(tr("home.button_stop"))
-            self.big_btn.setStyleSheet("""
-                QPushButton {
-                    border-radius: 100px;
-                    background-color: #1a1f2e;
-                    color: #ff6b6b;
-                    font-size: 28px;
-                    font-weight: 700;
-                    font-family: 'Segoe UI', sans-serif;
-                    border: 2px solid #ff6b6b;
-                }
-                QPushButton:hover {
-                    background-color: rgba(255,107,107,0.1);
-                    border: 2px solid #ff8787;
-                }
-                QPushButton:disabled {
-                    background-color: #475569;
-                    color: #94a3b8;
-                    border: 2px solid #475569;
-                }
-            """)
+            # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
+            if is_change_mode:
+                # Оранжевый стиль для кнопки "Сменить"
+                self.big_btn.setStyleSheet("""
+                    QPushButton {
+                        border-radius: 100px;
+                        background-color: #1a1f2e;
+                        color: #ffa500;
+                        font-size: 28px;
+                        font-weight: 700;
+                        font-family: 'Segoe UI', sans-serif;
+                        border: 2px solid #ffa500;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(255,165,0,0.1);
+                        border: 2px solid #ffb733;
+                    }
+                    QPushButton:disabled {
+                        background-color: #475569;
+                        color: #94a3b8;
+                        border: 2px solid #475569;
+                    }
+                """)
+            else:
+                # Красный стиль для кнопки "Остановить"
+                self.big_btn.setStyleSheet("""
+                    QPushButton {
+                        border-radius: 100px;
+                        background-color: #1a1f2e;
+                        color: #ff6b6b;
+                        font-size: 28px;
+                        font-weight: 700;
+                        font-family: 'Segoe UI', sans-serif;
+                        border: 2px solid #ff6b6b;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(255,107,107,0.1);
+                        border: 2px solid #ff8787;
+                    }
+                    QPushButton:disabled {
+                        background-color: #475569;
+                        color: #94a3b8;
+                        border: 2px solid #475569;
+                    }
+                """)
         else:
-            self.big_btn.setText(tr("home.button_start"))
+            # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
             self.big_btn.setStyleSheet("""
                 QPushButton {
                     border-radius: 100px;
@@ -2080,8 +2181,20 @@ class MainWindow(QMainWindow):
 
     def on_big_button(self):
         """Обработка нажатия большой кнопки"""
-        if self.proc and self.proc.poll() is None:
-            self.stop_singbox()
+        running = self.proc and self.proc.poll() is None
+        
+        if running:
+            # Проверяем, нужно ли переключить профиль
+            if self.running_sub_index != self.current_sub_index and self.current_sub_index >= 0:
+                # Выбран другой профиль - останавливаем текущий и запускаем новый
+                self.log(tr("messages.switching_profile"))
+                self.stop_singbox()
+                # Запускаем новый профиль после остановки
+                # Используем QTimer для небольшой задержки, чтобы процесс успел остановиться
+                QTimer.singleShot(500, self.start_singbox)
+            else:
+                # Профили совпадают - просто останавливаем
+                self.stop_singbox()
         else:
             self.start_singbox()
 
@@ -2526,21 +2639,63 @@ class MainWindow(QMainWindow):
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
         """Обновляет текст и иконку кнопки навигации"""
-        # Находим label с текстом в layout кнопки
+        # Структура: QPushButton -> QHBoxLayout -> QWidget (container) -> QVBoxLayout -> QLabel (icon) + QLabel (text)
         layout = btn.layout()
-        if layout:
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item:
-                    widget = item.widget()
-                    if isinstance(widget, QLabel):
-                        # Проверяем, это текст или иконка
-                        if widget.pixmap() is None:
-                            # Это текстовый label
-                            widget.setText(text)
-                        else:
-                            # Это иконка - обновляем
-                            widget.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(36, 36))
+        if not layout:
+            return
+        
+        # Ищем контейнер (QWidget) в layout кнопки
+        container = None
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item:
+                widget = item.widget()
+                if isinstance(widget, QWidget):
+                    container = widget
+                    break
+        
+        if not container:
+            return
+        
+        # Ищем layout контейнера
+        container_layout = container.layout()
+        if not container_layout:
+            return
+        
+        # Определяем цвет в зависимости от состояния кнопки
+        color = "#00f5d4" if btn.isChecked() else "#64748b"
+        font_weight = "600" if btn.isChecked() else "500"
+        
+        # Обновляем все QLabel'ы в layout контейнера
+        icon_label = None
+        text_label = None
+        
+        for j in range(container_layout.count()):
+            item = container_layout.itemAt(j)
+            if item:
+                label = item.widget()
+                if isinstance(label, QLabel):
+                    if label.pixmap() is not None:
+                        # Это иконка
+                        icon_label = label
+                    else:
+                        # Это текст
+                        text_label = label
+        
+        # Обновляем иконку
+        if icon_label:
+            icon_label.setPixmap(qta.icon(icon_name, color=color).pixmap(36, 36))
+        
+        # Обновляем текст
+        if text_label:
+            text_label.setText(text)
+            text_label.setStyleSheet(f"""
+                font-size: 14px;
+                font-weight: {font_weight};
+                background-color: transparent;
+                border: none;
+                color: {color};
+            """)
     
     def on_minimize_to_tray_changed(self, state: int):
         """Изменение настройки сворачивания в трей"""

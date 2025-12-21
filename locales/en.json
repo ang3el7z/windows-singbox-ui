@@ -99,6 +99,7 @@
     "start_error": "Start error: {error}",
     "stopping": "Stopping sing-box...",
     "stopped": "sing-box exited with code {code}",
+    "switching_profile": "Switching profile...",
     "reload": "Manual reload: restarting with new config",
     "auto_update": "Auto-updating config from subscription...",
     "auto_update_error": "Auto-update: failed to download config.",

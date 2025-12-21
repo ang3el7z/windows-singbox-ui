@@ -71,11 +71,11 @@ def post_build():
     else:
         log(f"[post_build] WARNING: locales directory not found at {source_locales}")
     
-    # Copy updater.exe from dist to data in project directory
+    # Move updater.exe from dist to data in project directory
     dist_updater = dist_dir / 'updater.exe'
     log(f"[post_build] Checking for updater.exe: {dist_updater}")
     if dist_updater.exists():
-        log(f"[post_build] Found updater.exe, copying to data/")
+        log(f"[post_build] Found updater.exe, moving to data/")
         data_dir = project_dir / 'data'
         data_dir.mkdir(parents=True, exist_ok=True)
         updater_dest = data_dir / 'updater.exe'
@@ -85,10 +85,10 @@ def post_build():
             except PermissionError:
                 pass
         try:
-            shutil.copy2(dist_updater, updater_dest)
-            log(f"[post_build] updater.exe copied to: {updater_dest}")
+            shutil.move(str(dist_updater), str(updater_dest))
+            log(f"[post_build] updater.exe moved to: {updater_dest}")
         except Exception as e:
-            log(f"[post_build] ERROR copying updater.exe: {e}")
+            log(f"[post_build] ERROR moving updater.exe: {e}")
     else:
         log(f"[post_build] WARNING: updater.exe not found at {dist_updater}")
     
