@@ -94,8 +94,8 @@ def restart_as_admin():
                         stderr=subprocess.DEVNULL,
                         timeout=3
                     )
-            except Exception:
-                pass
+                except Exception:
+                    pass
             
             return True
         else:
