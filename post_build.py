@@ -8,7 +8,7 @@ def post_build():
     standalone_exe = dist_dir / 'SingBox-UI.exe'
     
     if not standalone_exe.exists():
-        print("Exe файл не найден!")
+        # print("Exe file not found!")  # Removed to avoid encoding issues in CI
         return
     
     # Создаем папку проекта
@@ -17,10 +17,11 @@ def post_build():
         try:
             shutil.rmtree(project_dir)
         except PermissionError:
-            print(f"Предупреждение: Не удалось удалить {project_dir}, возможно файлы используются.")
-            print("Попытка продолжить без удаления...")
+            # print(f"Warning: Could not delete {project_dir}, files may be in use.")  # Removed to avoid encoding issues in CI
+            # print("Attempting to continue without deletion...")  # Removed to avoid encoding issues in CI
+            pass
     project_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Папка проекта: {project_dir}")
+    # print(f"Project directory: {project_dir}")  # Removed to avoid encoding issues in CI
     
     # Перемещаем exe в папку проекта
     exe_dest = project_dir / 'SingBox-UI.exe'
@@ -34,18 +35,20 @@ def post_build():
             exe_dest.rename(old_exe)
             old_exe.unlink()
         except (PermissionError, OSError) as e:
-            print(f"Предупреждение: Не удалось удалить {exe_dest}, возможно файл используется.")
-            print(f"Ошибка: {e}")
-            print("Пропускаем обновление exe файла. Новый файл находится в dist\\SingBox-UI.exe")
+            # print(f"Warning: Could not delete {exe_dest}, file may be in use.")  # Removed to avoid encoding issues in CI
+            # print(f"Error: {e}")  # Removed to avoid encoding issues in CI
+            # print("Skipping exe update. New file is in dist\\SingBox-UI.exe")  # Removed to avoid encoding issues in CI
+            pass
             # Продолжаем с остальными файлами
     else:
         # Если файла нет, просто перемещаем
         try:
             shutil.move(str(standalone_exe), str(exe_dest))
-            print(f"Exe перемещен в папку проекта: {exe_dest}")
+            # print(f"Exe moved to project directory: {exe_dest}")  # Removed to avoid encoding issues in CI
         except Exception as e:
-            print(f"Ошибка при перемещении exe: {e}")
-            print("Пропускаем обновление exe файла.")
+            # print(f"Error moving exe: {e}")  # Removed to avoid encoding issues in CI
+            # print("Skipping exe update.")  # Removed to avoid encoding issues in CI
+            pass
     
     # Копируем локали из исходников в папку проекта
     source_locales = Path('locales')
@@ -55,7 +58,7 @@ def post_build():
         if locales_dest.exists():
             shutil.rmtree(locales_dest)
         shutil.copytree(source_locales, locales_dest)
-        print(f"Локали скопированы в: {locales_dest}")
+        # print(f"Locales copied to: {locales_dest}")  # Removed to avoid encoding issues in CI
     
     # Копируем sing-box.exe из исходников в data/core в папке проекта
     source_core_exe = Path('data/core/sing-box.exe')
@@ -64,19 +67,19 @@ def post_build():
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_core_exe, core_dir / 'sing-box.exe')
-        print(f"sing-box.exe скопирован в: {core_dir / 'sing-box.exe'}")
+        # print(f"sing-box.exe copied to: {core_dir / 'sing-box.exe'}")  # Removed to avoid encoding issues in CI
     else:
         # Создаем структуру папок даже если sing-box.exe нет
         data_dir = project_dir / 'data'
         core_dir = data_dir / 'core'
         core_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Создана структура папок: {core_dir} (sing-box.exe будет скачан при первом запуске)")
+        # print(f"Created directory structure: {core_dir} (sing-box.exe will be downloaded on first run)")  # Removed to avoid encoding issues in CI
     
-    print(f"\nСтруктура проекта создана:")
-    print(f"  {project_dir}/")
-    print(f"    - SingBox-UI.exe")
-    print(f"    - locales/")
-    print(f"    - data/core/")
+    # print(f"\nProject structure created:")  # Removed to avoid encoding issues in CI
+    # print(f"  {project_dir}/")  # Removed to avoid encoding issues in CI
+    # print(f"    - SingBox-UI.exe")  # Removed to avoid encoding issues in CI
+    # print(f"    - locales/")  # Removed to avoid encoding issues in CI
+    # print(f"    - data/core/")  # Removed to avoid encoding issues in CI
 
 if __name__ == '__main__':
     post_build()
