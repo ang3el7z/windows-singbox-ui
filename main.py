@@ -135,6 +135,141 @@ def show_restart_admin_dialog(parent, title, message):
     return dialog.exec_() == QDialog.Accepted
 
 
+def show_kill_all_confirm_dialog(parent, title, message):
+    """Кастомный диалог для подтверждения остановки всех процессов"""
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setMinimumWidth(450)
+    dialog.setModal(True)
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #0b0f1a;
+            border-radius: 12px;
+        }
+        QLabel {
+            color: #e5e9ff;
+            background-color: transparent;
+            border: none;
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+        }
+        QPushButton#btnYes {
+            background-color: #ff6b6b;
+            color: #ffffff;
+        }
+        QPushButton#btnYes:hover {
+            background-color: #ff8787;
+        }
+        QPushButton#btnNo {
+            background-color: rgba(255,255,255,0.05);
+            color: #9ca3af;
+        }
+        QPushButton#btnNo:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+    """)
+    
+    layout = QVBoxLayout(dialog)
+    layout.setSpacing(20)
+    layout.setContentsMargins(24, 24, 24, 24)
+    
+    # Иконка и заголовок
+    title_label = QLabel(title)
+    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+    title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+    layout.addWidget(title_label)
+    
+    # Сообщение
+    message_label = QLabel(message)
+    message_label.setWordWrap(True)
+    message_label.setFont(QFont("Segoe UI", 13))
+    message_label.setStyleSheet("color: #9ca3af; margin-bottom: 8px;")
+    layout.addWidget(message_label)
+    
+    # Кнопки
+    btn_layout = QHBoxLayout()
+    btn_layout.setSpacing(12)
+    
+    btn_no = QPushButton(tr("download.cancel"))
+    btn_no.setObjectName("btnNo")
+    btn_no.setCursor(Qt.PointingHandCursor)
+    btn_no.clicked.connect(dialog.reject)
+    btn_layout.addWidget(btn_no)
+    
+    btn_yes = QPushButton(tr("messages.kill_all_yes"))
+    btn_yes.setObjectName("btnYes")
+    btn_yes.setCursor(Qt.PointingHandCursor)
+    btn_yes.setDefault(True)
+    btn_yes.clicked.connect(dialog.accept)
+    btn_layout.addWidget(btn_yes)
+    
+    layout.addLayout(btn_layout)
+    
+    return dialog.exec_() == QDialog.Accepted
+
+
+def show_kill_all_success_dialog(parent, title, message):
+    """Кастомный диалог для уведомления об успешной остановке процессов"""
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setMinimumWidth(400)
+    dialog.setModal(True)
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #0b0f1a;
+            border-radius: 12px;
+        }
+        QLabel {
+            color: #e5e9ff;
+            background-color: transparent;
+            border: none;
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            background-color: #00f5d4;
+            color: #020617;
+        }
+        QPushButton:hover {
+            background-color: #5fffe3;
+        }
+    """)
+    
+    layout = QVBoxLayout(dialog)
+    layout.setSpacing(20)
+    layout.setContentsMargins(24, 24, 24, 24)
+    
+    # Иконка и заголовок
+    title_label = QLabel(title)
+    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+    title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+    layout.addWidget(title_label)
+    
+    # Сообщение
+    message_label = QLabel(message)
+    message_label.setWordWrap(True)
+    message_label.setFont(QFont("Segoe UI", 13))
+    message_label.setStyleSheet("color: #9ca3af; margin-bottom: 8px;")
+    layout.addWidget(message_label)
+    
+    # Кнопка OK
+    btn_ok = QPushButton(tr("messages.ok"))
+    btn_ok.setCursor(Qt.PointingHandCursor)
+    btn_ok.setDefault(True)
+    btn_ok.clicked.connect(dialog.accept)
+    layout.addWidget(btn_ok)
+    
+    return dialog.exec_() == QDialog.Accepted
+
+
 class MainWindow(QMainWindow):
     """Главное окно приложения"""
     
@@ -1547,20 +1682,60 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'tray_icon') and self.tray_icon:
                 self.tray_icon.hide()
     
+    def kill_all_processes(self):
+        """Остановка всех процессов SingBox"""
+        # Останавливаем текущий процесс, если он запущен
+        if self.proc:
+            try:
+                self.proc.terminate()
+                self.proc.wait(timeout=2)
+            except Exception:
+                try:
+                    self.proc.kill()
+                except Exception:
+                    pass
+            self.proc = None
+        
+        # Пытаемся убить все процессы sing-box через taskkill
+        try:
+            # Убиваем процессы sing-box.exe
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "sing-box.exe"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5
+            )
+        except Exception:
+            pass
+        
+        # Пытаемся убить через psutil, если доступен
+        try:
+            import psutil
+            current_pid = os.getpid()
+            exe_name = "sing-box.exe"
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
+                        if proc.info['pid'] != current_pid:
+                            psutil.Process(proc.info['pid']).kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except ImportError:
+            pass
+        except Exception:
+            pass
+    
     def on_kill_all_clicked(self):
         """Обработка нажатия кнопки 'Убить' - полная остановка всех процессов"""
-        reply = QMessageBox.question(
+        if show_kill_all_confirm_dialog(
             self,
             tr("messages.kill_all_title"),
-            tr("messages.kill_all_confirm"),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
+            tr("messages.kill_all_confirm")
+        ):
             self.log(tr("messages.killing_all"))
             self.kill_all_processes()
             self.update_big_button_state()
-            QMessageBox.information(
+            show_kill_all_success_dialog(
                 self,
                 tr("messages.kill_all_title"),
                 tr("messages.kill_all_done")

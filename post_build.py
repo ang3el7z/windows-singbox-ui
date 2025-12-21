@@ -24,8 +24,28 @@ def post_build():
     
     # Перемещаем exe в папку проекта
     exe_dest = project_dir / 'SingBox-UI.exe'
-    shutil.move(str(standalone_exe), str(exe_dest))
-    print(f"Exe перемещен в папку проекта: {exe_dest}")
+    # Удаляем старый exe файл, если он существует
+    if exe_dest.exists():
+        try:
+            # Пробуем переименовать старый файл, затем удалить
+            old_exe = project_dir / 'SingBox-UI.exe.old'
+            if old_exe.exists():
+                old_exe.unlink()
+            exe_dest.rename(old_exe)
+            old_exe.unlink()
+        except (PermissionError, OSError) as e:
+            print(f"Предупреждение: Не удалось удалить {exe_dest}, возможно файл используется.")
+            print(f"Ошибка: {e}")
+            print("Пропускаем обновление exe файла. Новый файл находится в dist\\SingBox-UI.exe")
+            # Продолжаем с остальными файлами
+    else:
+        # Если файла нет, просто перемещаем
+        try:
+            shutil.move(str(standalone_exe), str(exe_dest))
+            print(f"Exe перемещен в папку проекта: {exe_dest}")
+        except Exception as e:
+            print(f"Ошибка при перемещении exe: {e}")
+            print("Пропускаем обновление exe файла.")
     
     # Копируем локали из исходников в папку проекта
     source_locales = Path('locales')
