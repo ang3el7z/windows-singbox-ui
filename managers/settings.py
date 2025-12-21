@@ -2,6 +2,14 @@
 import json
 from config.paths import SETTINGS_FILE
 
+# Импортируем log_to_file если доступен
+try:
+    from utils.logger import log_to_file
+except ImportError:
+    # Если модуль еще не загружен, используем простой print
+    def log_to_file(msg: str, log_file=None):
+        print(msg)
+
 
 class SettingsManager:
     """Управление настройками приложения"""
@@ -35,7 +43,7 @@ class SettingsManager:
             json.dumps(self.data, ensure_ascii=False, indent=2),
             encoding="utf-8"
         )
-        print(f"Настройки сохранены в: {SETTINGS_FILE}")
+        log_to_file(f"Настройки сохранены в: {SETTINGS_FILE}")
     
     def get(self, key: str, default=None):
         """Получить значение настройки"""

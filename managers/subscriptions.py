@@ -3,6 +3,14 @@ import json
 import requests
 from config.paths import SUB_FILE, CONFIG_FILE
 
+# Импортируем log_to_file если доступен
+try:
+    from utils.logger import log_to_file
+except ImportError:
+    # Если модуль еще не загружен, используем простой print
+    def log_to_file(msg: str, log_file=None):
+        print(msg)
+
 
 class SubscriptionManager:
     """Управление подписками"""
@@ -20,7 +28,7 @@ class SubscriptionManager:
                     self.data = json.loads(content)
                     return
             except Exception as e:
-                print(f"Ошибка загрузки подписок: {e}")
+                log_to_file(f"Ошибка загрузки подписок: {e}")
         # Если файла нет или он пустой - создаем пустой список подписок
         self.data = {"subscriptions": []}
         self.save()
@@ -33,7 +41,7 @@ class SubscriptionManager:
             json.dumps(self.data, ensure_ascii=False, indent=2),
             encoding="utf-8"
         )
-        print(f"Подписки сохранены в: {SUB_FILE}")
+        log_to_file(f"Подписки сохранены в: {SUB_FILE}")
     
     def list_names(self):
         """Возвращает список названий подписок"""
@@ -79,16 +87,16 @@ class SubscriptionManager:
                 import json
                 json.loads(text_content)  # Проверка валидности JSON
             except (UnicodeDecodeError, json.JSONDecodeError) as e:
-                print(f"Ошибка валидации конфига: {e}")
+                log_to_file(f"Ошибка валидации конфига: {e}")
                 # Все равно сохраняем, может быть это не JSON
                 pass
             
             # Сохраняем конфиг
             CONFIG_FILE.write_bytes(content)
-            print(f"Конфиг сохранен в: {CONFIG_FILE}")
-            print(f"Размер файла: {CONFIG_FILE.stat().st_size} байт")
+            log_to_file(f"Конфиг сохранен в: {CONFIG_FILE}")
+            log_to_file(f"Размер файла: {CONFIG_FILE.stat().st_size} байт")
             return True
         except Exception as e:
-            print(f"download_config error: {e}")
+            log_to_file(f"download_config error: {e}")
             return False
 

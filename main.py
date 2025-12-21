@@ -25,6 +25,7 @@ from utils.i18n import tr, set_language
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions
 from core.downloader import DownloadThread
 from datetime import datetime
+from utils.logger import log_to_file, set_main_window
 
 
 def register_protocols():
@@ -60,42 +61,6 @@ def register_protocols():
     except Exception as e:
         log_to_file(f"[Protocol Registration] Ошибка регистрации протокола: {e}")
         return False
-
-
-def log_to_file(msg: str, log_file: Path = None):
-    """Логирование в файл (работает до создания MainWindow)"""
-    # Проверяем настройку isDebug из файла напрямую
-    is_debug = False
-    try:
-        from config.paths import SETTINGS_FILE
-        if SETTINGS_FILE.exists():
-            import json
-            settings_data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            is_debug = settings_data.get("isDebug", False)
-    except Exception:
-        pass
-    
-    # Если режим отладки выключен, только выводим в консоль
-    if not is_debug:
-        print(msg)
-        return
-    
-    # Если режим отладки включен, записываем в файл
-    if log_file is None:
-        log_file = LOG_FILE
-    
-    try:
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        line = f"[{ts}] {msg}"
-        with log_file.open("a", encoding="utf-8") as f:
-            f.write(line + "\n")
-        # Также выводим в консоль, если доступна
-        print(line)
-    except Exception as e:
-        # Если не удалось записать в файл, хотя бы в консоль
-        print(f"[LOG ERROR] Не удалось записать в лог: {e}")
-        print(f"[LOG] {msg}")
 
 
 def is_admin():
@@ -501,7 +466,7 @@ class MainWindow(QMainWindow):
         # Проверяем права администратора
         self.is_admin = is_admin()
         if not self.is_admin:
-            print("[Admin Check] Приложение запущено без прав администратора")
+            log_to_file("[Admin Check] Приложение запущено без прав администратора")
         
         self.refresh_subscriptions_ui()
         self.update_version_info()
@@ -550,6 +515,11 @@ class MainWindow(QMainWindow):
         self.log_cleanup_timer = QTimer(self)
         self.log_cleanup_timer.timeout.connect(self.cleanup_logs_if_needed)
         self.log_cleanup_timer.start(60 * 60 * 1000)  # Проверка каждый час
+        
+        # Таймер для обновления логов из файлов (если открыта страница настроек)
+        self.logs_refresh_timer = QTimer(self)
+        self.logs_refresh_timer.timeout.connect(self.refresh_logs_from_files)
+        self.logs_refresh_timer.start(1000)  # Каждую секунду
 
         # Автозапуск
         if self.settings.get("start_with_windows", False):
@@ -1046,6 +1016,33 @@ class MainWindow(QMainWindow):
         logs_layout.addWidget(self.logs, 1)
         self.load_logs()
         
+        # Debug логи (скрыты по умолчанию, показываются только при isDebug=True)
+        debug_logs_title = QLabel("Debug Logs")
+        debug_logs_title.setFont(QFont("Segoe UI Semibold", 16, QFont.Bold))
+        debug_logs_title.setStyleSheet("color: #ff6b6b; background-color: transparent; border: none; padding: 0px;")
+        self.debug_logs_title = debug_logs_title
+        logs_layout.addWidget(debug_logs_title)
+        debug_logs_title.setVisible(False)
+        
+        self.debug_logs = QTextEdit()
+        self.debug_logs.setReadOnly(True)
+        self.debug_logs.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(255, 107, 107, 0.05);
+                color: #ff6b6b;
+                border-radius: 16px;
+                padding: 16px;
+                border: 2px solid rgba(255, 107, 107, 0.2);
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 10px;
+            }
+        """)
+        logs_layout.addWidget(self.debug_logs, 1)
+        self.debug_logs.setVisible(False)
+        
+        # Видимость debug логов зависит от настройки isDebug (обновляется автоматически)
+        self._update_debug_logs_visibility()
+        
         outer.addWidget(logs_card, 1)
         
         # Дебаг секция (скрыта по умолчанию, появляется снизу после логов)
@@ -1095,7 +1092,12 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
             btn.setChecked(i == index)
         if index == 2:  # Settings page
+            # Загружаем логи при открытии страницы
             self.load_logs()
+            # Загружаем debug логи если включен debug режим
+            is_debug = self.settings.get("isDebug", False)
+            if is_debug and hasattr(self, 'debug_logs'):
+                self._load_debug_logs_from_file()
 
     # Подписки
     def refresh_subscriptions_ui(self):
@@ -1250,9 +1252,9 @@ class MainWindow(QMainWindow):
         """Тест подписки"""
         row = self.sub_list.currentRow()
         if row < 0:
-            self.log(tr("profile.select_for_test"))
+            log_to_file(tr("profile.select_for_test"))
             return
-        self.log(tr("profile.test_loading"))
+        log_to_file(tr("profile.test_loading"))
         ok = self.subs.download_config(row)
         if ok:
             self.log(tr("profile.test_success"))
@@ -1707,7 +1709,7 @@ class MainWindow(QMainWindow):
             else:
                 return
         
-        self.log(tr("messages.downloading_config"))
+        log_to_file(tr("messages.downloading_config"))
         ok = self.subs.download_config(self.current_sub_index)
         if not ok:
             self.log(tr("messages.config_error"))
@@ -1781,7 +1783,7 @@ class MainWindow(QMainWindow):
         """Автообновление конфига"""
         if self.current_sub_index < 0:
             return
-        self.log(tr("messages.auto_update"))
+        log_to_file(tr("messages.auto_update"))
         ok = self.subs.download_config(self.current_sub_index)
         if not ok:
             self.log(tr("messages.auto_update_error"))
@@ -1791,7 +1793,7 @@ class MainWindow(QMainWindow):
             self.stop_singbox()
             self.start_singbox()
         else:
-            self.log(tr("messages.auto_update_not_running"))
+            log_to_file(tr("messages.auto_update_not_running"))
 
     def poll_process(self):
         """Опрос процесса - проверяем, не завершился ли процесс"""
@@ -1809,7 +1811,7 @@ class MainWindow(QMainWindow):
             if 5 <= value <= 1440:
                 self.settings.set("auto_update_minutes", value)
                 self.update_timer.start(value * 60 * 1000)
-                self.log(tr("messages.interval_changed", value=value))
+                log_to_file(tr("messages.interval_changed", value=value))
             else:
                 # Восстанавливаем значение если вне диапазона
                 self.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
@@ -1830,19 +1832,29 @@ class MainWindow(QMainWindow):
             new_debug = not current_debug
             self.settings.set("isDebug", new_debug)
             
+            # Автоматически обновляем видимость debug логов на основе isDebug
+            self._update_debug_logs_visibility()
+            
             if self.debug_section_visible:
-                self.log(f"Debug меню активировано (isDebug: {new_debug})")
+                log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
             else:
-                self.log(f"Debug меню скрыто (isDebug: {new_debug})")
+                log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
+    
+    def _update_debug_logs_visibility(self):
+        """Обновляет видимость debug логов на основе настройки isDebug"""
+        if hasattr(self, 'debug_logs_title') and hasattr(self, 'debug_logs'):
+            is_debug = self.settings.get("isDebug", False)
+            self.debug_logs_title.setVisible(is_debug)
+            self.debug_logs.setVisible(is_debug)
     
     def on_allow_multiple_changed(self, state: int):
         """Изменение настройки разрешения нескольких процессов"""
         enabled = state == Qt.Checked
         try:
             self.settings.set("allow_multiple_processes", enabled)
-            self.log(f"Разрешение нескольких процессов: {'включено' if enabled else 'выключено'}")
+            log_to_file(f"Разрешение нескольких процессов: {'включено' if enabled else 'выключено'}")
         except Exception as e:
-            print(f"Ошибка при изменении настройки нескольких процессов: {e}")
+            log_to_file(f"Ошибка при изменении настройки нескольких процессов: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
             self.cb_allow_multiple.blockSignals(True)
             self.cb_allow_multiple.setChecked(not enabled)
@@ -1914,16 +1926,16 @@ class MainWindow(QMainWindow):
                         result = subprocess.run(["schtasks", "/create", "/tn", task_name, "/xml", str(xml_file), "/f"], 
                                              check=True, capture_output=True, text=True)
                         xml_file.unlink()
-                        self.log("Автозапуск от имени администратора настроен через Task Scheduler")
+                        log_to_file("Автозапуск от имени администратора настроен через Task Scheduler")
                     except subprocess.CalledProcessError as e:
-                        self.log(f"Ошибка создания задачи автозапуска: {e.stderr if e.stderr else str(e)}")
+                        log_to_file(f"Ошибка создания задачи автозапуска: {e.stderr if e.stderr else str(e)}")
                         # Fallback: используем реестр с PowerShell
                         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
                             ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
                             winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
-                        self.log("Автозапуск настроен через реестр (PowerShell)")
+                        log_to_file("Автозапуск настроен через реестр (PowerShell)")
                     except Exception as e:
-                        self.log(f"Ошибка настройки автозапуска: {e}")
+                        log_to_file(f"Ошибка настройки автозапуска: {e}")
                         xml_file.unlink(missing_ok=True)
                 else:
                     # Обычный автозапуск без прав админа через реестр
@@ -1957,9 +1969,9 @@ class MainWindow(QMainWindow):
         try:
             self.settings.set("start_with_windows", enabled)
             self.set_autostart(enabled)
-            self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+            log_to_file(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
         except Exception as e:
-            print(f"Ошибка при изменении автозапуска: {e}")
+            log_to_file(f"Ошибка при изменении автозапуска: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
             self.cb_autostart.blockSignals(True)
             self.cb_autostart.setChecked(not enabled)
@@ -2014,18 +2026,22 @@ class MainWindow(QMainWindow):
                         self.close()
                         return
                 except Exception as e:
-                    self.log(f"Ошибка перезапуска без прав админа: {e}")
+                    log_to_file(f"Ошибка перезапуска без прав админа: {e}")
         
-        self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
+        # Оба сообщения идут в debug логи
+        if enabled:
+            log_to_file(tr("messages.run_as_admin_enabled"))
+        else:
+            log_to_file(tr("messages.run_as_admin_disabled"))
     
     def on_auto_start_singbox_changed(self, state: int):
         """Изменение настройки автозапуска sing-box при запуске приложения"""
         enabled = state == Qt.Checked
         try:
             self.settings.set("auto_start_singbox", enabled)
-            self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
+            log_to_file(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
         except Exception as e:
-            print(f"Ошибка при изменении автозапуска sing-box: {e}")
+            log_to_file(f"Ошибка при изменении автозапуска sing-box: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
             self.cb_auto_start_singbox.blockSignals(True)
             self.cb_auto_start_singbox.setChecked(not enabled)
@@ -2061,9 +2077,9 @@ class MainWindow(QMainWindow):
             if app:
                 app.setQuitOnLastWindowClosed(not enabled)
             
-            self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
+            log_to_file(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
         except Exception as e:
-            print(f"Ошибка при изменении настройки трея: {e}")
+            log_to_file(f"Ошибка при изменении настройки трея: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
             self.cb_minimize_to_tray.blockSignals(True)
             self.cb_minimize_to_tray.setChecked(not enabled)
@@ -2228,17 +2244,67 @@ class MainWindow(QMainWindow):
     
     # Логи
     def load_logs(self):
-        """Загрузка логов"""
+        """Загрузка логов из singbox.log (важные логи)"""
+        self._load_logs_from_file()
+    
+    def _load_logs_from_file(self):
+        """Загрузка обычных логов из singbox.log"""
         if LOG_FILE.exists():
             try:
                 with LOG_FILE.open("r", encoding="utf-8") as f:
                     content = f.read()
-                    self.logs.setPlainText(content)
+                    # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
+                    import re
+                    lines = content.split('\n')
+                    formatted_lines = []
+                    for line in lines:
+                        # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
+                        line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+                        if line.strip():  # Пропускаем пустые строки
+                            formatted_lines.append(line)
+                    formatted_content = '\n'.join(formatted_lines)
+                    self.logs.setPlainText(formatted_content)
                     cursor = self.logs.textCursor()
                     cursor.movePosition(cursor.End)
                     self.logs.setTextCursor(cursor)
             except Exception:
                 pass
+    
+    def _load_debug_logs_from_file(self):
+        """Загрузка debug логов из debug.log"""
+        from config.paths import DEBUG_LOG_FILE
+        if DEBUG_LOG_FILE.exists():
+            try:
+                with DEBUG_LOG_FILE.open("r", encoding="utf-8") as f:
+                    content = f.read()
+                    # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
+                    import re
+                    lines = content.split('\n')
+                    formatted_lines = []
+                    for line in lines:
+                        # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
+                        line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+                        if line.strip():  # Пропускаем пустые строки
+                            formatted_lines.append(line)
+                    formatted_content = '\n'.join(formatted_lines)
+                    self.debug_logs.setPlainText(formatted_content)
+                    cursor = self.debug_logs.textCursor()
+                    cursor.movePosition(cursor.End)
+                    self.debug_logs.setTextCursor(cursor)
+            except Exception:
+                pass
+    
+    def refresh_logs_from_files(self):
+        """Обновление логов из файлов (вызывается таймером каждую секунду, если открыта страница настроек)"""
+        # Обновляем только если открыта страница настроек (index 2)
+        if self.stack.currentIndex() == 2:
+            # Всегда обновляем обычные логи
+            self._load_logs_from_file()
+            
+            # Обновляем debug логи только если включен debug режим
+            is_debug = self.settings.get("isDebug", False)
+            if is_debug and hasattr(self, 'debug_logs'):
+                self._load_debug_logs_from_file()
 
     def cleanup_logs_if_needed(self):
         """Очистка логов раз в сутки (полная очистка файла)"""
@@ -2258,46 +2324,57 @@ class MainWindow(QMainWindow):
                     # Если дата некорректная, считаем что нужно очистить
                     pass
             
-            # Полностью очищаем файл логов
+            # Полностью очищаем оба файла логов (singbox.log и singbox-debug.log)
+            from config.paths import DEBUG_LOG_FILE
             if LOG_FILE.exists():
                 try:
                     # Получаем размер файла для информации
                     file_size = LOG_FILE.stat().st_size
                     # Полностью очищаем файл
                     LOG_FILE.write_text("", encoding="utf-8")
-                    self._log_version_debug(f"[Log Cleanup] Логи полностью очищены (было {file_size} байт)")
+                    self._log_version_debug(f"[Log Cleanup] singbox.log очищен (было {file_size} байт)")
                 except Exception as e:
-                    self._log_version_debug(f"[Log Cleanup] Ошибка при очистке логов: {e}")
+                    self._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox.log: {e}")
+            
+            if DEBUG_LOG_FILE.exists():
+                try:
+                    # Получаем размер файла для информации
+                    file_size = DEBUG_LOG_FILE.stat().st_size
+                    # Полностью очищаем файл
+                    DEBUG_LOG_FILE.write_text("", encoding="utf-8")
+                    self._log_version_debug(f"[Log Cleanup] debug.log очищен (было {file_size} байт)")
+                except Exception as e:
+                    self._log_version_debug(f"[Log Cleanup] Ошибка при очистке debug.log: {e}")
             
             # Сохраняем дату последней очистки
             self.settings.data["last_log_cleanup"] = now.isoformat()
             self.settings.save()
         except Exception as e:
             # Не критично, просто логируем
-            print(f"[Log Cleanup] Ошибка: {e}")
+            log_to_file(f"[Log Cleanup] Ошибка: {e}")
     
     def log(self, msg: str):
-        """Логирование"""
+        """Логирование в UI панель и в singbox.log (только важные сообщения для пользователя)"""
         ts = datetime.now().strftime("%H:%M:%S")
         line = f"[{ts}] {msg}"
-        print(line)
         
-        # Всегда показываем в UI
+        # Всегда показываем в UI (это для пользователя - только важные сообщения)
         if hasattr(self, 'logs'):
             self.logs.append(line)
             cursor = self.logs.textCursor()
             cursor.movePosition(cursor.End)
             self.logs.setTextCursor(cursor)
         
-        # Записываем в файл только если включен режим отладки
-        is_debug = self.settings.get("isDebug", False)
-        if is_debug:
+        # Записываем в singbox.log (важные логи)
+        try:
+            from config.paths import LOG_FILE
             LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                with LOG_FILE.open("a", encoding="utf-8") as f:
-                    f.write(line + "\n")
-            except Exception as e:
-                print(f"Ошибка записи в лог файл: {e}")
+            full_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_line = f"[{full_ts}] {msg}"
+            with LOG_FILE.open("a", encoding="utf-8") as f:
+                f.write(log_line + "\n")
+        except Exception:
+            pass  # Игнорируем ошибки записи в файл
 
     def closeEvent(self, event):
         """Закрытие окна"""
@@ -2613,6 +2690,9 @@ if __name__ == "__main__":
         
         log_to_file("[Startup] Создание главного окна...")
         win = MainWindow()
+        
+        # Устанавливаем ссылку на MainWindow для показа логов из log_to_file в UI при isDebug=True
+        set_main_window(win)
         
         # Проверяем настройку run_as_admin при запуске
         run_as_admin_setting = win.settings.get("run_as_admin", False)

@@ -5,6 +5,14 @@ from pathlib import Path
 from typing import Dict, Any
 from config.paths import LOCALES_DIR
 
+# Импортируем log_to_file если доступен
+try:
+    from utils.logger import log_to_file
+except ImportError:
+    # Если модуль еще не загружен, используем простой print
+    def log_to_file(msg: str, log_file=None):
+        print(msg)
+
 
 class Translator:
     """Класс для работы с локализацией"""
@@ -38,14 +46,14 @@ class Translator:
             try:
                 with open(locale_file, 'r', encoding='utf-8') as f:
                     self.translations = json.load(f)
-                print(f"Локализация загружена: {locale_file}")
+                log_to_file(f"Локализация загружена: {locale_file}")
             except Exception as e:
-                print(f"Ошибка загрузки локализации: {e}")
+                log_to_file(f"Ошибка загрузки локализации: {e}")
                 # Загружаем русский как fallback
                 if self.language != "ru":
                     self.load_fallback()
         else:
-            print(f"Файл локализации не найден: {locale_file}")
+            log_to_file(f"Файл локализации не найден: {locale_file}")
             self.load_fallback()
     
     def load_fallback(self):

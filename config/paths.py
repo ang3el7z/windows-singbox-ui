@@ -2,6 +2,14 @@
 import sys
 from pathlib import Path
 
+# Импортируем log_to_file если доступен (может быть недоступен при первом запуске)
+try:
+    from utils.logger import log_to_file
+except ImportError:
+    # Если модуль еще не загружен, используем простой print
+    def log_to_file(msg: str, log_file=None):
+        print(msg)
+
 # Определяем корневую папку: для exe - папка с exe, для .py - папка с .py
 if getattr(sys, 'frozen', False):
     # Запущено как exe - папка где находится exe файл
@@ -27,6 +35,7 @@ SETTINGS_FILE = DATA_DIR / ".settings"
 CORE_EXE = CORE_DIR / "sing-box.exe"
 CONFIG_FILE = DATA_DIR / "config.json"
 LOG_FILE = LOG_DIR / "singbox.log"
+DEBUG_LOG_FILE = LOG_DIR / "debug.log"
 
 
 def ensure_dirs():
@@ -39,12 +48,12 @@ def ensure_dirs():
             if not p.exists():
                 raise Exception(f"Не удалось создать папку: {p}")
         except Exception as e:
-            print(f"ОШИБКА создания папки {p}: {e}")
+            log_to_file(f"ОШИБКА создания папки {p}: {e}")
             raise
-    print(f"Папки созданы/проверены:")
-    print(f"  ROOT: {ROOT}")
-    print(f"  DATA_DIR: {DATA_DIR}")
-    print(f"  CORE_DIR: {CORE_DIR}")
-    print(f"  LOG_DIR: {LOG_DIR}")
-    print(f"  LOCALES_DIR: {LOCALES_DIR}")
+    log_to_file(f"Папки созданы/проверены:")
+    log_to_file(f"  ROOT: {ROOT}")
+    log_to_file(f"  DATA_DIR: {DATA_DIR}")
+    log_to_file(f"  CORE_DIR: {CORE_DIR}")
+    log_to_file(f"  LOG_DIR: {LOG_DIR}")
+    log_to_file(f"  LOCALES_DIR: {LOCALES_DIR}")
 
