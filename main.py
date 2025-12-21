@@ -1810,7 +1810,7 @@ class MainWindow(QMainWindow):
             if 5 <= value <= 1440:
                 self.settings.set("auto_update_minutes", value)
                 self.update_timer.start(value * 60 * 1000)
-                log_to_file(tr("messages.interval_changed", value=value))
+                self.log(tr("messages.interval_changed", value=value))
             else:
                 # Восстанавливаем значение если вне диапазона
                 self.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
@@ -1968,7 +1968,7 @@ class MainWindow(QMainWindow):
         try:
             self.settings.set("start_with_windows", enabled)
             self.set_autostart(enabled)
-            log_to_file(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+            self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
         except Exception as e:
             log_to_file(f"Ошибка при изменении автозапуска: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
@@ -2038,7 +2038,7 @@ class MainWindow(QMainWindow):
         enabled = state == Qt.Checked
         try:
             self.settings.set("auto_start_singbox", enabled)
-            log_to_file(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
+            self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
         except Exception as e:
             log_to_file(f"Ошибка при изменении автозапуска sing-box: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
@@ -2076,7 +2076,7 @@ class MainWindow(QMainWindow):
             if app:
                 app.setQuitOnLastWindowClosed(not enabled)
             
-            log_to_file(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
+            self.log(tr("messages.minimize_to_tray_enabled") if enabled else tr("messages.minimize_to_tray_disabled"))
         except Exception as e:
             log_to_file(f"Ошибка при изменении настройки трея: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
