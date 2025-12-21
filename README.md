@@ -1,82 +1,89 @@
 # SingBox-UI
 
-Современный клиент для работы с SingBox подписками с мобильным дизайном.
+Modern client for working with SingBox subscriptions with a mobile design.
 
-## Возможности
+> ⚠️ **Disclaimer**  
+> This project is intended **strictly for educational and research purposes**.  
+> The author **takes no responsibility** for misuse, damage to devices, or any consequences of use.  
+> You use everything at **your own risk**. Commercial or malicious use is **not encouraged**.
 
-- 🎨 Современный мобильный дизайн
-- 🌍 Поддержка русского и английского языков
-- 📥 Автоматическая загрузка ядра SingBox
-- 🔄 Автоматическое обновление конфигурации
-- 📊 Встроенные логи
-- ⚙️ Настройки автозапуска и автообновления
-- 🔔 Уведомления о доступных обновлениях
+[Read in Russian](./README.ru.md)
 
-## Структура проекта
+## Features
+
+- 🎨 Modern mobile design
+- 🌍 Support for Russian and English languages
+- 📥 Automatic SingBox core download
+- 🔄 Automatic configuration updates
+- 📊 Built-in logs
+- ⚙️ Autostart and auto-update settings
+- 🔔 Update availability notifications
+
+## Project Structure
 
 ```
 SingBox-UI/
-├── main.py                 # Главный файл приложения
-├── config/                 # Конфигурация
-│   └── paths.py           # Пути к файлам
-├── managers/              # Менеджеры данных
-│   ├── settings.py        # Настройки
-│   └── subscriptions.py   # Подписки
-├── utils/                 # Утилиты
-│   ├── i18n.py           # Локализация
-│   └── singbox.py        # Утилиты SingBox
-├── core/                  # Основная логика
-│   └── downloader.py     # Загрузка ядра
-├── locales/              # Локализация
-│   ├── ru.json           # Русский
-│   └── en.json           # Английский
-└── data/                 # Данные (создается автоматически)
-    ├── core/             # Ядро SingBox
-    ├── logs/             # Логи
-    └── config.json       # Конфиг
+├── main.py                 # Main application file
+├── config/                 # Configuration
+│   └── paths.py           # File paths
+├── managers/              # Data managers
+│   ├── settings.py        # Settings
+│   └── subscriptions.py   # Subscriptions
+├── utils/                 # Utilities
+│   ├── i18n.py           # Localization
+│   └── singbox.py        # SingBox utilities
+├── core/                  # Core logic
+│   └── downloader.py     # Core download
+├── locales/              # Localization
+│   ├── ru.json           # Russian
+│   └── en.json           # English
+└── data/                 # Data (created automatically)
+    ├── core/             # SingBox core
+    ├── logs/             # Logs
+    └── config.json       # Config
 ```
 
-## Установка
+## Installation
 
-### Из исходников
+### From Source
 
-1. Клонируйте репозиторий
-2. Установите зависимости:
+1. Clone the repository
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Запустите приложение:
+3. Run the application:
    ```bash
    python main.py
    ```
 
-### Сборка exe
+### Build exe
 
 ```bash
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py post_build.py
 ```
 
-Результат будет в папке `dist/SingBox-UI/`
+The result will be in the `dist/SingBox-UI/` folder
 
-## Использование
+## Usage
 
-1. Запустите приложение
-2. Если ядро не установлено - нажмите на иконку обновления и скачайте его
-3. Добавьте подписки в разделе "Profile"
-4. Выберите подписку и нажмите "START" на главной странице
+1. Launch the application
+2. If the core is not installed - click the update icon and download it
+3. Add subscriptions in the "Profile" section
+4. Select a subscription and click "START" on the main page
 
-## Структура данных
+## Data Structure
 
-При первом запуске приложение автоматически создает:
+On first launch, the application automatically creates:
 
-- `data/core/sing-box.exe` - Ядро SingBox (можно скачать автоматически)
-- `data/logs/singbox.log` - Логи приложения
-- `data/config.json` - Конфигурационный файл (скачивается из подписки)
-- `data/.subscriptions` - Список подписок
-- `data/.settings` - Настройки приложения
+- `data/core/sing-box.exe` - SingBox core (can be downloaded automatically)
+- `data/logs/singbox.log` - Application logs
+- `data/config.json` - Configuration file (downloaded from subscription)
+- `data/.subscriptions` - Subscription list
+- `data/.settings` - Application settings
 
-## Требования
+## Requirements
 
 - Python 3.8+
 - Windows 10/11
@@ -84,7 +91,10 @@ py post_build.py
 - qtawesome
 - requests
 
-## Лицензия
+## License
 
-MIT
+MIT License - see [LICENSE](./LICENSE) file for details
 
+---
+
+You can also create a Pull Request or Issue. And don't forget to click the star ⭐ icon to support the project.
