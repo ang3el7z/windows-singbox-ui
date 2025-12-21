@@ -4,9 +4,16 @@
     "version": "Version {version}",
     "update_available": "Update available: {version}",
     "update_title": "Update available",
-    "update_message": "A new version of the application is available: {version}\n\nCurrent version: {current}\n\nDo you want to open the download page?",
+    "update_message": "A new version of the application is available: {version}\n\nCurrent version: {current}\n\nDo you want to install the update?",
     "update_yes": "Update",
-    "update_no": "Later"
+    "update_no": "Later",
+    "update_downloading": "Downloading update {version}...",
+    "update_preparing": "Preparing update...",
+    "update_success": "Update installed successfully",
+    "update_complete": "Update complete. The application will be restarted.",
+    "update_error_title": "Update Error",
+    "update_error": "Error updating: {error}",
+    "update_error_not_found": "Update archive not found"
   },
   "nav": {
     "profile": "Profile",

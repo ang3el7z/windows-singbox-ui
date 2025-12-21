@@ -5,6 +5,10 @@ import sys
 import subprocess
 import ctypes
 import os
+import zipfile
+import shutil
+import tempfile
+import time
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -26,6 +30,7 @@ from managers.subscriptions import SubscriptionManager
 from utils.i18n import tr, set_language
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
+import requests
 from datetime import datetime
 from utils.logger import log_to_file, set_main_window
 
@@ -1543,10 +1548,79 @@ class MainWindow(QMainWindow):
             tr("app.update_title"),
             tr("app.update_message", version=self.cached_app_latest_version, current=self.app_version)
         ):
-            # Пользователь хочет обновиться - открываем страницу релизов
-            import webbrowser
-            # Открываем страницу релизов репозитория
-            webbrowser.open("https://github.com/ang3el7z/windows-singbox-ui/releases/latest")
+            # Пользователь хочет обновиться - запускаем автоматическое обновление
+            self.start_app_update()
+    
+    def start_app_update(self):
+        """Запуск автоматического обновления приложения"""
+        if not self.cached_app_latest_version:
+            return
+        
+        # Останавливаем SingBox если запущен
+        if self.proc and self.proc.poll() is None:
+            self.stop_singbox()
+        
+        # Создаем диалог с прогрессом
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("app.update_title"))
+        dialog.setMinimumWidth(400)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #151a24;
+                color: #f5f7ff;
+            }
+            QLabel {
+                color: #f5f7ff;
+                background-color: transparent;
+            }
+            QProgressBar {
+                border: 1px solid #00f5d4;
+                border-radius: 8px;
+                text-align: center;
+                background-color: rgba(0,245,212,0.1);
+                color: #f5f7ff;
+            }
+            QProgressBar::chunk {
+                background-color: #00f5d4;
+                border-radius: 7px;
+            }
+        """)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+        
+        label = QLabel(tr("app.update_downloading", version=self.cached_app_latest_version))
+        label.setFont(QFont("Segoe UI", 12))
+        layout.addWidget(label)
+        
+        progress = QProgressBar()
+        progress.setRange(0, 100)
+        progress.setValue(0)
+        layout.addWidget(progress)
+        
+        status_label = QLabel(tr("app.update_preparing"))
+        status_label.setFont(QFont("Segoe UI", 10))
+        status_label.setStyleSheet("color: #9ca3af;")
+        layout.addWidget(status_label)
+        
+        dialog.show()
+        QApplication.processEvents()
+        
+        # Создаем поток обновления
+        self.app_update_thread = AppUpdateThread(self.cached_app_latest_version)
+        self.app_update_thread.progress.connect(progress.setValue)
+        self.app_update_thread.finished.connect(lambda success, msg: self._on_update_finished(dialog, success, msg))
+        self.app_update_thread.start()
+    
+    def _on_update_finished(self, dialog, success, message):
+        """Обработка завершения обновления"""
+        dialog.close()
+        if success:
+            self.log(tr("app.update_complete"))
+            # Приложение закроется автоматически через bat-скрипт
+        else:
+            QMessageBox.warning(self, tr("app.update_error_title"), message)
     
     def update_profile_info(self):
         """Обновление информации о профиле"""
@@ -2688,6 +2762,165 @@ def apply_dark_theme(app: QApplication):
             outline: none;
         }
     """)
+
+
+class AppUpdateThread(QThread):
+    """Поток для автоматического обновления приложения"""
+    progress = pyqtSignal(int)
+    finished = pyqtSignal(bool, str)  # success, message
+    
+    def __init__(self, version, repo_owner="ang3el7z", repo_name="windows-singbox-ui"):
+        super().__init__()
+        self.version = version
+        self.repo_owner = repo_owner
+        self.repo_name = repo_name
+    
+    def run(self):
+        try:
+            log_to_file(f"[App Update] Начало обновления до версии {self.version}")
+            
+            # Получаем информацию о релизе
+            self.progress.emit(10)
+            api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest"
+            response = requests.get(api_url, timeout=10)
+            response.raise_for_status()
+            release_data = response.json()
+            
+            # Ищем архив с обновлением
+            download_url = None
+            archive_name = None
+            for asset in release_data.get("assets", []):
+                if asset["name"].endswith(".zip") and "windows-singbox-ui" in asset["name"].lower():
+                    download_url = asset["browser_download_url"]
+                    archive_name = asset["name"]
+                    break
+            
+            if not download_url:
+                self.finished.emit(False, tr("app.update_error_not_found"))
+                return
+            
+            log_to_file(f"[App Update] Найден архив: {archive_name}")
+            
+            # Скачиваем архив
+            self.progress.emit(20)
+            temp_dir = Path(tempfile.gettempdir()) / "singbox-ui-update"
+            temp_dir.mkdir(exist_ok=True)
+            zip_path = temp_dir / archive_name
+            
+            response = requests.get(download_url, stream=True, timeout=30)
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            
+            with open(zip_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            progress_pct = 20 + int((downloaded / total_size) * 60)
+                            self.progress.emit(progress_pct)
+            
+            log_to_file(f"[App Update] Архив скачан: {zip_path}")
+            self.progress.emit(80)
+            
+            # Распаковываем архив
+            extract_dir = temp_dir / "extracted"
+            extract_dir.mkdir(exist_ok=True)
+            
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+            
+            log_to_file(f"[App Update] Архив распакован в: {extract_dir}")
+            self.progress.emit(90)
+            
+            # Создаем bat-скрипт для обновления
+            self._create_update_script(extract_dir, zip_path)
+            
+            self.progress.emit(100)
+            self.finished.emit(True, tr("app.update_success"))
+            
+        except Exception as e:
+            log_to_file(f"[App Update] Ошибка при обновлении: {e}")
+            import traceback
+            traceback.print_exc()
+            self.finished.emit(False, tr("app.update_error", error=str(e)))
+    
+    def _create_update_script(self, extract_dir, zip_path):
+        """Создает bat-скрипт для обновления и перезапуска приложения"""
+        from config.paths import ROOT
+        
+        # Находим exe в распакованных файлах
+        new_exe = None
+        for file in extract_dir.rglob("SingBox-UI.exe"):
+            new_exe = file
+            break
+        
+        if not new_exe:
+            raise Exception("SingBox-UI.exe не найден в архиве")
+        
+        # Создаем bat-скрипт
+        bat_path = Path(tempfile.gettempdir()) / "singbox-ui-update.bat"
+        
+        current_exe = Path(sys.executable)
+        if current_exe.parent.name == '_internal':
+            # PyInstaller bundle
+            app_dir = current_exe.parent.parent
+        else:
+            app_dir = current_exe.parent
+        
+        # Находим папку SingBox-UI в распакованном архиве
+        new_app_dir = None
+        for item in extract_dir.iterdir():
+            if item.is_dir() and item.name == "SingBox-UI":
+                new_app_dir = item
+                break
+        
+        if not new_app_dir:
+            # Если папка SingBox-UI не найдена, возможно файлы в корне
+            new_app_dir = extract_dir
+        
+        bat_content = f"""@echo off
+chcp 65001 >nul
+echo Обновление SingBox-UI...
+timeout /t 2 /nobreak >nul
+
+REM Закрываем приложение если запущено
+taskkill /F /IM "{current_exe.name}" >nul 2>&1
+timeout /t 1 /nobreak >nul
+
+REM Копируем новые файлы (включая locales)
+xcopy /E /Y /I "{new_app_dir}\\*" "{app_dir}\\" >nul
+
+REM Убеждаемся что locales скопированы
+if exist "{new_app_dir}\\locales" (
+    if not exist "{app_dir}\\locales" (
+        xcopy /E /Y /I "{new_app_dir}\\locales" "{app_dir}\\locales" >nul
+    ) else (
+        xcopy /E /Y /I "{new_app_dir}\\locales\\*" "{app_dir}\\locales\\" >nul
+    )
+)
+
+REM Удаляем временные файлы обновления
+rd /S /Q "{extract_dir.parent}" >nul 2>&1
+del "{bat_path}" >nul 2>&1
+
+REM Запускаем обновленное приложение
+start "" "{app_dir}\\SingBox-UI.exe"
+"""
+        
+        with open(bat_path, 'w', encoding='utf-8') as f:
+            f.write(bat_content)
+        
+        log_to_file(f"[App Update] Создан скрипт обновления: {bat_path}")
+        
+        # Запускаем bat-скрипт
+        subprocess.Popen([str(bat_path)], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        
+        # Даем время на запуск скрипта
+        time.sleep(1)
+        
+        # Закрываем приложение
+        QApplication.quit()
 
 
 class StartSingBoxThread(QThread):
