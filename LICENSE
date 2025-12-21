@@ -1,22 +1,41 @@
-MIT License
+Non-Commercial Source Available License
 
-Copyright (c) 2025 SingBox-UI
+Copyright (c) 2025 ang3el7z
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+of this software and associated documentation files (the "Software"), to use,
+view, and modify the Software, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. NON-COMMERCIAL USE ONLY
+   The Software may be used for personal, educational, and research purposes
+   only. Commercial use, including but not limited to selling, licensing, or
+   using the Software in any commercial product or service, is strictly
+   prohibited without explicit written permission from the copyright holder.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. MODIFICATIONS ONLY IN ORIGINAL REPOSITORY
+   Modifications to the Software may only be made through contributions to the
+   original repository (https://github.com/ang3el7z/windows-singbox-ui).
+   You may not fork, copy, or create derivative works based on this Software
+   in separate repositories or projects without explicit written permission
+   from the copyright holder.
 
+3. NO REDISTRIBUTION OF DERIVATIVE WORKS
+   You may not distribute, publish, or make available any modified versions of
+   this Software outside of the original repository without explicit written
+   permission from the copyright holder.
+
+4. ATTRIBUTION
+   Any use of the Software must include attribution to the original author
+   and a link to the original repository.
+
+5. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+For commercial licensing or permissions beyond the scope of this license,
+please contact the copyright holder.

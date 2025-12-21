@@ -93,7 +93,13 @@ On first launch, the application automatically creates:
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) file for details
+Non-Commercial Source Available License - see [LICENSE](./LICENSE) file for details
+
+**Summary:**
+- ✅ Personal, educational, and research use allowed
+- ✅ Modifications allowed (via contributions to original repository)
+- ❌ Commercial use prohibited
+- ❌ Forking or creating separate projects prohibited
 
 ---
 
