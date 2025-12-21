@@ -1262,9 +1262,8 @@ class MainWindow(QMainWindow):
             self.log(tr("profile.test_error"))
     
     def _log_version_debug(self, msg: str):
-        """Логирование версий только в режиме отладки"""
-        if self.settings.get("isDebug", False):
-            self.log(msg)
+        """Логирование версий в debug логи"""
+        log_to_file(msg)
     
     def check_version_once(self):
         """Проверка версии один раз при запуске или по таймеру повторной попытки"""
@@ -2028,11 +2027,11 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     log_to_file(f"Ошибка перезапуска без прав админа: {e}")
         
-        # Оба сообщения идут в debug логи
+        # Действия пользователя - в обычные логи
         if enabled:
-            log_to_file(tr("messages.run_as_admin_enabled"))
+            self.log(tr("messages.run_as_admin_enabled"))
         else:
-            log_to_file(tr("messages.run_as_admin_disabled"))
+            self.log(tr("messages.run_as_admin_disabled"))
     
     def on_auto_start_singbox_changed(self, state: int):
         """Изменение настройки автозапуска sing-box при запуске приложения"""
