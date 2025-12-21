@@ -152,6 +152,8 @@ class MainWindow(QMainWindow):
         
         self.proc: subprocess.Popen | None = None
         self.current_sub_index: int = 0
+        self.cached_latest_version = None  # Кэш последней версии
+        self.version_check_failed_count = 0  # Счетчик неудачных проверок
         
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
@@ -507,6 +509,7 @@ class MainWindow(QMainWindow):
         admin_info_layout.setSpacing(0)
         
         self.lbl_admin_status = QLabel()
+        # Используем такой же шрифт как у других элементов
         self.lbl_admin_status.setFont(QFont("Segoe UI", 10))
         self.lbl_admin_status.setAlignment(Qt.AlignCenter)
         self.lbl_admin_status.mousePressEvent = self.admin_status_mouse_press
@@ -593,6 +596,54 @@ class MainWindow(QMainWindow):
                 border: none;
                 font-size: 13px;
                 font-weight: 500;
+            }
+            QSpinBox::up-button {
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 24px;
+                height: 20px;
+                border-left: 1px solid rgba(0,245,212,0.2);
+                border-top-right-radius: 12px;
+                background-color: rgba(0,245,212,0.15);
+            }
+            QSpinBox::up-button:hover {
+                background-color: rgba(0,245,212,0.25);
+            }
+            QSpinBox::up-button:pressed {
+                background-color: rgba(0,245,212,0.35);
+            }
+            QSpinBox::up-arrow {
+                image: none;
+                width: 0px;
+                height: 0px;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-bottom: 6px solid #00f5d4;
+                margin: 2px;
+            }
+            QSpinBox::down-button {
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 24px;
+                height: 20px;
+                border-left: 1px solid rgba(0,245,212,0.2);
+                border-bottom-right-radius: 12px;
+                background-color: rgba(0,245,212,0.15);
+            }
+            QSpinBox::down-button:hover {
+                background-color: rgba(0,245,212,0.25);
+            }
+            QSpinBox::down-button:pressed {
+                background-color: rgba(0,245,212,0.35);
+            }
+            QSpinBox::down-arrow {
+                image: none;
+                width: 0px;
+                height: 0px;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #00f5d4;
+                margin: 2px;
             }
         """)
         row.addWidget(self.spin_interval)
@@ -933,7 +984,25 @@ class MainWindow(QMainWindow):
             self.btn_version_warning.hide()
             
             # Проверяем наличие обновлений
-            latest_version = get_latest_version()
+            # Используем кэш если проверка не удалась несколько раз подряд
+            latest_version = None
+            if self.version_check_failed_count < 3:
+                latest_version = get_latest_version()
+                if latest_version:
+                    self.cached_latest_version = latest_version
+                    self.version_check_failed_count = 0
+                else:
+                    self.version_check_failed_count += 1
+                    # Используем кэш если есть
+                    if self.cached_latest_version:
+                        latest_version = self.cached_latest_version
+                        print(f"[Version Check] Используем кэшированную версию: {latest_version}")
+            else:
+                # Используем кэш после нескольких неудачных попыток
+                if self.cached_latest_version:
+                    latest_version = self.cached_latest_version
+                    print(f"[Version Check] Используем кэшированную версию после неудачных попыток: {latest_version}")
+            
             if latest_version:
                 print(f"[Version Check] Текущая версия: {version}, Последняя версия: {latest_version}")
                 comparison = compare_versions(version, latest_version)
