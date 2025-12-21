@@ -11,7 +11,7 @@ core_exe_path = Path('data/core/sing-box.exe')
 binaries_list = []
 if core_exe_path.exists():
     binaries_list = [(str(core_exe_path), 'data/core')]
-    print(f"Включаем sing-box.exe в сборку: {core_exe_path}")
+    # print(f"Including sing-box.exe in build: {core_exe_path}")  # Removed to avoid encoding issues in CI
 
 # Собираем все локали
 locales_data = []
@@ -26,12 +26,12 @@ icon_data = []
 icon_file = Path('icon.ico')
 if icon_file.exists():
     icon_data.append((str(icon_file), '.'))
-    print(f"Включаем иконку в сборку: {icon_file}")
+    # print(f"Including icon in build: {icon_file}")  # Removed to avoid encoding issues in CI
 else:
     icon_png = Path('icon.png')
     if icon_png.exists():
         icon_data.append((str(icon_png), '.'))
-        print(f"Включаем иконку PNG в сборку: {icon_png}")
+        # print(f"Including PNG icon in build: {icon_png}")  # Removed to avoid encoding issues in CI
 
 a = Analysis(
     ['main.py'],
@@ -71,13 +71,14 @@ icon_path = None
 icon_file = Path('icon.ico')
 if icon_file.exists():
     icon_path = str(icon_file.resolve())
-    print(f"Используем иконку: {icon_path}")
+    # print(f"Using icon: {icon_path}")  # Removed to avoid encoding issues in CI
 else:
     # Пробуем найти icon.png и конвертировать
     icon_png = Path('icon.png')
     if icon_png.exists():
-        print("ВНИМАНИЕ: icon.ico не найден, но найден icon.png. Используйте icon.ico для лучшей совместимости.")
-    print("ВНИМАНИЕ: icon.ico не найден! Exe будет без иконки.")
+        # print("WARNING: icon.ico not found, but icon.png found. Use icon.ico for better compatibility.")  # Removed to avoid encoding issues in CI
+        pass
+    # print("WARNING: icon.ico not found! Exe will be without icon.")  # Removed to avoid encoding issues in CI
 
 exe = EXE(
     pyz,
