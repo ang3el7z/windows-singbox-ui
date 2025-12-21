@@ -338,6 +338,7 @@ class MainWindow(QMainWindow):
 
         self.proc: subprocess.Popen | None = None
         self.current_sub_index: int = 0
+        self.running_sub_index: int = -1  # Индекс запущенного профиля (-1 если не запущен)
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
         self.version_check_retry_timer = None  # Таймер для повторных попыток проверки версии
@@ -627,9 +628,10 @@ class MainWindow(QMainWindow):
         btn_row = QHBoxLayout()
         self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
         self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
+        self.btn_rename_sub = QPushButton(qta.icon("mdi.rename-box"), tr("profile.rename"))
         self.btn_test_sub = QPushButton(qta.icon("mdi.network"), tr("profile.test"))
 
-        for b in (self.btn_add_sub, self.btn_del_sub, self.btn_test_sub):
+        for b in (self.btn_add_sub, self.btn_del_sub, self.btn_rename_sub, self.btn_test_sub):
             b.setCursor(Qt.PointingHandCursor)
             b.setStyleSheet("""
                 QPushButton {
@@ -649,6 +651,7 @@ class MainWindow(QMainWindow):
 
         self.btn_add_sub.clicked.connect(self.on_add_sub)
         self.btn_del_sub.clicked.connect(self.on_del_sub)
+        self.btn_rename_sub.clicked.connect(self.on_rename_sub)
         self.btn_test_sub.clicked.connect(self.on_test_sub)
 
         layout.addLayout(btn_row)
@@ -1215,8 +1218,14 @@ class MainWindow(QMainWindow):
             name = name_input.text().strip()
             url = url_input.text().strip()
             if name and url:
+                # Сохраняем текущий выбранный профиль
+                saved_index = self.current_sub_index
                 self.subs.add(name, url)
                 self.refresh_subscriptions_ui()
+                # Восстанавливаем выбор профиля
+                if saved_index >= 0 and saved_index < self.sub_list.count():
+                    self.sub_list.setCurrentRow(saved_index)
+                    self.current_sub_index = saved_index
                 self.log(tr("profile.added", name=name))
                 dialog.accept()
             else:
@@ -1241,20 +1250,64 @@ class MainWindow(QMainWindow):
         sub = self.subs.get(row)
         if not sub:
             return
-        if QMessageBox.question(self, tr("profile.delete_question"),
-                                tr("profile.delete_confirm", name=sub['name']),
-                                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+        
+        # Используем красивое диалоговое окно
+        if show_kill_all_success_dialog(self, tr("profile.delete_question"),
+                                        tr("profile.delete_confirm", name=sub['name'])):
+            was_running = self.running_sub_index == row
             self.subs.remove(row)
+            
+            # Обновляем индексы если нужно
+            if row < self.current_sub_index:
+                self.current_sub_index -= 1
+            elif row == self.current_sub_index:
+                self.current_sub_index = -1
+            
+            if was_running:
+                self.running_sub_index = -1
+                # Если удалили запущенный профиль - останавливаем
+                if self.proc and self.proc.poll() is None:
+                    self.stop_singbox()
+            
             self.refresh_subscriptions_ui()
+            self.update_profile_info()
+            self.update_big_button_state()
             self.log(tr("profile.removed", name=sub['name']))
 
+    def on_rename_sub(self):
+        """Переименование подписки"""
+        row = self.sub_list.currentRow()
+        if row < 0:
+            return
+        sub = self.subs.get(row)
+        if not sub:
+            return
+        
+        # Диалог для ввода нового имени
+        new_name, ok = QInputDialog.getText(
+            self,
+            tr("profile.rename_subscription"),
+            tr("profile.rename_confirm", name=sub['name']),
+            text=sub['name']
+        )
+        
+        if ok and new_name.strip():
+            old_name = sub['name']
+            sub['name'] = new_name.strip()
+            self.subs.save()
+            self.refresh_subscriptions_ui()
+            # Восстанавливаем выбор
+            if row < self.sub_list.count():
+                self.sub_list.setCurrentRow(row)
+            self.log(tr("profile.renamed", old_name=old_name, new_name=new_name.strip()))
+    
     def on_test_sub(self):
         """Тест подписки"""
         row = self.sub_list.currentRow()
         if row < 0:
-            log_to_file(tr("profile.select_for_test"))
+            self.log(tr("profile.select_for_test"))
             return
-        log_to_file(tr("profile.test_loading"))
+        self.log(tr("profile.test_loading"))
         ok = self.subs.download_config(row)
         if ok:
             self.log(tr("profile.test_success"))
@@ -1380,17 +1433,45 @@ class MainWindow(QMainWindow):
     
     def update_profile_info(self):
         """Обновление информации о профиле"""
+        running = self.proc and self.proc.poll() is None
+        running_sub = None
+        selected_sub = None
+        
+        # Получаем запущенный профиль
+        if running and self.running_sub_index >= 0:
+            running_sub = self.subs.get(self.running_sub_index)
+        
+        # Получаем выбранный профиль
         if self.current_sub_index >= 0:
-            sub = self.subs.get(self.current_sub_index)
-            if sub:
-                self.lbl_profile.setText(sub.get("name", "Неизвестно"))
+            selected_sub = self.subs.get(self.current_sub_index)
+        
+        # Формируем текст
+        if running_sub and selected_sub:
+            if self.running_sub_index == self.current_sub_index:
+                # Профили совпадают
+                self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", "Неизвестно")))
                 self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
             else:
-                self.lbl_profile.setText(tr("home.not_selected"))
-                self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+                # Профили разные
+                text = f"{tr('home.current_profile', name=running_sub.get('name', 'Неизвестно'))}\n{tr('home.selected_profile', name=selected_sub.get('name', 'Неизвестно'))}"
+                self.lbl_profile.setText(text)
+                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+        elif running_sub:
+            # Только запущенный профиль
+            self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", "Неизвестно")))
+            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+        elif selected_sub:
+            # Только выбранный профиль
+            self.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", "Неизвестно")))
+            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
         else:
-            self.lbl_profile.setText(tr("home.not_selected"))
-            self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+            # Нет профиля
+            self.lbl_profile.setText(tr("home.profile_not_selected_click"))
+            self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            # Делаем кликабельным для перехода в профили
+            if not hasattr(self.lbl_profile, '_click_handler'):
+                self.lbl_profile.mousePressEvent = lambda e: self.on_page_changed(0) if e.button() == Qt.LeftButton else None
+                self.lbl_profile._click_handler = True
     
     def update_admin_status_label(self):
         """Обновление надписи о правах администратора"""
@@ -1668,9 +1749,24 @@ class MainWindow(QMainWindow):
     def update_big_button_state(self):
         """Обновление состояния большой кнопки"""
         core_ok = CORE_EXE.exists()
-        has_sub = self.sub_list.count() > 0 and self.current_sub_index >= 0
-        self.big_btn.setEnabled(core_ok and has_sub)
         running = self.proc and self.proc.poll() is None
+        
+        if running:
+            # Если запущен - кнопка всегда активна (можно остановить)
+            self.big_btn.setEnabled(core_ok)
+            # Проверяем, совпадает ли выбранный профиль с запущенным
+            if self.running_sub_index != self.current_sub_index and self.current_sub_index >= 0:
+                # Выбран другой профиль - показываем "Сменить"
+                self.big_btn.setText(tr("home.button_change"))
+            else:
+                # Профили совпадают или не выбран - показываем "Остановить"
+                self.big_btn.setText(tr("home.button_stop"))
+        else:
+            # Если не запущен - нужен выбранный профиль
+            has_sub = self.sub_list.count() > 0 and self.current_sub_index >= 0
+            self.big_btn.setEnabled(core_ok and has_sub)
+            self.big_btn.setText(tr("home.button_start"))
+        
         self.style_big_btn_running(bool(running))
         self.lbl_state.setText(tr("home.state_running") if running else tr("home.state_stopped"))
 
@@ -1729,20 +1825,25 @@ class MainWindow(QMainWindow):
         self.proc = proc
         # Проверяем, что процесс действительно запущен
         if proc is not None and proc.poll() is None:
+            self.running_sub_index = self.current_sub_index  # Запоминаем запущенный профиль
             self.log(tr("messages.started_success"))
+            self.update_profile_info()
         else:
             # Процесс завершился сразу после запуска
             if proc:
                 code = proc.returncode if proc.returncode is not None else -1
                 self.log(tr("messages.stopped", code=code))
             self.proc = None
+            self.running_sub_index = -1
         self.update_big_button_state()
     
     def on_singbox_start_error(self, error_msg):
         """Обработка ошибки запуска SingBox"""
         self.log(tr("messages.start_error", error=error_msg))
         self.proc = None
+        self.running_sub_index = -1
         self.update_big_button_state()
+        self.update_profile_info()
 
     def stop_singbox(self):
         """Остановка SingBox"""
@@ -1776,7 +1877,9 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         self.proc = None
+        self.running_sub_index = -1  # Сбрасываем запущенный профиль
         self.update_big_button_state()
+        self.update_profile_info()
 
     def auto_update_config(self):
         """Автообновление конфига"""
