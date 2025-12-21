@@ -99,7 +99,14 @@
     "kill_all_title": "Stop all processes",
     "kill_all_confirm": "Are you sure you want to stop all SingBox processes and close the application?",
     "killing_all": "Stopping all processes...",
-    "kill_all_done": "All processes stopped"
+    "kill_all_done": "All processes stopped",
+    "subscription_imported_title": "Subscription imported",
+    "subscription_imported_text": "Subscription '{name}' successfully added",
+    "subscription_exists_title": "Subscription already exists",
+    "subscription_exists_text": "This subscription is already in the list",
+    "subscription_already_exists": "Subscription already exists in the list",
+    "subscription_import_error_title": "Import error",
+    "subscription_import_error_text": "Failed to import subscription: {error}"
   },
   "tray": {
     "show": "Show",

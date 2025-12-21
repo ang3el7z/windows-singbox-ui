@@ -99,7 +99,14 @@
     "kill_all_title": "Остановка всех процессов",
     "kill_all_confirm": "Вы уверены, что хотите остановить все процессы SingBox и закрыть приложение?",
     "killing_all": "Останавливаю все процессы...",
-    "kill_all_done": "Все процессы остановлены"
+    "kill_all_done": "Все процессы остановлены",
+    "subscription_imported_title": "Подписка импортирована",
+    "subscription_imported_text": "Подписка '{name}' успешно добавлена",
+    "subscription_exists_title": "Подписка уже существует",
+    "subscription_exists_text": "Эта подписка уже добавлена в список",
+    "subscription_already_exists": "Подписка уже существует в списке",
+    "subscription_import_error_title": "Ошибка импорта",
+    "subscription_import_error_text": "Не удалось импортировать подписку: {error}"
   },
   "tray": {
     "show": "Открыть",

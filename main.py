@@ -173,6 +173,9 @@ class MainWindow(QMainWindow):
             self.update_admin_status_label()
         self.update_big_button_state()
         
+        # Обработка deep link (если передан URL как аргумент)
+        self.handle_deep_link()
+        
         # Автозапуск sing-box при запуске приложения
         if self.settings.get("auto_start_singbox", False):
             # Запускаем с небольшой задержкой, чтобы UI успел загрузиться
@@ -927,6 +930,94 @@ class MainWindow(QMainWindow):
                     self.log(tr("messages.admin_restart_failed"))
         else:
             event.ignore()
+    
+    def handle_deep_link(self):
+        """Обработка deep link для импорта подписки (поддержка sing-box:// и singbox-ui://)"""
+        # Проверяем аргументы командной строки
+        args = sys.argv[1:] if len(sys.argv) > 1 else []
+        
+        for arg in args:
+            # Проверяем, является ли аргумент URL
+            if arg.startswith('http://') or arg.startswith('https://') or arg.startswith('sing-box://') or arg.startswith('singbox-ui://'):
+                # Убираем префикс протокола если есть
+                url = arg
+                if url.startswith('sing-box://'):
+                    # Убираем протокол sing-box://
+                    url = url.replace('sing-box://', '', 1)
+                    # Если после протокола нет http:// или https://, добавляем https://
+                    if not url.startswith('http://') and not url.startswith('https://'):
+                        url = 'https://' + url
+                elif url.startswith('singbox-ui://'):
+                    # Убираем протокол singbox-ui://
+                    url = url.replace('singbox-ui://', '', 1)
+                    # Если после протокола нет http:// или https://, добавляем https://
+                    if not url.startswith('http://') and not url.startswith('https://'):
+                        url = 'https://' + url
+                
+                # Извлекаем имя из URL (можно использовать часть URL или параметры)
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(url)
+                
+                # Пытаемся извлечь имя из фрагмента или параметров
+                name = None
+                if parsed.fragment:
+                    # Пытаемся извлечь имя из фрагмента (например, [tg_5818132224]_ang3el_(cdn_1))
+                    fragment = parsed.fragment
+                    # Убираем квадратные скобки и другие символы
+                    if '_' in fragment:
+                        parts = fragment.split('_')
+                        if len(parts) > 1:
+                            name = '_'.join(parts[1:])  # Берем все после первого подчеркивания
+                            # Убираем скобки и другие символы
+                            name = name.replace('[', '').replace(']', '').replace('(', '').replace(')', '')
+                
+                # Если имя не найдено, используем домен или путь
+                if not name or len(name) < 3:
+                    if parsed.netloc:
+                        name = parsed.netloc.split('.')[0] if '.' in parsed.netloc else parsed.netloc
+                    elif parsed.path:
+                        name = parsed.path.split('/')[-1] if '/' in parsed.path else parsed.path
+                    else:
+                        name = "Imported Subscription"
+                
+                # Ограничиваем длину имени
+                if len(name) > 50:
+                    name = name[:50]
+                
+                # Проверяем, нет ли уже такой подписки
+                existing_urls = [s.get("url", "") for s in self.subs.data.get("subscriptions", [])]
+                if url in existing_urls:
+                    self.log(tr("messages.subscription_already_exists"))
+                    QMessageBox.information(
+                        self,
+                        tr("messages.subscription_exists_title"),
+                        tr("messages.subscription_exists_text")
+                    )
+                    return
+                
+                # Добавляем подписку
+                try:
+                    self.subs.add(name, url)
+                    self.refresh_subscriptions_ui()
+                    self.log(tr("profile.added", name=name))
+                    
+                    # Показываем уведомление
+                    QMessageBox.information(
+                        self,
+                        tr("messages.subscription_imported_title"),
+                        tr("messages.subscription_imported_text", name=name)
+                    )
+                    
+                    # Переключаемся на страницу профилей
+                    self.switch_page(0)
+                except Exception as e:
+                    self.log(tr("messages.subscription_import_error", error=str(e)))
+                    QMessageBox.warning(
+                        self,
+                        tr("messages.subscription_import_error_title"),
+                        tr("messages.subscription_import_error_text", error=str(e))
+                    )
+                break  # Обрабатываем только первый URL
     
     def show_download_dialog(self):
         """Диалог загрузки SingBox"""
