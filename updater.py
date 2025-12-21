@@ -8,7 +8,7 @@ import zipfile
 import requests
 from pathlib import Path
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTextEdit, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLabel, QPushButton
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 
@@ -78,22 +78,38 @@ class UpdateThread(QThread):
             temp_dir.mkdir(exist_ok=True)
             zip_path = temp_dir / archive_name
             
-            response = requests.get(download_url, stream=True, timeout=30)
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            
-            with open(zip_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress_pct = 10 + int((downloaded / total_size) * 40)
-                            self.progress_signal.emit(progress_pct)
-                            self.log(f"Downloaded: {downloaded / 1024 / 1024:.1f} MB / {total_size / 1024 / 1024:.1f} MB")
-            
-            self.log(f"Download complete: {zip_path}")
-            self.progress_signal.emit(50)
+            try:
+                response = requests.get(download_url, stream=True, timeout=60)
+                response.raise_for_status()
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+                last_logged = 0
+                log_interval = 5 * 1024 * 1024  # Логируем каждые 5 МБ
+                
+                self.log(f"Total size: {total_size / 1024 / 1024:.1f} MB")
+                
+                with open(zip_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            # Обновляем прогресс
+                            if total_size > 0:
+                                progress_pct = 10 + int((downloaded / total_size) * 40)
+                                self.progress_signal.emit(progress_pct)
+                            
+                            # Логируем только каждые 5 МБ
+                            if downloaded - last_logged >= log_interval:
+                                self.log(f"Downloaded: {downloaded / 1024 / 1024:.1f} MB / {total_size / 1024 / 1024:.1f} MB")
+                                last_logged = downloaded
+                
+                # Финальное сообщение
+                self.log(f"Download complete: {downloaded / 1024 / 1024:.1f} MB")
+                self.progress_signal.emit(50)
+            except requests.exceptions.RequestException as e:
+                self.log(f"Download error: {e}")
+                raise Exception(f"Failed to download update: {e}")
             
             # Шаг 3: Распаковываем архив
             self.log("[3/6] Extracting archive...")
@@ -142,6 +158,7 @@ class UpdateThread(QThread):
             self.progress_signal.emit(75)
             
             # Находим папку SingBox-UI в распакованных файлах
+            # Важно: ищем в системной temp папке, не в папке приложения
             new_app_dir = None
             for item in extract_dir.iterdir():
                 if item.is_dir() and item.name == "SingBox-UI":
@@ -150,6 +167,13 @@ class UpdateThread(QThread):
             
             if not new_app_dir:
                 new_app_dir = extract_dir
+            
+            # Проверяем, что мы не копируем в папку updater.exe
+            updater_dir = Path(sys.executable).parent
+            if str(self.app_dir).startswith(str(updater_dir)) and updater_dir.name == "data":
+                # Если app_dir находится внутри папки с updater, используем родительскую папку
+                self.app_dir = updater_dir.parent
+                self.log(f"Adjusted app directory to: {self.app_dir}")
             
             self.log(f"Source directory: {new_app_dir}")
             self.log(f"Target directory: {self.app_dir}")
@@ -284,22 +308,38 @@ class UpdateThread(QThread):
             self.log("[6/6] Cleaning up and starting application...")
             self.progress_signal.emit(95)
             
-            # Удаляем временные файлы
+            # Удаляем временные файлы (из системной temp папки, не из папки приложения)
             try:
-                if extract_dir.parent.exists():
-                    shutil.rmtree(extract_dir.parent, ignore_errors=True)
-                self.log("Temporary files cleaned")
+                temp_update_dir = Path(tempfile.gettempdir()) / "singbox-ui-update"
+                if temp_update_dir.exists():
+                    shutil.rmtree(temp_update_dir, ignore_errors=True)
+                    self.log("Temporary files cleaned")
             except Exception as e:
                 self.log(f"Warning: Could not clean temp files: {e}")
             
             # Запускаем обновленное приложение
             new_exe = self.app_dir / "SingBox-UI.exe"
             if new_exe.exists():
-                subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
-                self.log("Application started successfully!")
-                self.progress_signal.emit(100)
-                self.finished_signal.emit(True, "Update completed successfully")
+                try:
+                    self.log(f"Starting application: {new_exe}")
+                    proc = subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
+                    # Даем немного времени на запуск
+                    time.sleep(0.5)
+                    # Проверяем, что процесс запустился
+                    if proc.poll() is None:
+                        self.log("Application started successfully!")
+                        self.log(f"Process ID: {proc.pid}")
+                    else:
+                        self.log(f"Warning: Application exited immediately with code {proc.returncode}")
+                    self.progress_signal.emit(100)
+                    self.finished_signal.emit(True, "Update completed successfully")
+                except Exception as e:
+                    self.log(f"Error starting application: {e}")
+                    import traceback
+                    self.log(traceback.format_exc())
+                    self.finished_signal.emit(False, f"Failed to start application: {e}")
             else:
+                self.log(f"ERROR: SingBox-UI.exe not found at {new_exe}")
                 self.finished_signal.emit(False, f"SingBox-UI.exe not found at {new_exe}")
         
         except Exception as e:
@@ -364,6 +404,71 @@ class UpdaterWindow(QMainWindow):
         self.status.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
         layout.addWidget(self.status)
         
+        # Кнопки (скрыты до завершения)
+        self.button_layout = QHBoxLayout()
+        self.button_layout.setSpacing(12)
+        
+        self.done_button = QPushButton("Готово")
+        self.done_button.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.done_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00f5d4;
+                color: #0b0f1a;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 24px;
+                min-width: 100px;
+            }
+            QPushButton:hover {
+                background-color: #00d4b8;
+            }
+            QPushButton:pressed {
+                background-color: #00b8a0;
+            }
+        """)
+        self.done_button.clicked.connect(self.close)
+        self.done_button.hide()
+        
+        self.cancel_button = QPushButton("Отмена")
+        self.cancel_button.setFont(QFont("Segoe UI", 11))
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255,255,255,0.1);
+                color: #e5e9ff;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 8px;
+                padding: 10px 24px;
+                min-width: 100px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255,255,255,0.15);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255,255,255,0.2);
+            }
+        """)
+        self.cancel_button.clicked.connect(self.close)
+        self.cancel_button.hide()
+        
+        self.button_layout.addStretch()
+        self.button_layout.addWidget(self.done_button)
+        self.button_layout.addWidget(self.cancel_button)
+        layout.addLayout(self.button_layout)
+        
+        # Таймер для авто-закрытия
+        self.close_timer = QTimer()
+        self.close_timer.timeout.connect(self.close)
+        self.close_timer.setSingleShot(True)
+        self.countdown_label = QLabel("")
+        self.countdown_label.setFont(QFont("Segoe UI", 10))
+        self.countdown_label.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        self.countdown_label.hide()
+        layout.addWidget(self.countdown_label)
+        
+        self.countdown_seconds = 5
+        self.countdown_timer = QTimer()
+        self.countdown_timer.timeout.connect(self.update_countdown)
+        
         # Запускаем обновление
         QTimer.singleShot(500, self.start_update)
     
@@ -419,17 +524,37 @@ class UpdaterWindow(QMainWindow):
         """Обновляет прогресс"""
         self.status.setText(f"Progress: {value}%")
     
+    def update_countdown(self):
+        """Обновляет таймер обратного отсчета"""
+        self.countdown_seconds -= 1
+        if self.countdown_seconds > 0:
+            self.countdown_label.setText(f"Окно закроется автоматически через {self.countdown_seconds} сек...")
+        else:
+            self.countdown_timer.stop()
+            self.countdown_label.hide()
+            self.close()
+    
     def on_finished(self, success: bool, message: str):
         """Обработка завершения обновления"""
         if success:
             self.log("")
             self.log("=" * 60)
             self.log("Update completed successfully!")
-            self.log("The application will start automatically.")
+            self.log("The application should start automatically.")
             self.log("")
-            self.log("Status: OK - Window will close in 2 seconds")
-            self.status.setText("Status: OK - Window will close in 2 seconds")
-            QTimer.singleShot(2000, self.close)
+            self.log("Status: OK")
+            self.status.setText("Status: OK - Update completed successfully!")
+            
+            # Показываем кнопки и таймер
+            self.done_button.show()
+            self.cancel_button.show()
+            self.countdown_label.show()
+            self.countdown_seconds = 5
+            self.countdown_label.setText(f"Окно закроется автоматически через {self.countdown_seconds} сек...")
+            
+            # Запускаем таймеры
+            self.countdown_timer.start(1000)  # Обновляем каждую секунду
+            self.close_timer.start(5000)  # Закрываем через 5 секунд
         else:
             self.log("")
             self.log("=" * 60)
@@ -438,6 +563,7 @@ class UpdaterWindow(QMainWindow):
             self.log("Status: ERROR - Window will NOT close automatically")
             self.status.setText("Status: ERROR - Window will NOT close automatically")
             self.log("Please check the errors above and close this window manually.")
+            # При ошибке кнопки не показываем, окно остается открытым
 
 
 def main():
