@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
                 color: #64748b;
                 font-size: 14px;
                 font-weight: 500;
-                padding: 24px 8px;
+                padding: 32px 8px;
                 background-color: transparent;
                 border: none;
                 border-radius: 0px;
@@ -169,6 +169,8 @@ class MainWindow(QMainWindow):
         self.refresh_subscriptions_ui()
         self.update_version_info()
         self.update_profile_info()
+        if hasattr(self, 'lbl_admin_status'):
+            self.update_admin_status_label()
         self.update_big_button_state()
         
         # Автозапуск sing-box при запуске приложения
@@ -420,6 +422,21 @@ class MainWindow(QMainWindow):
         profile_layout.addWidget(self.lbl_profile)
         
         outer.addWidget(profile_card)
+        
+        # Информация о правах администратора
+        admin_info_card = self.build_card()
+        admin_info_layout = QVBoxLayout(admin_info_card)
+        admin_info_layout.setContentsMargins(20, 12, 20, 12)
+        admin_info_layout.setSpacing(0)
+        
+        self.lbl_admin_status = QLabel()
+        self.lbl_admin_status.setFont(QFont("Segoe UI", 10))
+        self.lbl_admin_status.setAlignment(Qt.AlignCenter)
+        self.lbl_admin_status.mousePressEvent = self.admin_status_mouse_press
+        self.update_admin_status_label()
+        admin_info_layout.addWidget(self.lbl_admin_status)
+        
+        outer.addWidget(admin_info_card)
         
         # Кнопка Start/Stop
         btn_container = QWidget()
@@ -881,6 +898,35 @@ class MainWindow(QMainWindow):
         else:
             self.lbl_profile.setText(tr("home.not_selected"))
             self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+    
+    def update_admin_status_label(self):
+        """Обновление надписи о правах администратора"""
+        if is_admin():
+            self.lbl_admin_status.setText(tr("home.admin_running"))
+            self.lbl_admin_status.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            self.lbl_admin_status.setCursor(Qt.ArrowCursor)
+        else:
+            self.lbl_admin_status.setText(tr("home.admin_not_running"))
+            self.lbl_admin_status.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px; text-decoration: underline;")
+            self.lbl_admin_status.setCursor(Qt.PointingHandCursor)
+    
+    def admin_status_mouse_press(self, event):
+        """Обработка клика по надписи о правах администратора"""
+        if not is_admin():
+            reply = QMessageBox.question(
+                self,
+                tr("messages.admin_required_title"),
+                tr("messages.restart_as_admin_question"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                if restart_as_admin():
+                    self.close()
+                else:
+                    self.log(tr("messages.admin_restart_failed"))
+        else:
+            event.ignore()
     
     def show_download_dialog(self):
         """Диалог загрузки SingBox"""
