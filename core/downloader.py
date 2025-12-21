@@ -97,3 +97,4 @@ class DownloadThread(QThread):
         except Exception as e:
             self.finished.emit(False, tr("download.error_general", error=str(e)))
 
+

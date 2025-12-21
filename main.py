@@ -171,6 +171,11 @@ class MainWindow(QMainWindow):
         self.update_profile_info()
         self.update_big_button_state()
         
+        # Автозапуск sing-box при запуске приложения
+        if self.settings.get("auto_start_singbox", False):
+            # Запускаем с небольшой задержкой, чтобы UI успел загрузиться
+            QTimer.singleShot(500, self.start_singbox)
+        
         # Таймеры
         self.update_info_timer = QTimer(self)
         self.update_info_timer.timeout.connect(self.update_version_info)
@@ -538,6 +543,31 @@ class MainWindow(QMainWindow):
             }
         """)
         settings_layout.addWidget(self.cb_run_as_admin)
+        
+        self.cb_auto_start_singbox = QCheckBox(tr("settings.auto_start_singbox"))
+        self.cb_auto_start_singbox.setChecked(self.settings.get("auto_start_singbox", False))
+        self.cb_auto_start_singbox.stateChanged.connect(self.on_auto_start_singbox_changed)
+        self.cb_auto_start_singbox.setFont(QFont("Segoe UI", 13))
+        self.cb_auto_start_singbox.setStyleSheet("""
+            QCheckBox {
+                color: #e5e9ff;
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QCheckBox::indicator {
+                width: 22px;
+                height: 22px;
+                border-radius: 6px;
+                border: 2px solid #475569;
+                background-color: rgba(0,245,212,0.1);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00f5d4;
+                border-color: #00f5d4;
+            }
+        """)
+        settings_layout.addWidget(self.cb_auto_start_singbox)
         
         outer.addWidget(settings_card)
         
@@ -1161,6 +1191,12 @@ class MainWindow(QMainWindow):
         
         self.log(tr("messages.run_as_admin_enabled") if enabled else tr("messages.run_as_admin_disabled"))
     
+    def on_auto_start_singbox_changed(self, state: int):
+        """Изменение настройки автозапуска sing-box при запуске приложения"""
+        enabled = state == Qt.Checked
+        self.settings.set("auto_start_singbox", enabled)
+        self.log(tr("messages.auto_start_singbox_enabled") if enabled else tr("messages.auto_start_singbox_disabled"))
+    
     # Логи
     def load_logs(self):
         """Загрузка логов"""
@@ -1196,8 +1232,35 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Закрытие окна"""
+        # Принудительно останавливаем sing-box при закрытии программы
         if self.proc and self.proc.poll() is None:
-            self.stop_singbox()
+            try:
+                # Пытаемся корректно завершить процесс
+                self.proc.terminate()
+                self.proc.wait(timeout=2)
+            except Exception:
+                try:
+                    # Если не получилось, принудительно убиваем процесс
+                    self.proc.kill()
+                    self.proc.wait(timeout=1)
+                except Exception:
+                    pass
+            self.proc = None
+        
+        # Также проверяем, не осталось ли процессов sing-box.exe
+        # Используем taskkill для Windows
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", "sing-box.exe"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            except Exception:
+                pass
+        
         event.accept()
 
 

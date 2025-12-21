@@ -42,6 +42,7 @@
     "auto_update_interval": "Auto-update interval (min):",
     "autostart": "Start with Windows",
     "run_as_admin": "Run as administrator",
+    "auto_start_singbox": "Auto-start SingBox when application starts",
     "logs": "Logs"
   },
   "download": {
@@ -83,7 +84,9 @@
     "admin_required_stop": "Administrator rights are required to stop SingBox.\n\nRestart the application as administrator?",
     "restart_required_title": "Restart required",
     "restart_required_text": "To apply the 'Run as administrator' setting, the application needs to be restarted.\n\nRestart now?",
-    "admin_restart_failed": "Failed to restart the application as administrator"
+    "admin_restart_failed": "Failed to restart the application as administrator",
+    "auto_start_singbox_enabled": "Auto-start SingBox when application starts enabled",
+    "auto_start_singbox_disabled": "Auto-start SingBox when application starts disabled"
   }
 }
 

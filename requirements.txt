@@ -3,3 +3,4 @@ qtawesome>=1.4.0
 requests>=2.32.0
 pyinstaller>=6.0.0
 
+

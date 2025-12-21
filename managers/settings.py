@@ -11,6 +11,7 @@ class SettingsManager:
             "auto_update_minutes": 90,
             "start_with_windows": False,
             "run_as_admin": False,
+            "auto_start_singbox": False,  # Автозапуск sing-box при запуске приложения
             "language": "ru",  # Язык интерфейса
         }
         self.load()
