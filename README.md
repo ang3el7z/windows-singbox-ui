@@ -12,12 +12,14 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 ## Features
 
 - 🎨 Modern mobile design
-- 🌍 Support for Russian and English languages
+- 🌍 Support for Russian and English languages (with custom language support)
 - 📥 Automatic SingBox core download
 - 🔄 Automatic configuration updates
 - 📊 Built-in logs
 - ⚙️ Autostart and auto-update settings
 - 🔔 Update availability notifications
+- 🚀 **Automatic application updates** with beautiful GUI updater
+- 🛡️ **Smart update system** - preserves user data (subscriptions, settings, core, logs)
 
 ## Project Structure
 
@@ -39,13 +41,19 @@ SingBox-UI/
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   └── en.json           # English
+├── changelog/            # Version changelogs
+│   ├── CHANGELOG_v1.0.0.md
+│   ├── CHANGELOG_v1.0.1.md
+│   ├── CHANGELOG_v1.0.2.md
+│   ├── CHANGELOG_v1.0.3.md
+│   └── CHANGELOG_v1.0.4.md
 └── data/                 # Data (created automatically)
     ├── core/             # SingBox core
     ├── logs/             # Logs
     ├── locales/          # Localization files (copied from locales/)
     │   ├── ru.json       # Russian
     │   └── en.json       # English
-    ├── updater.exe       # Update utility executable
+    ├── updater.exe       # Update utility executable (with GUI)
     └── config.json       # Config
 ```
 
@@ -89,6 +97,19 @@ The result will be in the `dist/SingBox-UI/` folder with the following structure
 3. Add subscriptions in the "Profile" section
 4. Select a subscription and click "START" on the main page
 
+### Updating the Application
+
+When a new version is available:
+1. The version label will show "Update available: vX.X.X" (clickable)
+2. Click on the version to start the update
+3. The updater window will open showing the update progress
+4. The updater will automatically:
+   - Download the update
+   - Stop the application and SingBox
+   - Install the update (preserving your data)
+   - Start the updated application
+5. On success, the updater closes automatically. On error, it stays open for review.
+
 ## Data Structure
 
 On first launch, the application automatically creates:
@@ -100,10 +121,10 @@ On first launch, the application automatically creates:
 - `data/locales/` - Localization files (copied during build)
   - `ru.json` - Russian translations
   - `en.json` - English translations
-- `data/updater.exe` - Update utility (used for automatic updates)
+- `data/updater.exe` - Update utility with GUI (handles entire update process)
 - `data/config.json` - Configuration file (downloaded from subscription)
-- `data/.subscriptions` - Subscription list
-- `data/.settings` - Application settings
+- `data/.subscriptions` - Subscription list (preserved during updates)
+- `data/.settings` - Application settings (merged during updates - new keys added, existing preserved)
 
 ## Requirements
 
