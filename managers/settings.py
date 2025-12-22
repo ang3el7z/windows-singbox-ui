@@ -22,7 +22,7 @@ class SettingsManager:
             "auto_start_singbox": False,  # Автозапуск sing-box при запуске приложения
             "minimize_to_tray": True,  # Сворачивать в трей (по умолчанию включено)
             "language": "",  # Пустая строка означает, что язык не выбран
-            "allow_multiple_processes": True,  # Разрешить несколько процессов одновременно
+            "allow_multiple_processes": False,  # Разрешить несколько процессов одновременно
             "isDebug": False,  # Режим отладки (логирование в файл)
         }
         self.load()
