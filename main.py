@@ -1882,7 +1882,12 @@ class MainWindow(QMainWindow):
         if not args:
             return
         
+        from urllib.parse import urlparse, unquote
+        
         for arg in args:
+            # Убираем кавычки если есть (Windows может передавать аргументы в кавычках)
+            arg = arg.strip('"\'')
+            
             # Проверяем, является ли аргумент URL
             if arg.startswith('http://') or arg.startswith('https://') or arg.startswith('sing-box://') or arg.startswith('singbox-ui://'):
                 # Убираем префикс протокола если есть
@@ -1890,18 +1895,24 @@ class MainWindow(QMainWindow):
                 if url.startswith('sing-box://'):
                     # Убираем протокол sing-box://
                     url = url.replace('sing-box://', '', 1)
+                    # Декодируем URL (sing-box передает URL в encoded виде)
+                    url = unquote(url)
                     # Если после протокола нет http:// или https://, добавляем https://
                     if not url.startswith('http://') and not url.startswith('https://'):
                         url = 'https://' + url
                 elif url.startswith('singbox-ui://'):
                     # Убираем протокол singbox-ui://
                     url = url.replace('singbox-ui://', '', 1)
+                    # Декодируем URL (может быть в encoded виде)
+                    url = unquote(url)
                     # Если после протокола нет http:// или https://, добавляем https://
                     if not url.startswith('http://') and not url.startswith('https://'):
                         url = 'https://' + url
                 
+                # Убираем лишние пробелы и нормализуем URL
+                url = url.strip()
+                
                 # Извлекаем имя из URL (можно использовать часть URL или параметры)
-                from urllib.parse import urlparse, parse_qs
                 parsed = urlparse(url)
                 
                 # Пытаемся извлечь имя из фрагмента или параметров
@@ -1930,8 +1941,8 @@ class MainWindow(QMainWindow):
                 if len(name) > 50:
                     name = name[:50]
                 
-                # Проверяем, нет ли уже такой подписки
-                existing_urls = [s.get("url", "") for s in self.subs.data.get("subscriptions", [])]
+                # Проверяем, нет ли уже такой подписки (сравниваем нормализованные URL)
+                existing_urls = [s.get("url", "").strip() for s in self.subs.data.get("subscriptions", [])]
                 if url in existing_urls:
                     self.log(tr("messages.subscription_already_exists"))
                     QMessageBox.information(
@@ -1957,6 +1968,7 @@ class MainWindow(QMainWindow):
                     # Переключаемся на страницу профилей
                     self.switch_page(0)
                 except Exception as e:
+                    log_to_file(f"[Deep Link] Error importing subscription: {e}")
                     self.log(tr("messages.subscription_import_error", error=str(e)))
                     QMessageBox.warning(
                         self,
