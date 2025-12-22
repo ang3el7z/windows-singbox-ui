@@ -36,7 +36,9 @@ from utils.logger import log_to_file, set_main_window
 
 
 def register_protocols():
-    """Регистрация протоколов sing-box:// и singbox-ui:// в Windows (без прав админа)"""
+    """Регистрация протоколов sing-box:// и singbox-ui:// в Windows (без прав админа)
+    Проверяет оба места в реестре (HKEY_CURRENT_USER и HKEY_LOCAL_MACHINE)
+    и не перезаписывает регистрацию официального sing-box"""
     if sys.platform != "win32":
         return False
     
@@ -52,17 +54,71 @@ def register_protocols():
             script_path = Path(__file__).parent / "main.py"
             exe_path = f'"{exe_path}" "{script_path}"'
         
+        # Формируем команду запуска
+        command = f'"{exe_path}" "%1"'
+        
+        def check_protocol_registration(protocol, hive):
+            """Проверяет регистрацию протокола в указанном месте реестра"""
+            key_path = f"Software\\Classes\\{protocol}"
+            command_path = f"{key_path}\\shell\\open\\command"
+            
+            try:
+                with winreg.OpenKey(hive, command_path) as cmd_key:
+                    current_command = winreg.QueryValue(cmd_key, "")
+                    return current_command
+            except FileNotFoundError:
+                return None
+        
         for protocol in protocols:
             key_path = f"Software\\Classes\\{protocol}"
+            command_path = f"{key_path}\\shell\\open\\command"
             
-            # Создаем ключ протокола
+            # Проверяем оба места в реестре
+            hkcu_command = check_protocol_registration(protocol, winreg.HKEY_CURRENT_USER)
+            hklm_command = None
+            try:
+                hklm_command = check_protocol_registration(protocol, winreg.HKEY_LOCAL_MACHINE)
+            except PermissionError:
+                # Нет прав на чтение HKEY_LOCAL_MACHINE - это нормально
+                pass
+            
+            # Определяем, какая регистрация активна (HKCU имеет приоритет)
+            active_command = hkcu_command or hklm_command
+            
+            # Для протокола sing-box:// проверяем, не зарегистрирован ли он официальным sing-box
+            if protocol == "sing-box":
+                if active_command:
+                    # Проверяем, не указывает ли команда на официальный sing-box.exe
+                    if "sing-box.exe" in active_command.lower() and "singbox-ui.exe" not in active_command.lower():
+                        log_to_file(f"[Protocol Registration] Протокол {protocol}:// зарегистрирован официальным sing-box в {'HKCU' if hkcu_command else 'HKLM'}, пропускаем")
+                        continue
+                    # Если это наша старая регистрация - обновим
+                    if hkcu_command and hkcu_command != command:
+                        log_to_file(f"[Protocol Registration] Обновление пути для {protocol}:// (старая регистрация найдена)")
+                    elif not hkcu_command and hklm_command:
+                        log_to_file(f"[Protocol Registration] Протокол {protocol}:// зарегистрирован в HKLM, создаем в HKCU (приоритет)")
+                else:
+                    log_to_file(f"[Protocol Registration] Регистрация нового протокола {protocol}://")
+            
+            # Для singbox-ui:// всегда обновляем (это наш уникальный протокол)
+            else:  # singbox-ui
+                if hkcu_command == command:
+                    log_to_file(f"[Protocol Registration] Протокол {protocol}:// уже зарегистрирован с актуальным путем")
+                    continue
+                elif hkcu_command:
+                    log_to_file(f"[Protocol Registration] Обновление пути для {protocol}://")
+                else:
+                    log_to_file(f"[Protocol Registration] Регистрация нового протокола {protocol}://")
+            
+            # Создаем/обновляем ключ протокола в HKEY_CURRENT_USER (имеет приоритет)
             with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
                 winreg.SetValue(key, "", winreg.REG_SZ, f"URL:{protocol} Protocol")
                 winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
             
-            # Создаем ключ для команды по умолчанию
-            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"{key_path}\\shell\\open\\command") as key:
-                winreg.SetValue(key, "", winreg.REG_SZ, f'"{exe_path}" "%1"')
+            # Создаем/обновляем ключ для команды по умолчанию
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, command_path) as key:
+                winreg.SetValue(key, "", winreg.REG_SZ, command)
+                log_to_file(f"[Protocol Registration] Протокол {protocol}:// успешно зарегистрирован/обновлен в HKCU")
         
         return True
     except Exception as e:
@@ -3189,22 +3245,14 @@ if __name__ == "__main__":
         allow_multiple = settings.get("allow_multiple_processes", True)
         log_to_file(f"[Startup] Разрешено несколько процессов: {allow_multiple}")
         
-        # Регистрируем протоколы при первом запуске (если еще не зарегистрированы)
+        # Регистрируем/обновляем протоколы при каждом запуске
+        # (проверяем, чтобы не заменить регистрацию официального sing-box)
         try:
-            import winreg
-            protocol_registered = False
-            try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\singbox-ui"):
-                    protocol_registered = True
-            except FileNotFoundError:
-                pass
-            
-            if not protocol_registered:
-                log_to_file("[Startup] Регистрация протоколов sing-box:// и singbox-ui://...")
-                if register_protocols():
-                    log_to_file("[Startup] Протоколы успешно зарегистрированы")
-                else:
-                    log_to_file("[Startup] Не удалось зарегистрировать протоколы")
+            log_to_file("[Startup] Проверка и обновление регистрации протоколов...")
+            if register_protocols():
+                log_to_file("[Startup] Протоколы успешно зарегистрированы/обновлены")
+            else:
+                log_to_file("[Startup] Не удалось зарегистрировать/обновить протоколы")
         except Exception as e:
             log_to_file(f"[Startup] Ошибка при проверке/регистрации протоколов: {e}")
     
