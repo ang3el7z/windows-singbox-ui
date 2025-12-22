@@ -1,5 +1,5 @@
 """Главный файл приложения SingBox-UI"""
-__version__ = "1.1.1"  # Версия приложения
+__version__ = "1.1.2"  # Версия приложения
 
 import sys
 import subprocess
