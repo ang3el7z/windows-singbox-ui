@@ -57,7 +57,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
-    QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox
+    QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox, QSizePolicy
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSharedMemory
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -142,10 +142,18 @@ class MainWindow(QMainWindow):
         self.app_version = __version__  # Версия приложения
         self.cached_app_latest_version = None  # Кэш последней версии приложения
         self.app_update_checked = False  # Флаг: была ли проверка обновлений приложения выполнена
-        self.logs_click_count = 0  # Счетчик кликов по заголовку логов для дебаг меню
+        self.version_click_count = 0  # Счетчик кликов по версии для дебаг меню
 
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
+        
+        # Инициализируем систему адаптивного масштабирования
+        from ui.utils.responsive_scaler import init_scaler
+        self.responsive_scaler = init_scaler(self)
+        
+        # Подключаем обработчик изменения размера для адаптивности
+        from PyQt5.QtCore import QEvent
+        self.installEventFilter(self)
 
         # Устанавливаем иконку окна через IconManager
         set_window_icon(self)
@@ -158,6 +166,7 @@ class MainWindow(QMainWindow):
 
         # Стек страниц
         self.stack = QStackedWidget()
+        self.stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         from ui.pages import ProfilePage, HomePage, SettingsPage
         self.page_profile = ProfilePage(self)
         self.page_home = HomePage(self)
@@ -169,9 +178,15 @@ class MainWindow(QMainWindow):
         # По умолчанию открываем home (индекс 1)
         self.stack.setCurrentIndex(1)
         
-        # Нижняя навигация
+        # Регистрируем страницы для адаптивного масштабирования после создания всех виджетов
+        QTimer.singleShot(100, self._register_responsive_widgets)
+        
+        # Нижняя навигация (адаптивная)
         nav = QWidget()
-        nav.setFixedHeight(110)
+        nav.setObjectName("nav")
+        nav.setMinimumHeight(80)
+        nav.setMaximumHeight(120)
+        nav.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         nav_layout = QHBoxLayout(nav)
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(0)
@@ -203,6 +218,8 @@ class MainWindow(QMainWindow):
         self.lbl_app_version.setFont(QFont("Segoe UI", 10))
         self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary", size="medium"))
         self.lbl_app_version.setAlignment(Qt.AlignCenter)
+        self.lbl_app_version.setCursor(Qt.PointingHandCursor)
+        self.lbl_app_version.mousePressEvent = self.on_version_clicked
         version_layout.addWidget(self.lbl_app_version)
         
         from ui.styles import theme
@@ -224,7 +241,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._init_async_operations)
         
         # Обновляем UI элементы, которые не требуют данных
-        if hasattr(self, 'lbl_admin_status'):
+        if hasattr(self, 'page_home') and hasattr(self.page_home, 'lbl_admin_status'):
             self.update_admin_status_label()
         self.update_big_button_state()
         self.update_app_version_display()
@@ -459,9 +476,8 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
             btn.setChecked(i == index)
         if index == 2:  # Settings page
-            # Загружаем логи при открытии страницы
+            # Обновляем видимость дебаг элементов при открытии страницы
             if hasattr(self, 'page_settings'):
-                self.page_settings.load_logs()
                 self.page_settings.update_debug_logs_visibility()
 
     # Подписки
@@ -805,24 +821,15 @@ class MainWindow(QMainWindow):
                 # Есть обновление
                 self.lbl_app_version.setText(tr("app.update_available", version=self.cached_app_latest_version))
                 self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="warning") + "cursor: pointer;")
-                # Делаем кликабельным для открытия диалога обновления
-                if not hasattr(self.lbl_app_version, '_click_handler'):
-                    self.lbl_app_version.mousePressEvent = lambda e: self.show_app_update_dialog() if e.button() == Qt.LeftButton else None
-                    self.lbl_app_version._click_handler = True
+                # Обработчик клика уже установлен в __init__, он обрабатывает и обновления, и дебаг режим
             else:
                 # Нет обновления
                 self.lbl_app_version.setText(tr("app.version", version=self.app_version))
-                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary"))
-                if hasattr(self.lbl_app_version, '_click_handler'):
-                    self.lbl_app_version.mousePressEvent = None
-                    delattr(self.lbl_app_version, '_click_handler')
+                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
         else:
             # Показываем текущую версию
             self.lbl_app_version.setText(tr("app.version", version=self.app_version))
-            self.lbl_app_version.setStyleSheet("color: #64748b; background-color: transparent; border: none; padding: 0px;")
-            if hasattr(self.lbl_app_version, '_click_handler'):
-                self.lbl_app_version.mousePressEvent = None
-                delattr(self.lbl_app_version, '_click_handler')
+            self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
     
     
     def show_app_update_dialog(self):
@@ -939,15 +946,18 @@ class MainWindow(QMainWindow):
         """Обновление надписи о правах администратора"""
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_admin_status'):
             return
+        from ui.styles import theme
         if is_admin():
             self.page_home.lbl_admin_status.setText(tr("home.admin_running"))
-            # Устанавливаем стиль с явным указанием цвета, как для других видимых label
-            self.page_home.lbl_admin_status.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            # Используем цвета из темы
+            accent_color = theme.get_color('accent')
+            self.page_home.lbl_admin_status.setStyleSheet(f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;")
             self.page_home.lbl_admin_status.setCursor(Qt.ArrowCursor)
         else:
             self.page_home.lbl_admin_status.setText(tr("home.admin_not_running"))
-            # Устанавливаем стиль с явным указанием цвета, как для надписи об обновлении (оранжевый)
-            self.page_home.lbl_admin_status.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px;")
+            # Используем цвета из темы (warning для не запущенного)
+            warning_color = theme.get_color('warning')
+            self.page_home.lbl_admin_status.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px;")
             self.page_home.lbl_admin_status.setCursor(Qt.PointingHandCursor)
     
     def admin_status_mouse_press(self, event):
@@ -1059,107 +1069,130 @@ class MainWindow(QMainWindow):
             btn_download.setText(tr("download.download"))
     
     # Кнопка Start/Stop
-    def style_big_btn_running(self, running: bool):
-        """Стиль большой кнопки"""
+    def style_big_btn_running(self, running: bool, font_size: int = None):
+        """Стиль большой кнопки с использованием цветов темы"""
         if not hasattr(self, 'page_home'):
             return
+        from ui.styles import theme
+        
+        # Если размер шрифта не указан, вычисляем на основе текущего размера кнопки
+        if font_size is None:
+            if hasattr(self.page_home, 'big_btn'):
+                btn_size = self.page_home.big_btn.width()
+                if btn_size == 0:
+                    btn_size = 200  # Дефолтный размер
+                font_size = max(18, min(32, int(btn_size / 7)))
+            else:
+                font_size = 28  # Дефолтный размер
+        
         # Проверяем, нужно ли показать "Сменить" (оранжевый цвет)
         is_change_mode = (running and 
                          self.running_sub_index != self.current_sub_index and 
                          self.current_sub_index >= 0)
+        
+        # Получаем цвета из темы
+        bg_secondary = theme.get_color('background_secondary')
+        accent = theme.get_color('accent')
+        warning = theme.get_color('warning')
+        error = theme.get_color('error')
+        text_disabled = theme.get_color('text_disabled')
+        bg_disabled = theme.get_color('background_secondary')
         
         # Обновляем подложку
         if hasattr(self.page_home, 'btn_wrapper'):
             if running:
                 if is_change_mode:
                     # Оранжевый для режима "Сменить"
-                    border_color = "rgba(255,165,0,0.5)"  # Оранжевый
+                    border_color = warning if 'rgba' in warning else f"{warning}80"
                 else:
                     # Красный для режима "Остановить"
-                    border_color = "rgba(255,107,107,0.5)"
+                    border_color = error if 'rgba' in error else f"{error}80"
+                # Круглая форма (50% для круглой формы)
                 self.page_home.btn_wrapper.setStyleSheet(f"""
                     QWidget {{
-                        background-color: #1a1f2e;
-                        border-radius: 110px;
+                        background-color: {bg_secondary};
+                        border-radius: 50%;
                         border: 2px solid {border_color};
                     }}
                 """)
             else:
-                self.page_home.btn_wrapper.setStyleSheet("""
-                    QWidget {
-                        background-color: #1a1f2e;
-                        border-radius: 110px;
-                        border: 2px solid rgba(0,245,212,0.5);
-                    }
+                border_color = accent if 'rgba' in accent else f"{accent}80"
+                # Круглая форма (50% для круглой формы)
+                self.page_home.btn_wrapper.setStyleSheet(f"""
+                    QWidget {{
+                        background-color: {bg_secondary};
+                        border-radius: 50%;
+                        border: 2px solid {border_color};
+                    }}
                 """)
         
         if running:
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
             if is_change_mode:
                 # Оранжевый стиль для кнопки "Сменить"
-                self.page_home.big_btn.setStyleSheet("""
-                    QPushButton {
-                        border-radius: 100px;
-                        background-color: #1a1f2e;
-                        color: #ffa500;
-                        font-size: 28px;
+                self.page_home.big_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        border-radius: 50%;
+                        background-color: {bg_secondary};
+                        color: {warning};
+                        font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
-                        border: 2px solid #ffa500;
-                    }
-                    QPushButton:hover {
-                        background-color: rgba(255,165,0,0.1);
-                        border: 2px solid #ffb733;
-                    }
-                    QPushButton:disabled {
-                        background-color: #475569;
-                        color: #94a3b8;
-                        border: 2px solid #475569;
-                    }
+                        border: 2px solid {warning};
+                    }}
+                    QPushButton:hover {{
+                        background-color: {theme.get_color('accent_light')};
+                        border: 2px solid {warning};
+                    }}
+                    QPushButton:disabled {{
+                        background-color: {bg_disabled};
+                        color: {text_disabled};
+                        border: 2px solid {bg_disabled};
+                    }}
                 """)
             else:
                 # Красный стиль для кнопки "Остановить"
-                self.page_home.big_btn.setStyleSheet("""
-                    QPushButton {
-                        border-radius: 100px;
-                        background-color: #1a1f2e;
-                        color: #ff6b6b;
-                        font-size: 28px;
+                self.page_home.big_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        border-radius: 50%;
+                        background-color: {bg_secondary};
+                        color: {error};
+                        font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
-                        border: 2px solid #ff6b6b;
-                    }
-                    QPushButton:hover {
-                        background-color: rgba(255,107,107,0.1);
-                        border: 2px solid #ff8787;
-                    }
-                    QPushButton:disabled {
-                        background-color: #475569;
-                        color: #94a3b8;
-                        border: 2px solid #475569;
-                    }
+                        border: 2px solid {error};
+                    }}
+                    QPushButton:hover {{
+                        background-color: {theme.get_color('accent_light')};
+                        border: 2px solid {error};
+                    }}
+                    QPushButton:disabled {{
+                        background-color: {bg_disabled};
+                        color: {text_disabled};
+                        border: 2px solid {bg_disabled};
+                    }}
                 """)
         else:
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
-            self.page_home.big_btn.setStyleSheet("""
-                QPushButton {
-                    border-radius: 100px;
-                    background-color: #1a1f2e;
-                    color: #00f5d4;
-                    font-size: 28px;
+            self.page_home.big_btn.setStyleSheet(f"""
+                QPushButton {{
+                    border-radius: 50%;
+                    background-color: {bg_secondary};
+                    color: {accent};
+                    font-size: {font_size}px;
                     font-weight: 700;
                     font-family: 'Segoe UI', sans-serif;
-                    border: 2px solid #00f5d4;
-                }
-                QPushButton:hover {
-                    background-color: rgba(0,245,212,0.1);
-                    border: 2px solid #5fffe3;
-                }
-                QPushButton:disabled {
-                    background-color: #475569;
-                    color: #94a3b8;
-                    border: 2px solid #475569;
-                }
+                    border: 2px solid {accent};
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.get_color('accent_light')};
+                    border: 2px solid {accent};
+                }}
+                QPushButton:disabled {{
+                    background-color: {bg_disabled};
+                    color: {text_disabled};
+                    border: 2px solid {bg_disabled};
+                }}
             """)
 
     def update_big_button_state(self):
@@ -1168,6 +1201,10 @@ class MainWindow(QMainWindow):
             return
         core_ok = CORE_EXE.exists()
         running = self.proc and self.proc.poll() is None
+        
+        # Обновляем анимацию если используется AnimatedStartButton
+        if hasattr(self.page_home, 'big_btn') and hasattr(self.page_home.big_btn, 'set_running'):
+            self.page_home.big_btn.set_running(running)
         
         if running:
             # Если запущен - кнопка всегда активна (можно остановить)
@@ -1359,13 +1396,32 @@ class MainWindow(QMainWindow):
             # Восстанавливаем значение если не число
             self.page_settings.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
     
-    def on_logs_title_clicked(self):
-        """Обработка клика по заголовку логов для показа дебаг меню"""
-        if not hasattr(self, 'page_settings'):
+    def on_version_clicked(self, event):
+        """Обработка клика по версии для показа дебаг меню и обновлений"""
+        if event.button() != Qt.LeftButton:
             return
-        self.logs_click_count += 1
-        if self.logs_click_count >= 6:
-            self.logs_click_count = 0  # Сбрасываем счетчик
+        
+        # Проверяем, есть ли обновление приложения
+        if self.cached_app_latest_version:
+            comparison = compare_versions(self.app_version, self.cached_app_latest_version)
+            if comparison < 0:
+                # Есть обновление - показываем диалог обновления
+                self.show_app_update_dialog()
+                return
+        
+        # Если нет обновления, обрабатываем клики для дебаг режима
+        self.version_click_count += 1
+        
+        # На 5-м клике показываем сообщение
+        if self.version_click_count == 5:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Debug Mode",
+                "Нажмите ещё один раз, чтобы активировать режим разработчика"
+            )
+        elif self.version_click_count >= 6:
+            self.version_click_count = 0  # Сбрасываем счетчик
             
             # Переключаем настройку isDebug
             current_debug = self.settings.get("isDebug", False)
@@ -1377,6 +1433,12 @@ class MainWindow(QMainWindow):
             
             if new_debug:
                 log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self,
+                    "Debug Mode",
+                    "Режим разработчика активирован"
+                )
             else:
                 log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
     
@@ -1604,6 +1666,42 @@ class MainWindow(QMainWindow):
                     self.log(tr("settings.language_changed", language=get_language_name(lang_code)))
                     # Обновляем все тексты в интерфейсе
                     self.refresh_ui_texts()
+                    # Обновляем названия тем в комбобоксе
+                    if hasattr(self.page_settings, 'combo_theme'):
+                        current_theme_id = self.page_settings.combo_theme.itemData(self.page_settings.combo_theme.currentIndex())
+                        self.page_settings.combo_theme.clear()
+                        from utils.theme_manager import get_available_themes, get_theme_name
+                        available_themes = get_available_themes()
+                        for theme_info in available_themes:
+                            theme_name = get_theme_name(theme_info["id"], lang_code)
+                            self.page_settings.combo_theme.addItem(theme_name, theme_info["id"])
+                            if theme_info["id"] == current_theme_id:
+                                self.page_settings.combo_theme.setCurrentIndex(self.page_settings.combo_theme.count() - 1)
+    
+    def on_theme_changed(self, index: int):
+        """Обработка изменения темы"""
+        if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'combo_theme'):
+            return
+        if index >= 0:
+            theme_id = self.page_settings.combo_theme.itemData(index)
+            if theme_id:
+                old_theme = self.settings.get("theme", "dark")
+                if theme_id != old_theme:
+                    self.settings.set("theme", theme_id)
+                    from utils.theme_manager import set_theme, get_theme_name
+                    from utils.i18n import get_translator
+                    set_theme(theme_id)
+                    theme.reload_theme()
+                    # Применяем тему ко всему приложению
+                    from app.application import apply_theme
+                    app = QApplication.instance()
+                    if app:
+                        apply_theme(app)
+                    # Обновляем стили всех виджетов
+                    self.refresh_ui_styles()
+                    current_language = get_translator().language
+                    theme_name = get_theme_name(theme_id, current_language)
+                    self.log(tr("settings.theme_changed", theme=theme_name))
     
     def refresh_ui_texts(self):
         """Обновление всех текстов в интерфейсе после смены языка"""
@@ -1649,8 +1747,8 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_minimize_to_tray.setText(tr("settings.minimize_to_tray"))
             if hasattr(self.page_settings, 'btn_kill_all'):
                 self.page_settings.btn_kill_all.setText(tr("settings.kill_all"))
-        if hasattr(self, 'label_interval'):
-            self.label_interval.setText(tr("settings.auto_update_interval"))
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'interval_label'):
+            self.page_settings.interval_label.setText(tr("settings.auto_update_interval"))
         if hasattr(self, 'language_label'):
             self.language_label.setText(tr("settings.language"))
         
@@ -1659,6 +1757,70 @@ class MainWindow(QMainWindow):
         self.update_version_info()
         self.update_app_version_display()
         self.update_big_button_state()
+        self.update_admin_status_label()
+    
+    def refresh_ui_styles(self):
+        """Обновление всех стилей в интерфейсе после смены темы"""
+        from ui.styles import StyleSheet, theme
+        
+        # Обновляем стили всех страниц
+        if hasattr(self, 'page_profile'):
+            self.page_profile.setStyleSheet("")
+            # Пересоздаем стили для виджетов на странице профилей
+            if hasattr(self.page_profile, 'sub_list'):
+                self.page_profile.sub_list.setStyleSheet(f"""
+                    QListWidget {{
+                        background-color: {theme.get_color('background_tertiary')};
+                        border: none;
+                        border-radius: {theme.get_size('border_radius_medium')}px;
+                        padding: {theme.get_size('padding_small')}px;
+                        outline: none;
+                    }}
+                    QListWidget::item {{
+                        background-color: transparent;
+                        border-radius: {theme.get_size('border_radius_small')}px;
+                        padding: {theme.get_size('padding_medium')}px;
+                        margin: 2px;
+                    }}
+                    QListWidget::item:hover {{
+                        background-color: {theme.get_color('accent_light')};
+                    }}
+                    QListWidget::item:selected {{
+                        background-color: {theme.get_color('accent_light')};
+                        color: {theme.get_color('accent')};
+                    }}
+                """)
+        
+        if hasattr(self, 'page_settings'):
+            self.page_settings.setStyleSheet("")
+            # Обновляем стили виджетов на странице настроек
+            if hasattr(self.page_settings, 'logs'):
+                self.page_settings.logs.setStyleSheet(StyleSheet.text_edit())
+            if hasattr(self.page_settings, 'debug_logs'):
+                self.page_settings.debug_logs.setStyleSheet(f"""
+                    QTextEdit {{
+                        background-color: rgba(255, 107, 107, 0.05);
+                        color: {theme.get_color('error')};
+                        border-radius: {theme.get_size('border_radius_large')}px;
+                        padding: {theme.get_size('padding_large')}px;
+                        border: 2px solid rgba(255, 107, 107, 0.2);
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        font-size: 10px;
+                        outline: none;
+                    }}
+                """)
+        
+        if hasattr(self, 'page_home'):
+            self.page_home.setStyleSheet("")
+            # Обновляем стили кнопки
+            self.update_big_button_state()
+        
+        # Обновляем навигацию
+        nav = self.findChild(QWidget, "nav")
+        if nav:
+            nav.setStyleSheet(StyleSheet.navigation())
+        
+        # Обновляем статус администратора (чтобы цвет текста обновился при смене темы)
         self.update_admin_status_label()
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
@@ -1686,8 +1848,9 @@ class MainWindow(QMainWindow):
         if not container_layout:
             return
         
-        # Определяем цвет в зависимости от состояния кнопки
-        color = "#00f5d4" if btn.isChecked() else "#64748b"
+        # Определяем цвет в зависимости от состояния кнопки (используем цвета из темы)
+        from ui.styles import theme
+        color = theme.get_color('accent') if btn.isChecked() else theme.get_color('text_secondary')
         font_weight = "600" if btn.isChecked() else "500"
         
         # Обновляем все QLabel'ы в layout контейнера
@@ -1861,6 +2024,63 @@ class MainWindow(QMainWindow):
         except Exception:
             pass  # Игнорируем ошибки записи в файл
 
+    def _register_responsive_widgets(self):
+        """Регистрирует виджеты для адаптивного масштабирования"""
+        if not hasattr(self, 'responsive_scaler'):
+            return
+        
+        scaler = self.responsive_scaler
+        
+        # Регистрируем заголовки страниц
+        if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'lbl_profile_title'):
+            scaler.register_widget(self.page_profile.lbl_profile_title, base_font_size=20)
+        
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'settings_title'):
+            scaler.register_widget(self.page_settings.settings_title, base_font_size=16)
+        
+        if hasattr(self, 'page_home') and hasattr(self.page_home, 'profile_title'):
+            scaler.register_widget(self.page_home.profile_title, base_font_size=13)
+            if hasattr(self.page_home, 'version_title'):
+                scaler.register_widget(self.page_home.version_title, base_font_size=13)
+        
+        # Регистрируем кнопки на странице профилей
+        if hasattr(self, 'page_profile'):
+            for btn in (self.page_profile.btn_add_sub, self.page_profile.btn_del_sub,
+                       self.page_profile.btn_rename_sub, self.page_profile.btn_test_sub):
+                scaler.register_widget(btn, base_font_size=14, base_min_size=(70, 36))
+        
+        # Регистрируем элементы настроек
+        if hasattr(self, 'page_settings'):
+            # Метки
+            if hasattr(self.page_settings, 'language_label'):
+                scaler.register_widget(self.page_settings.language_label, base_font_size=13)
+            if hasattr(self.page_settings, 'theme_label'):
+                scaler.register_widget(self.page_settings.theme_label, base_font_size=13)
+            
+            # Чекбоксы
+            for cb in (self.page_settings.cb_autostart, self.page_settings.cb_run_as_admin,
+                      self.page_settings.cb_auto_start_singbox, self.page_settings.cb_minimize_to_tray):
+                scaler.register_widget(cb, base_font_size=13)
+            
+            # Поля ввода
+            if hasattr(self.page_settings, 'edit_interval'):
+                scaler.register_widget(self.page_settings.edit_interval, base_font_size=13, 
+                                      base_min_size=(80, 0), base_max_size=(150, 0))
+
+    def eventFilter(self, obj, event):
+        """Обработка событий для адаптивности"""
+        from PyQt5.QtCore import QEvent
+        from PyQt5.QtGui import QResizeEvent
+        
+        if event.type() == QEvent.Resize and obj == self:
+            # При изменении размера окна обновляем размер кнопки на главной странице
+            if hasattr(self, 'page_home') and hasattr(self.page_home, 'resizeEvent'):
+                # Вызываем resizeEvent страницы для обновления кнопки
+                resize_event = QResizeEvent(self.size(), self.size())
+                self.page_home.resizeEvent(resize_event)
+        
+        return super().eventFilter(obj, event)
+    
     def closeEvent(self, event):
         """Закрытие окна"""
         # Если включен трей режим, сворачиваем в трей вместо закрытия

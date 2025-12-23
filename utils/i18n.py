@@ -3,6 +3,11 @@ import json
 from typing import Dict, Any
 from config.paths import LOCALES_DIR
 
+
+class LocaleFileNotFoundError(Exception):
+    """Исключение, возникающее при отсутствии файла локализации"""
+    pass
+
 # Импортируем log_to_file если доступен
 try:
     from utils.logger import log_to_file
@@ -32,23 +37,16 @@ class Translator:
                 log_to_file(f"Локализация загружена: {locale_file}")
             except Exception as e:
                 log_to_file(f"Ошибка загрузки локализации: {e}")
-                # Загружаем русский как fallback
-                if self.language != "ru":
-                    self.load_fallback()
+                raise LocaleFileNotFoundError(
+                    f"Ошибка при загрузке файла локализации '{locale_file}': {e}. "
+                    f"Убедитесь, что файл существует и имеет корректный формат JSON."
+                )
         else:
             log_to_file(f"Файл локализации не найден: {locale_file}")
-            self.load_fallback()
-    
-    def load_fallback(self):
-        """Загружает русский язык как fallback"""
-        locale_file = LOCALES_DIR / "ru.json"
-        
-        if locale_file.exists():
-            try:
-                with open(locale_file, 'r', encoding='utf-8') as f:
-                    self.translations = json.load(f)
-            except Exception:
-                self.translations = {}
+            raise LocaleFileNotFoundError(
+                f"Файл локализации не найден: {locale_file}. "
+                f"Проверьте наличие файла локализации в директории: {LOCALES_DIR}"
+            )
     
     def set_language(self, language: str):
         """Устанавливает язык"""

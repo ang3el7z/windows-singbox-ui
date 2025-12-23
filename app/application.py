@@ -6,6 +6,8 @@ import sys
 import ctypes
 from ui.styles import StyleSheet, theme
 from utils.icon_manager import set_application_icon
+from utils.theme_manager import set_theme, get_theme_manager
+from managers.settings import SettingsManager
 
 
 def create_application() -> QApplication:
@@ -28,13 +30,19 @@ def create_application() -> QApplication:
         except Exception:
             pass  # Игнорируем ошибки, если не удалось установить
     
-    apply_dark_theme(app)
+    # Загружаем настройки и применяем тему
+    settings = SettingsManager()
+    theme_name = settings.get("theme", "dark")
+    set_theme(theme_name)
+    theme.reload_theme()
+    
+    apply_theme(app)
     return app
 
 
-def apply_dark_theme(app: QApplication) -> None:
+def apply_theme(app: QApplication) -> None:
     """
-    Применение темной темы к приложению
+    Применение темы к приложению
     
     Args:
         app: Экземпляр QApplication
@@ -60,4 +68,14 @@ def apply_dark_theme(app: QApplication) -> None:
     
     # Используем новую систему стилей
     app.setStyleSheet(StyleSheet.global_styles())
+
+
+def apply_dark_theme(app: QApplication) -> None:
+    """
+    Применение темной темы к приложению (для обратной совместимости)
+    
+    Args:
+        app: Экземпляр QApplication
+    """
+    apply_theme(app)
 

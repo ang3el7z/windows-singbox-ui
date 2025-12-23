@@ -45,6 +45,7 @@ SingBox-UI/
 │   ├── icon.png           # PNG icon
 │   └── icon.svg           # SVG icon (source)
 ├── scripts/                # Utility scripts
+│   ├── build_parallel.py   # Parallel build script (builds both exe simultaneously)
 │   └── register_protocol.py # Protocol registration script
 ├── config/                 # Configuration
 │   └── paths.py           # File paths
@@ -121,6 +122,15 @@ SingBox-UI/
 
 ### Build exe
 
+**Recommended: Use parallel build script (builds both exe simultaneously, faster):**
+
+```bash
+# Build both SingBox-UI.exe and updater.exe in parallel
+python scripts/build_parallel.py --clean-build
+```
+
+**Alternative: Manual build (sequential):**
+
 ```bash
 # Build main application
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
@@ -129,8 +139,10 @@ py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py -m PyInstaller updater.spec --clean --noconfirm
 
 # Run post-build script to organize files
-py post_build.py
+python main/post_build.py
 ```
+
+The parallel build script automatically runs the post-build script after successful builds.
 
 The result will be in the `dist/SingBox-UI/` folder with the following structure:
 - `SingBox-UI.exe` - Main application

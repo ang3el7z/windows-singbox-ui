@@ -1,5 +1,5 @@
 """Базовый класс для всех страниц"""
-from PyQt5.QtWidgets import QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from ui.widgets import CardWidget
 from ui.styles import StyleSheet
 
@@ -11,11 +11,14 @@ class BasePage(QWidget):
         super().__init__(parent)
         # Устанавливаем явный фон страницы
         from ui.styles import theme
+        from PyQt5.QtWidgets import QSizePolicy
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: {theme.get_color('background_primary')};
             }}
         """)
+        # Страницы должны расширяться
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(16, 16, 16, 16)
         self._layout.setSpacing(16)

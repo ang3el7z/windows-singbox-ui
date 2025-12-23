@@ -6,15 +6,8 @@
     "update_available": "Доступно обновление: {version}",
     "update_title": "Доступно обновление",
     "update_message": "Доступна новая версия приложения: {version}\n\nТекущая версия: {current}\n\nХотите установить обновление?",
-    "update_yes": "Обновить",
-    "update_no": "Позже",
-    "update_downloading": "Загрузка обновления {version}...",
-    "update_preparing": "Подготовка к обновлению...",
-    "update_success": "Обновление успешно установлено",
     "update_complete": "Обновление завершено. Приложение будет перезапущено.",
-    "update_error_title": "Ошибка обновления",
-    "update_error": "Ошибка при обновлении: {error}",
-    "update_error_not_found": "Архив с обновлением не найден"
+    "update_error_title": "Ошибка обновления"
   },
   "nav": {
     "profile": "Профиль",
@@ -30,14 +23,11 @@
     "not_selected": "Не выбран",
     "admin_running": "Запущено от имени администратора",
     "admin_not_running": "Не запущено от имени администратора (нажмите для перезапуска)",
-    "state_stopped": "Остановлено",
-    "state_running": "Запущено",
     "button_start": "ЗАПУСК",
     "button_stop": "ОСТАНОВИТЬ",
     "button_change": "СМЕНИТЬ",
     "current_profile": "Текущий профиль: {name}",
     "selected_profile": "Выбранный профиль: {name}",
-    "profile_not_selected": "Профиль не выбран",
     "profile_not_selected_click": "Профиль не выбран (нажмите для выбора)"
   },
   "profile": {
@@ -52,7 +42,6 @@
     "delete_question": "Удалить?",
     "delete_confirm": "Удалить '{name}'?",
     "rename_subscription": "Переименовать профиль",
-    "rename_question": "Переименовать?",
     "rename_confirm": "Введите новое имя для '{name}':",
     "select_for_test": "Выбери подписку для теста",
     "test_loading": "Тест загрузки конфига...",
@@ -73,9 +62,10 @@
     "minimize_to_tray": "Сворачивать в трей при закрытии",
     "language": "Язык интерфейса:",
     "language_changed": "Язык изменен на {language}",
+    "theme": "Тема:",
+    "theme_changed": "Тема изменена на {theme}",
     "kill_all": "Убить все процессы",
     "logs": "Логи",
-    "debug_title": "Отладочные настройки",
     "allow_multiple_processes": "Разрешить несколько процессов одновременно"
   },
   "download": {
@@ -103,7 +93,6 @@
     "stopping": "Останавливаю sing-box...",
     "stopped": "sing-box завершился, код {code}",
     "switching_profile": "Переключение профиля...",
-    "reload": "Ручной reload: перезапуск с новым конфигом",
     "auto_update": "Автообновление конфига по подписке...",
     "auto_update_error": "Автообновление: не удалось скачать конфиг.",
     "auto_update_restart": "Перезапуск sing-box после автообновления.",

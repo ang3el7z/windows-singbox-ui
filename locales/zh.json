@@ -6,15 +6,8 @@
     "update_available": "有可用更新：{version}",
     "update_title": "有可用更新",
     "update_message": "检测到新版本：{version}\\n\\n当前版本：{current}\\n\\n是否立即更新？",
-    "update_yes": "更新",
-    "update_no": "稍后",
-    "update_downloading": "正在下载更新 {version}...",
-    "update_preparing": "正在准备更新...",
-    "update_success": "更新已成功安装",
     "update_complete": "更新完成，应用将重新启动。",
-    "update_error_title": "更新错误",
-    "update_error": "更新时发生错误：{error}",
-    "update_error_not_found": "未找到更新压缩包"
+    "update_error_title": "更新错误"
   },
   "nav": {
     "profile": "配置文件",
@@ -30,14 +23,11 @@
     "not_selected": "未选择",
     "admin_running": "以管理员身份运行",
     "admin_not_running": "未以管理员身份运行（点击以重新启动）",
-    "state_stopped": "已停止",
-    "state_running": "运行中",
     "button_start": "启动",
     "button_stop": "停止",
     "button_change": "切换",
     "current_profile": "当前配置文件：{name}",
     "selected_profile": "已选择配置文件：{name}",
-    "profile_not_selected": "未选择配置文件",
     "profile_not_selected_click": "未选择配置文件（点击以选择）"
   },
   "profile": {
@@ -52,8 +42,7 @@
     "delete_question": "删除？",
     "delete_confirm": "确定删除“{name}”？",
     "rename_subscription": "重命名配置文件",
-    "rename_question": "重命名？",
-    "rename_confirm": "请输入“{name}”的新名称：",
+    "rename_confirm": "请输入"{name}"的新名称：",
     "select_for_test": "选择要测试的订阅",
     "test_loading": "正在测试配置下载...",
     "test_success": "订阅可用，config.json 已成功下载。",
@@ -73,9 +62,10 @@
     "minimize_to_tray": "关闭时最小化到托盘",
     "language": "界面语言：",
     "language_changed": "语言已更改为 {language}",
+    "theme": "主题：",
+    "theme_changed": "主题已更改为 {theme}",
     "kill_all": "终止所有进程",
     "logs": "日志",
-    "debug_title": "调试设置",
     "allow_multiple_processes": "允许多个进程"
   },
   "download": {
@@ -103,7 +93,6 @@
     "stopping": "正在停止 sing-box...",
     "stopped": "sing-box 已退出，代码 {code}",
     "switching_profile": "正在切换配置文件...",
-    "reload": "手动重载：使用新配置重新启动",
     "auto_update": "正在按订阅自动更新配置...",
     "auto_update_error": "自动更新：无法下载配置。",
     "auto_update_restart": "自动更新后重新启动 sing-box。",

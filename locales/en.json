@@ -6,15 +6,8 @@
     "update_available": "Update available: {version}",
     "update_title": "Update available",
     "update_message": "A new version of the application is available: {version}\n\nCurrent version: {current}\n\nDo you want to install the update?",
-    "update_yes": "Update",
-    "update_no": "Later",
-    "update_downloading": "Downloading update {version}...",
-    "update_preparing": "Preparing update...",
-    "update_success": "Update installed successfully",
     "update_complete": "Update complete. The application will be restarted.",
-    "update_error_title": "Update Error",
-    "update_error": "Error updating: {error}",
-    "update_error_not_found": "Update archive not found"
+    "update_error_title": "Update Error"
   },
   "nav": {
     "profile": "Profile",
@@ -30,14 +23,11 @@
     "not_selected": "Not selected",
     "admin_running": "Running as administrator",
     "admin_not_running": "Not running as administrator (click to restart)",
-    "state_stopped": "Stopped",
-    "state_running": "Running",
     "button_start": "START",
     "button_stop": "STOP",
     "button_change": "CHANGE",
     "current_profile": "Current profile: {name}",
     "selected_profile": "Selected profile: {name}",
-    "profile_not_selected": "Profile not selected",
     "profile_not_selected_click": "Profile not selected (click to select)"
   },
   "profile": {
@@ -52,7 +42,6 @@
     "delete_question": "Delete?",
     "delete_confirm": "Delete '{name}'?",
     "rename_subscription": "Rename profile",
-    "rename_question": "Rename?",
     "rename_confirm": "Enter new name for '{name}':",
     "select_for_test": "Select subscription for test",
     "test_loading": "Testing config download...",
@@ -73,9 +62,10 @@
     "minimize_to_tray": "Minimize to tray when closing",
     "language": "Interface language:",
     "language_changed": "Language changed to {language}",
+    "theme": "Theme:",
+    "theme_changed": "Theme changed to {theme}",
     "kill_all": "Kill all processes",
     "logs": "Logs",
-    "debug_title": "Debug Settings",
     "allow_multiple_processes": "Allow multiple processes"
   },
   "download": {
@@ -103,7 +93,6 @@
     "stopping": "Stopping sing-box...",
     "stopped": "sing-box exited with code {code}",
     "switching_profile": "Switching profile...",
-    "reload": "Manual reload: restarting with new config",
     "auto_update": "Auto-updating config from subscription...",
     "auto_update_error": "Auto-update: failed to download config.",
     "auto_update_restart": "Restarting sing-box after auto-update.",

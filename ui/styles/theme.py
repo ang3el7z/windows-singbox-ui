@@ -1,6 +1,7 @@
 """Класс темы приложения"""
 from typing import Dict, Optional, Any
-from .constants import COLORS, FONTS, SIZES, TRANSITIONS
+from .constants import FONTS, SIZES, TRANSITIONS
+from utils.theme_manager import get_theme_manager
 
 
 class Theme:
@@ -8,7 +9,7 @@ class Theme:
     
     def __init__(self) -> None:
         """Инициализация темы с копированием констант"""
-        self.colors: Dict[str, str] = COLORS.copy()
+        self.theme_manager = get_theme_manager()
         self.fonts: Dict[str, Any] = FONTS.copy()
         self.sizes: Dict[str, int] = SIZES.copy()
         self.transitions: Dict[str, str] = TRANSITIONS.copy()
@@ -18,12 +19,12 @@ class Theme:
         Получить цвет по имени
         
         Args:
-            name: Имя цвета из констант
+            name: Имя цвета из темы
             
         Returns:
             Цвет в формате hex или rgba
         """
-        return self.colors.get(name, '#000000')
+        return self.theme_manager.get_color(name)
     
     def get_font(self, name: str) -> Optional[Any]:
         """
@@ -60,6 +61,10 @@ class Theme:
             Время перехода в миллисекундах
         """
         return self.transitions.get(name, '250ms')
+    
+    def reload_theme(self):
+        """Перезагружает тему из менеджера"""
+        self.theme_manager = get_theme_manager()
 
 
 # Глобальный экземпляр темы

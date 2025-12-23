@@ -1,6 +1,6 @@
 """Универсальный виджет карточки"""
 from typing import Optional
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtWidgets import QWidget, QSizePolicy
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor, QPalette
 from ui.styles import StyleSheet, theme
@@ -21,6 +21,8 @@ class CardWidget(QWidget):
         self.setObjectName("CardWidget")
         # Убеждаемся, что виджет имеет минимальный размер
         self.setMinimumHeight(1)
+        # Карточки должны расширяться
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         
         # Сохраняем параметры для отрисовки
         self._bg_color = theme.get_color('background_secondary')

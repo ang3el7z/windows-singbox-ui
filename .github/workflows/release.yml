@@ -138,35 +138,28 @@ jobs:
           exit 1
         }
         
-    - name: Build main application with PyInstaller
+    - name: Build executables (parallel)
       run: |
-        python -m PyInstaller SingBox-UI.spec --clean --noconfirm
-        
-    - name: Build updater with PyInstaller
-      run: |
-        python -m PyInstaller updater.spec --clean --noconfirm
+        python scripts/build_parallel.py --clean-build
+      # Note: build_parallel.py automatically runs post_build.py after successful builds
     
     - name: Verify build outputs
       shell: pwsh
       run: |
-        Write-Host "Verifying build outputs..."
-        if (Test-Path "dist/SingBox-UI.exe") {
+        Write-Host "Verifying build outputs (after post-build)..."
+        if (Test-Path "dist/SingBox-UI/SingBox-UI.exe") {
           Write-Host "✓ SingBox-UI.exe built successfully"
         } else {
-          Write-Host "✗ ERROR: SingBox-UI.exe not found in dist/"
+          Write-Host "✗ ERROR: SingBox-UI.exe not found in dist/SingBox-UI/"
           exit 1
         }
-        if (Test-Path "dist/updater.exe") {
+        if (Test-Path "dist/SingBox-UI/data/updater.exe") {
           Write-Host "✓ updater.exe built successfully"
         } else {
-          Write-Host "✗ ERROR: updater.exe not found in dist/"
+          Write-Host "✗ ERROR: updater.exe not found in dist/SingBox-UI/data/"
           exit 1
         }
         
-    - name: Run post-build script
-      run: |
-        python main/post_build.py
-      
     - name: Extract tag and version
       id: extract_info
       shell: pwsh

@@ -45,6 +45,7 @@ SingBox-UI/
 │   ├── icon.png           # PNG иконка
 │   └── icon.svg           # SVG иконка (исходник)
 ├── scripts/                # Утилитарные скрипты
+│   ├── build_parallel.py   # Скрипт параллельной сборки (собирает оба exe одновременно)
 │   └── register_protocol.py # Скрипт регистрации протоколов
 ├── config/                 # Конфигурация
 │   └── paths.py           # Пути к файлам
@@ -121,6 +122,15 @@ SingBox-UI/
 
 ### Сборка exe
 
+**Рекомендуется: Использовать скрипт параллельной сборки (собирает оба exe одновременно, быстрее):**
+
+```bash
+# Сборка обоих exe (SingBox-UI.exe и updater.exe) параллельно
+python scripts/build_parallel.py --clean-build
+```
+
+**Альтернатива: Ручная сборка (последовательно):**
+
 ```bash
 # Сборка основного приложения
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
@@ -129,8 +139,10 @@ py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py -m PyInstaller updater.spec --clean --noconfirm
 
 # Запуск post-build скрипта для организации файлов
-py main/post_build.py
+python main/post_build.py
 ```
+
+Скрипт параллельной сборки автоматически запускает post-build скрипт после успешной сборки.
 
 Результат будет в папке `dist/SingBox-UI/` со следующей структурой:
 - `SingBox-UI.exe` - Основное приложение

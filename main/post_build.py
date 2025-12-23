@@ -12,42 +12,29 @@ def post_build():
     """Sets up project structure after build"""
     dist_dir = Path('dist')
     standalone_exe = dist_dir / 'SingBox-UI.exe'
+    project_exe = dist_dir / 'SingBox-UI' / 'SingBox-UI.exe'
     
     log(f"[post_build] Starting post-build script")
-    log(f"[post_build] Checking for SingBox-UI.exe: {standalone_exe}")
     
-    if not standalone_exe.exists():
-        log(f"[post_build] ERROR: SingBox-UI.exe not found at {standalone_exe}")
-        return
-    
-    # Create project directory
-    project_dir = dist_dir / 'SingBox-UI'
-    if project_dir.exists():
-        try:
-            shutil.rmtree(project_dir)
-        except PermissionError:
-            pass
-    project_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Move exe to project directory
-    exe_dest = project_dir / 'SingBox-UI.exe'
-    # Remove old exe file if it exists
-    if exe_dest.exists():
-        try:
-            # Try to rename old file, then delete
-            old_exe = project_dir / 'SingBox-UI.exe.old'
-            if old_exe.exists():
-                old_exe.unlink()
-            exe_dest.rename(old_exe)
-            old_exe.unlink()
-        except (PermissionError, OSError) as e:
-            pass
-    else:
-        # If file doesn't exist, just move
+    # Check if exe is already in project directory or standalone
+    if project_exe.exists():
+        log(f"[post_build] SingBox-UI.exe already in project directory: {project_exe}")
+        project_dir = dist_dir / 'SingBox-UI'
+    elif standalone_exe.exists():
+        log(f"[post_build] Checking for SingBox-UI.exe: {standalone_exe}")
+        project_dir = dist_dir / 'SingBox-UI'
+        project_dir.mkdir(parents=True, exist_ok=True)
+        exe_dest = project_dir / 'SingBox-UI.exe'
         try:
             shutil.move(str(standalone_exe), str(exe_dest))
+            log(f"[post_build] Moved SingBox-UI.exe to project directory")
         except Exception as e:
-            pass
+            log(f"[post_build] ERROR moving exe: {e}")
+            return
+    else:
+        log(f"[post_build] ERROR: SingBox-UI.exe not found")
+        return
+    
     
     # Copy locales from source to data/locales in project directory
     source_locales = Path('locales')
@@ -70,6 +57,27 @@ def post_build():
             log(f"[post_build] ERROR copying locales: {e}")
     else:
         log(f"[post_build] WARNING: locales directory not found at {source_locales}")
+    
+    # Copy themes from source to themes in project directory
+    source_themes = Path('themes')
+    log(f"[post_build] Checking for themes: {source_themes}")
+    if source_themes.exists():
+        themes_dest = project_dir / 'themes'
+        # Remove existing directory if exists
+        if themes_dest.exists():
+            try:
+                shutil.rmtree(themes_dest)
+                log(f"[post_build] Removed existing themes directory")
+            except Exception as e:
+                log(f"[post_build] WARNING: Could not remove existing themes directory: {e}")
+        try:
+            # Use dirs_exist_ok=True for Python 3.8+ to handle existing directories
+            shutil.copytree(source_themes, themes_dest, dirs_exist_ok=True)
+            log(f"[post_build] Themes copied to: {themes_dest}")
+        except Exception as e:
+            log(f"[post_build] ERROR copying themes: {e}")
+    else:
+        log(f"[post_build] WARNING: themes directory not found at {source_themes}")
     
     # Move updater.exe from dist to data in project directory
     dist_updater = dist_dir / 'updater.exe'
