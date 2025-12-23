@@ -280,20 +280,38 @@ class MainWindow(QMainWindow):
     
     def _init_async_operations(self):
         """Инициализация тяжелых операций в фоновом потоке"""
-        running = self.proc and self.proc.poll() is None
-        running_index = self.running_sub_index if running and hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list') and self.page_profile.sub_list.count() > 0 else -1
-        current_index = self.current_sub_index if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list') and self.page_profile.sub_list.count() > 0 else -1
-        
-        self._init_thread = InitOperationsWorker(self.subs, self.settings, running_index, current_index)
-        self._init_thread.subscriptions_loaded.connect(self._on_subscriptions_loaded)
-        self._init_thread.version_checked.connect(self._on_version_checked)
-        self._init_thread.profile_info_loaded.connect(self._on_profile_info_loaded)
-        self._init_thread.cleanup_finished.connect(self._on_cleanup_finished)
-        self._init_thread.start()
-        
-        # Проверки версий в отдельном потоке
-        QTimer.singleShot(1000, self._check_versions_async)
-        QTimer.singleShot(2000, self._check_app_version_async)
+        try:
+            log_to_file("[Init] Начало асинхронной инициализации")
+            running = self.proc and self.proc.poll() is None
+            running_index = -1
+            current_index = -1
+            
+            # Безопасная проверка наличия page_profile и sub_list
+            if hasattr(self, 'page_profile'):
+                if hasattr(self.page_profile, 'sub_list'):
+                    if self.page_profile.sub_list.count() > 0:
+                        if running:
+                            running_index = self.running_sub_index
+                        current_index = self.current_sub_index
+            
+            log_to_file(f"[Init] Индексы: running={running_index}, current={current_index}")
+            
+            self._init_thread = InitOperationsWorker(self.subs, self.settings, running_index, current_index)
+            self._init_thread.subscriptions_loaded.connect(self._on_subscriptions_loaded)
+            self._init_thread.version_checked.connect(self._on_version_checked)
+            self._init_thread.profile_info_loaded.connect(self._on_profile_info_loaded)
+            self._init_thread.cleanup_finished.connect(self._on_cleanup_finished)
+            self._init_thread.start()
+            log_to_file("[Init] InitOperationsWorker запущен")
+            
+            # Проверки версий в отдельном потоке
+            QTimer.singleShot(1000, self._check_versions_async)
+            QTimer.singleShot(2000, self._check_app_version_async)
+            log_to_file("[Init] Таймеры проверки версий установлены")
+        except Exception as e:
+            import traceback
+            error_msg = f"[Init Error] Ошибка в _init_async_operations: {e}\n{traceback.format_exc()}"
+            log_to_file(error_msg)
     
     def _on_subscriptions_loaded(self, names):
         """Обработка загруженных подписок"""
@@ -2107,32 +2125,70 @@ if __name__ == "__main__":
                     app.setWindowIcon(app_icon)
         
         log_to_file("[Startup] Создание главного окна...")
-        win = MainWindow()
+        try:
+            win = MainWindow()
+            log_to_file("[Startup] Главное окно создано успешно")
+        except Exception as e:
+            import traceback
+            error_msg = f"[Startup Error] Ошибка создания главного окна: {e}\n{traceback.format_exc()}"
+            log_to_file(error_msg)
+            raise
         
         # Устанавливаем ссылку на MainWindow для показа логов из log_to_file в UI при isDebug=True
-        set_main_window(win)
+        try:
+            set_main_window(win)
+            log_to_file("[Startup] Ссылка на MainWindow установлена")
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Ошибка установки ссылки на MainWindow: {e}")
         
         # Проверяем настройку run_as_admin при запуске
-        run_as_admin_setting = win.settings.get("run_as_admin", False)
-        if run_as_admin_setting and not is_admin():
-            log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
-            if restart_as_admin():
-                sys.exit(0)
-            else:
-                log_to_file("[Startup] Не удалось перезапустить от имени администратора")
+        try:
+            run_as_admin_setting = win.settings.get("run_as_admin", False)
+            if run_as_admin_setting and not is_admin():
+                log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
+                if restart_as_admin():
+                    sys.exit(0)
+                else:
+                    log_to_file("[Startup] Не удалось перезапустить от имени администратора")
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Ошибка проверки run_as_admin: {e}")
         
         # Устанавливаем поведение закрытия окна в зависимости от настройки трея
-        minimize_to_tray = win.settings.get("minimize_to_tray", True)
-        app.setQuitOnLastWindowClosed(not minimize_to_tray)
+        try:
+            minimize_to_tray = win.settings.get("minimize_to_tray", True)
+            app.setQuitOnLastWindowClosed(not minimize_to_tray)
+            log_to_file(f"[Startup] Настройка закрытия окна: minimize_to_tray={minimize_to_tray}")
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Ошибка настройки закрытия окна: {e}")
         
         # Убеждаемся, что трей показывается сразу после создания окна
-        if win.tray_manager.tray_icon:
-            win.tray_manager.show()
+        try:
+            if win.tray_manager.tray_icon:
+                win.tray_manager.show()
+                log_to_file("[Startup] Трей иконка показана")
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Ошибка показа трей иконки: {e}")
         
         log_to_file("[Startup] Показ главного окна...")
-        win.show()
+        try:
+            win.show()
+            log_to_file("[Startup] Главное окно показано")
+        except Exception as e:
+            import traceback
+            error_msg = f"[Startup Error] Ошибка показа главного окна: {e}\n{traceback.format_exc()}"
+            log_to_file(error_msg)
+            raise
+        
         log_to_file("[Startup] Запуск главного цикла приложения...")
-        sys.exit(app.exec_())
+        try:
+            exit_code = app.exec_()
+            log_to_file(f"[Startup] Главный цикл завершен с кодом: {exit_code}")
+            sys.exit(exit_code)
+        except Exception as e:
+            import traceback
+            error_msg = f"[Startup Error] Ошибка в главном цикле: {e}\n{traceback.format_exc()}"
+            log_to_file(error_msg)
+            raise
     except Exception as e:
         import traceback
         error_msg = f"[Fatal Error] Критическая ошибка при запуске приложения: {e}\n{traceback.format_exc()}"
