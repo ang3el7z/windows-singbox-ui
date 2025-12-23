@@ -25,6 +25,9 @@ import qtawesome as qta
 from ui.widgets import CardWidget, NavButton
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
+from ui.dialogs.language_dialog import show_language_selection_dialog
+from ui.dialogs.confirm_dialog import show_restart_admin_dialog, show_kill_all_confirm_dialog
+from ui.dialogs.info_dialog import show_kill_all_success_dialog
 
 # Импорты из архитектуры проекта
 from config.paths import (
@@ -35,59 +38,21 @@ from managers.subscriptions import SubscriptionManager
 from managers.log_ui_manager import LogUIManager
 from utils.i18n import tr, set_language, get_available_languages, get_language_name, Translator
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
+from workers.init_worker import InitOperationsWorker
+from workers.version_worker import CheckVersionWorker, CheckAppVersionWorker
 from core.downloader import DownloadThread
 from core.deep_link_handler import DeepLinkHandler
+from core.singbox_manager import StartSingBoxThread
 import requests
 from datetime import datetime
 from utils.logger import log_to_file, set_main_window
 
 
-# register_protocols перенесена в core/protocol.py
+# register_protocols, is_admin, restart_as_admin перенесены в core/protocol.py
+from core.protocol import register_protocols, is_admin, restart_as_admin
 
 
-def is_admin():
-    """Проверка, запущено ли приложение от имени администратора"""
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except Exception:
-        return False
-
-
-def restart_as_admin():
-    """Перезапуск приложения от имени администратора"""
-    if is_admin():
-        return False
-
-    try:
-        exe_path = sys.executable  # PyInstaller: это ваш .exe
-        # Передаем рабочий каталог, чтобы новый процесс запускался в правильной директории
-        work_dir = str(Path(exe_path).parent)
-        
-        # Запускаем новый процесс от имени администратора
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", exe_path, "", work_dir, 1  # SW_SHOWNORMAL = 1
-        )
-        
-        # ShellExecuteW возвращает значение > 32 при успехе
-        if result <= 32:
-            log_to_file(f"[Admin Restart] Ошибка запуска от имени администратора: код {result}")
-            return False
-
-        log_to_file(f"[Admin Restart] Новый процесс запущен от имени администратора, PID должен быть > 32: {result}")
-        
-        # Даем больше времени новому процессу запуститься перед закрытием старого
-        # Это важно для корректной работы QSharedMemory и трея
-        app = QApplication.instance()
-        if app:
-            # Используем QTimer чтобы не блокировать UI поток
-            # Увеличиваем задержку до 2 секунд, чтобы новый процесс успел полностью запуститься
-            QTimer.singleShot(2000, lambda: app.quit() if app else None)
-        return True
-    except Exception as e:
-        import traceback
-        error_msg = f"[Admin Restart] Исключение при перезапуске: {e}\n{traceback.format_exc()}"
-        log_to_file(error_msg)
-        return False
+# is_admin и restart_as_admin теперь импортируются из core.protocol
 
 # Все диалоги перенесены в ui/dialogs/
 
@@ -148,24 +113,24 @@ class MainWindow(QMainWindow):
             base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
             
             # Пробуем загрузить иконку из временной папки PyInstaller
-            icon_path = base_path / "icon.ico"
+            icon_path = base_path / "icons" / "icon.ico"
             if icon_path.exists():
                 window_icon = QIcon(str(icon_path))
             
             # Если не нашли .ico, пробуем .png
             if window_icon.isNull():
-                icon_path = base_path / "icon.png"
+                icon_path = base_path / "icons" / "icon.png"
                 if icon_path.exists():
                     window_icon = QIcon(str(icon_path))
             
             # Если не нашли в _MEIPASS, пробуем рядом с exe
             if window_icon.isNull():
                 exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icon.ico"
+                icon_path = exe_path.parent / "icons" / "icon.ico"
                 if icon_path.exists():
                     window_icon = QIcon(str(icon_path))
                 else:
-                    icon_path = exe_path.parent / "icon.png"
+                    icon_path = exe_path.parent / "icons" / "icon.png"
                     if icon_path.exists():
                         window_icon = QIcon(str(icon_path))
             
@@ -174,12 +139,12 @@ class MainWindow(QMainWindow):
                 exe_path = Path(sys.executable)
                 window_icon = QIcon(str(exe_path))
         else:
-            # В режиме разработки используем icon.ico или icon.png
-            icon_path = Path(__file__).parent / "icon.ico"
+            # В режиме разработки используем icons/icon.ico или icons/icon.png
+            icon_path = Path(__file__).parent / "icons" / "icon.ico"
             if icon_path.exists():
                 window_icon = QIcon(str(icon_path))
             else:
-                icon_path = Path(__file__).parent / "icon.png"
+                icon_path = Path(__file__).parent / "icons" / "icon.png"
                 if icon_path.exists():
                     window_icon = QIcon(str(icon_path))
         
@@ -1929,8 +1894,8 @@ if __name__ == "__main__":
         # Создаем папки для логов ДО логирования
         ensure_dirs()
         
-        app = QApplication(sys.argv)
-        app.setApplicationName("SingBox-UI")
+        # Создаем приложение с применением темы
+        app = create_application()
         
         # Загружаем настройки для проверки разрешения нескольких процессов
         settings = SettingsManager()
@@ -2061,22 +2026,22 @@ if __name__ == "__main__":
         # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
         if getattr(sys, 'frozen', False):
             base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
-            icon_path = base_path / "icon.ico"
+            icon_path = base_path / "icons" / "icon.ico"
             if not icon_path.exists():
-                icon_path = base_path / "icon.png"
+                icon_path = base_path / "icons" / "icon.png"
             if not icon_path.exists():
                 exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icon.ico"
+                icon_path = exe_path.parent / "icons" / "icon.ico"
                 if not icon_path.exists():
-                    icon_path = exe_path.parent / "icon.png"
+                    icon_path = exe_path.parent / "icons" / "icon.png"
             if icon_path.exists():
                 app_icon = QIcon(str(icon_path))
                 if not app_icon.isNull():
                     app.setWindowIcon(app_icon)
         else:
-            icon_path = Path(__file__).parent / "icon.ico"
+            icon_path = Path(__file__).parent / "icons" / "icon.ico"
             if not icon_path.exists():
-                icon_path = Path(__file__).parent / "icon.png"
+                icon_path = Path(__file__).parent / "icons" / "icon.png"
             if icon_path.exists():
                 app_icon = QIcon(str(icon_path))
                 if not app_icon.isNull():

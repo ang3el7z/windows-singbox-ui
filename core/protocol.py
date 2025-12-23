@@ -122,6 +122,9 @@ def restart_as_admin() -> bool:
     if sys.platform != "win32":
         return False
     
+    if is_admin():
+        return False
+    
     try:
         # Получаем путь к исполняемому файлу
         if getattr(sys, 'frozen', False):
@@ -131,7 +134,7 @@ def restart_as_admin() -> bool:
         else:
             # В режиме разработки запускаем main.py через Python
             exe_path = sys.executable
-            script_path = Path(__file__).parent.parent / "main" / "main.py"
+            script_path = Path(__file__).parent.parent / "main.py"
             params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
             work_dir = str(Path(__file__).parent.parent)
         
@@ -146,7 +149,24 @@ def restart_as_admin() -> bool:
         )
         
         # ShellExecuteW возвращает значение > 32 при успехе
-        return result > 32
+        if result <= 32:
+            return False
+        
+        # Даем больше времени новому процессу запуститься перед закрытием старого
+        # Это важно для корректной работы QSharedMemory и трея
+        try:
+            from PyQt5.QtWidgets import QApplication
+            from PyQt5.QtCore import QTimer
+            app = QApplication.instance()
+            if app:
+                # Используем QTimer чтобы не блокировать UI поток
+                # Увеличиваем задержку до 2 секунд, чтобы новый процесс успел полностью запуститься
+                QTimer.singleShot(2000, lambda: app.quit() if app else None)
+        except ImportError:
+            # Если PyQt5 не доступен, просто возвращаем True
+            pass
+        
+        return True
     except Exception:
         return False
 
