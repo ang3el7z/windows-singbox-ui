@@ -51,24 +51,24 @@ class SettingsPage(BasePage):
     
     def _build_ui(self):
         """Построение UI страницы"""
-        # Заголовок страницы
-        self.lbl_settings_title = QLabel(tr("settings.title"))
-        self.lbl_settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
-        self._layout.addWidget(self.lbl_settings_title)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(
-                self.lbl_settings_title, base_font_size=20
-            )
-        
         # Настройки
         settings_card = CardWidget()
         settings_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         settings_layout = QVBoxLayout(settings_card)
         settings_layout.setContentsMargins(20, 18, 20, 18)
         settings_layout.setSpacing(16)
+        
+        # Заголовок страницы (внутри карточки)
+        self.lbl_settings_title = QLabel(tr("settings.title"))
+        self.lbl_settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
+        settings_layout.addWidget(self.lbl_settings_title)
+        
+        # Регистрируем для адаптивного масштабирования
+        if hasattr(self.main_window, 'responsive_scaler'):
+            self.main_window.responsive_scaler.register_widget(
+                self.lbl_settings_title, base_font_size=20
+            )
         
         # Интервал автообновления (в одну линию, как язык и тема)
         interval_row = QHBoxLayout()
