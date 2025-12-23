@@ -89,48 +89,10 @@ from ui.dialogs.info_dialog import show_kill_all_success_dialog
 import requests
 from datetime import datetime
 from utils.logger import log_to_file, set_main_window
+from utils.icon_manager import get_icon, set_window_icon
 
 
-def load_icon_with_logging(context: str = "window") -> QIcon:
-    """
-    Загружает иконку приложения из самого exe файла (встроена в ресурсы при сборке).
-    Это 100% рабочий вариант - иконка всегда встроена в exe через PyInstaller.
-    
-    Args:
-        context: Контекст загрузки ("window" или "app") для логирования
-    """
-    log_to_file(f"[Icon {context}] Начало загрузки иконки")
-    
-    if getattr(sys, 'frozen', False):
-        # В собранном приложении - извлекаем иконку из самого exe
-        exe_path = Path(sys.executable)
-        log_to_file(f"[Icon {context}] Извлечение иконки из exe: {exe_path}")
-        icon = QIcon(str(exe_path))
-        
-        if not icon.isNull():
-            log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка из exe")
-            return icon
-        else:
-            log_to_file(f"[Icon {context}] ✗ Не удалось извлечь иконку из exe")
-            return QIcon()
-    else:
-        # В режиме разработки - загружаем из папки icons
-        root = Path(__file__).parent.parent
-        icon_path = root / "icons" / "icon.ico"
-        
-        if not icon_path.exists():
-            icon_path = root / "icons" / "icon.png"
-        
-        if icon_path.exists():
-            log_to_file(f"[Icon {context}] Загрузка иконки из: {icon_path}")
-            icon = QIcon(str(icon_path))
-            
-            if not icon.isNull():
-                log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка")
-                return icon
-        
-        log_to_file(f"[Icon {context}] ✗ Иконка не найдена в режиме разработки")
-        return QIcon()
+# load_icon_with_logging удалена - теперь используется utils.icon_manager
 
 
 # register_protocols, is_admin, restart_as_admin перенесены в core/protocol.py
@@ -185,10 +147,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
 
-        # Устанавливаем иконку окна
-        window_icon = load_icon_with_logging("window")
-        if not window_icon.isNull():
-            self.setWindowIcon(window_icon)
+        # Устанавливаем иконку окна через IconManager
+        set_window_icon(self)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -2099,10 +2059,10 @@ if __name__ == "__main__":
         tray_available = QSystemTrayIcon.isSystemTrayAvailable()
         # Тема уже применена в create_application()
         
-        # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
-        app_icon = load_icon_with_logging("app")
-        if not app_icon.isNull():
-            app.setWindowIcon(app_icon)
+        # Иконка уже установлена в create_application() через IconManager
+        # Дополнительно убеждаемся что она установлена
+        from utils.icon_manager import set_application_icon
+        set_application_icon(app)
         
         log_to_file("[Startup] Создание главного окна...")
         try:

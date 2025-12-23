@@ -3,7 +3,9 @@ from typing import Optional
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QPalette, QColor
 import sys
+import ctypes
 from ui.styles import StyleSheet, theme
+from utils.icon_manager import set_application_icon
 
 
 def create_application() -> QApplication:
@@ -15,6 +17,17 @@ def create_application() -> QApplication:
     """
     app = QApplication(sys.argv)
     app.setApplicationName("SingBox-UI")
+    
+    # Устанавливаем иконку приложения (важно для Windows - иконка в таскбаре)
+    set_application_icon(app)
+    
+    # Устанавливаем AppUserModelID для Windows (чтобы иконка не сбрасывалась)
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ang3el.SingBox-UI")
+        except Exception:
+            pass  # Игнорируем ошибки, если не удалось установить
+    
     apply_dark_theme(app)
     return app
 

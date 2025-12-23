@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QApplication, QStyle
 from PyQt5.QtGui import QIcon
 from utils.i18n import tr
+from utils.icon_manager import get_icon
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -60,71 +61,18 @@ class TrayManager:
         """
         Загрузка иконки для трея
         
+        Использует централизованный IconManager для получения той же иконки,
+        что используется в приложении и окне.
+        
         Returns:
             QIcon объект с иконкой
         """
-        tray_icon = QIcon()
+        # Используем централизованный менеджер иконок
+        tray_icon = get_icon()
         
-        if getattr(sys, 'frozen', False):
-            # В frozen режиме (PyInstaller) используем sys._MEIPASS для доступа к ресурсам
-            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
-            
-            # Пробуем загрузить иконку из временной папки PyInstaller (icons/)
-            icon_path = base_path / "icons" / "icon.ico"
-            if not icon_path.exists():
-                icon_path = base_path / "icon.ico"
-            if icon_path.exists():
-                tray_icon = QIcon(str(icon_path))
-            
-            # Если не нашли .ico, пробуем .png
-            if tray_icon.isNull():
-                icon_path = base_path / "icons" / "icon.png"
-                if not icon_path.exists():
-                    icon_path = base_path / "icon.png"
-                if icon_path.exists():
-                    tray_icon = QIcon(str(icon_path))
-            
-            # Если не нашли в _MEIPASS, пробуем рядом с exe
-            if tray_icon.isNull():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icons" / "icon.ico"
-                if not icon_path.exists():
-                    icon_path = exe_path.parent / "icon.ico"
-                if icon_path.exists():
-                    tray_icon = QIcon(str(icon_path))
-                else:
-                    icon_path = exe_path.parent / "icons" / "icon.png"
-                    if not icon_path.exists():
-                        icon_path = exe_path.parent / "icon.png"
-                    if icon_path.exists():
-                        tray_icon = QIcon(str(icon_path))
-            
-            # Если не нашли, пробуем извлечь из exe
-            if tray_icon.isNull():
-                exe_path = Path(sys.executable)
-                tray_icon = QIcon(str(exe_path))
-        else:
-            # В режиме разработки используем icons/icon.ico или icons/icon.png
-            root = Path(__file__).parent.parent
-            icon_path = root / "icons" / "icon.ico"
-            if icon_path.exists():
-                tray_icon = QIcon(str(icon_path))
-            else:
-                icon_path = root / "icons" / "icon.png"
-                if icon_path.exists():
-                    tray_icon = QIcon(str(icon_path))
-            
-            # Если не нашли в icons/, пробуем иконку окна
-            if tray_icon.isNull():
-                tray_icon = self.main_window.windowIcon()
-            if tray_icon.isNull():
-                icon_path = Path(__file__).parent.parent / "icon.ico"
-                if icon_path.exists():
-                    tray_icon = QIcon(str(icon_path))
-                else:
-                    icon_path = Path(__file__).parent.parent / "icon.png"
-                    if icon_path.exists():
-                        tray_icon = QIcon(str(icon_path))
+        # Если иконка не загружена, используем системную иконку как fallback
+        if tray_icon.isNull():
+            tray_icon = QApplication.instance().style().standardIcon(QStyle.SP_ComputerIcon)
         
         return tray_icon
     
