@@ -222,6 +222,9 @@ class StyleSheet:
         return f"""
         QCheckBox {{
             color: {theme.get_color('text_primary')};
+            background-color: transparent;
+            border: none;
+            padding: 0px;
             font-size: {theme.get_font('size_medium')}px;
             font-family: {theme.get_font('family')};
             spacing: {theme.get_size('spacing_small')}px;
