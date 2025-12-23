@@ -91,6 +91,76 @@ from datetime import datetime
 from utils.logger import log_to_file, set_main_window
 
 
+def load_icon_with_logging(context: str = "window") -> QIcon:
+    """
+    Загружает иконку приложения с логированием попыток.
+    Возвращает QIcon или пустой QIcon если не удалось загрузить.
+    
+    Args:
+        context: Контекст загрузки ("window" или "app") для логирования
+    """
+    log_to_file(f"[Icon {context}] Начало загрузки иконки")
+    window_icon = QIcon()
+    
+    # Список путей для попытки загрузки в порядке приоритета
+    icon_paths = []
+    
+    exe_path = None
+    if getattr(sys, 'frozen', False):
+        # В frozen режиме (PyInstaller)
+        base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+        exe_path = Path(sys.executable)
+        
+        # Приоритетные пути в frozen режиме
+        icon_paths = [
+            base_path / "icons" / "icon.ico",
+            base_path / "icon.ico",
+            base_path / "icons" / "icon.png",
+            base_path / "icon.png",
+            exe_path.parent / "icons" / "icon.ico",
+            exe_path.parent / "icon.ico",
+            exe_path.parent / "icons" / "icon.png",
+            exe_path.parent / "icon.png",
+            exe_path,  # Извлечь из exe
+        ]
+    else:
+        # В режиме разработки
+        root = Path(__file__).parent.parent
+        icon_paths = [
+            root / "icons" / "icon.ico",
+            root / "icons" / "icon.png",
+        ]
+    
+    # Пробуем загрузить из каждого пути
+    for icon_path in icon_paths:
+        try:
+            # Проверяем, является ли это exe файлом (для извлечения иконки)
+            is_exe = exe_path and icon_path.resolve() == exe_path.resolve()
+            
+            if is_exe:
+                # Специальный случай - извлечение из exe
+                log_to_file(f"[Icon {context}] Попытка извлечь иконку из exe: {icon_path}")
+                window_icon = QIcon(str(icon_path))
+            elif icon_path.exists():
+                log_to_file(f"[Icon {context}] Попытка загрузить: {icon_path}")
+                window_icon = QIcon(str(icon_path))
+            else:
+                log_to_file(f"[Icon {context}] Файл не найден: {icon_path}")
+                continue
+            
+            if not window_icon.isNull():
+                log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка из: {icon_path}")
+                return window_icon
+            else:
+                log_to_file(f"[Icon {context}] ✗ Иконка пустая после загрузки из: {icon_path}")
+        except Exception as e:
+            log_to_file(f"[Icon {context}] ✗ Ошибка при загрузке из {icon_path}: {e}")
+            continue
+    
+    log_to_file(f"[Icon {context}] ✗ Не удалось загрузить иконку ни из одного источника")
+    return window_icon
+
+
 # register_protocols, is_admin, restart_as_admin перенесены в core/protocol.py
 # Все диалоги перенесены в ui/dialogs/
 
@@ -145,57 +215,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(420, 780)
 
         # Устанавливаем иконку окна
-        window_icon = QIcon()
-        if getattr(sys, 'frozen', False):
-            # В frozen режиме (PyInstaller) используем sys._MEIPASS для доступа к ресурсам
-            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
-            
-            # Пробуем загрузить иконку из временной папки PyInstaller (icons/)
-            icon_path = base_path / "icons" / "icon.ico"
-            if not icon_path.exists():
-                icon_path = base_path / "icon.ico"
-            if icon_path.exists():
-                window_icon = QIcon(str(icon_path))
-            
-            # Если не нашли .ico, пробуем .png
-            if window_icon.isNull():
-                icon_path = base_path / "icons" / "icon.png"
-                if not icon_path.exists():
-                    icon_path = base_path / "icon.png"
-                if icon_path.exists():
-                    window_icon = QIcon(str(icon_path))
-            
-            # Если не нашли в _MEIPASS, пробуем рядом с exe
-            if window_icon.isNull():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icons" / "icon.ico"
-                if not icon_path.exists():
-                    icon_path = exe_path.parent / "icon.ico"
-                if icon_path.exists():
-                    window_icon = QIcon(str(icon_path))
-                else:
-                    icon_path = exe_path.parent / "icons" / "icon.png"
-                    if not icon_path.exists():
-                        icon_path = exe_path.parent / "icon.png"
-                    if icon_path.exists():
-                        window_icon = QIcon(str(icon_path))
-            
-            # Если не нашли, пробуем извлечь из exe
-            if window_icon.isNull():
-                exe_path = Path(sys.executable)
-                window_icon = QIcon(str(exe_path))
-        else:
-            # В режиме разработки используем icons/icon.ico или icons/icon.png
-            root = Path(__file__).parent.parent
-            icon_path = root / "icons" / "icon.ico"
-            if icon_path.exists():
-                window_icon = QIcon(str(icon_path))
-            else:
-                icon_path = root / "icons" / "icon.png"
-                if icon_path.exists():
-                    window_icon = QIcon(str(icon_path))
-        
-        # Устанавливаем иконку окна только если она загрузилась
+        window_icon = load_icon_with_logging("window")
         if not window_icon.isNull():
             self.setWindowIcon(window_icon)
 
@@ -2110,40 +2130,9 @@ if __name__ == "__main__":
         # Тема уже применена в create_application()
         
         # Устанавливаем иконку приложения для QApplication (чтобы Windows показывала её в заголовке)
-        if getattr(sys, 'frozen', False):
-            base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
-            icon_path = base_path / "icons" / "icon.ico"
-            if not icon_path.exists():
-                icon_path = base_path / "icon.ico"
-            if not icon_path.exists():
-                icon_path = base_path / "icons" / "icon.png"
-            if not icon_path.exists():
-                icon_path = base_path / "icon.png"
-            if not icon_path.exists():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icons" / "icon.ico"
-            if not icon_path.exists():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icon.ico"
-            if not icon_path.exists():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icons" / "icon.png"
-            if not icon_path.exists():
-                exe_path = Path(sys.executable)
-                icon_path = exe_path.parent / "icon.png"
-            if icon_path.exists():
-                app_icon = QIcon(str(icon_path))
-                if not app_icon.isNull():
-                    app.setWindowIcon(app_icon)
-        else:
-            root = Path(__file__).parent.parent
-            icon_path = root / "icons" / "icon.ico"
-            if not icon_path.exists():
-                icon_path = root / "icons" / "icon.png"
-            if icon_path.exists():
-                app_icon = QIcon(str(icon_path))
-                if not app_icon.isNull():
-                    app.setWindowIcon(app_icon)
+        app_icon = load_icon_with_logging("app")
+        if not app_icon.isNull():
+            app.setWindowIcon(app_icon)
         
         log_to_file("[Startup] Создание главного окна...")
         try:
