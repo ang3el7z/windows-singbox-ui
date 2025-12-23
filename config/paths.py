@@ -50,10 +50,4 @@ def ensure_dirs():
         except Exception as e:
             log_to_file(f"ОШИБКА создания папки {p}: {e}")
             raise
-    log_to_file(f"Папки созданы/проверены:")
-    log_to_file(f"  ROOT: {ROOT}")
-    log_to_file(f"  DATA_DIR: {DATA_DIR}")
-    log_to_file(f"  CORE_DIR: {CORE_DIR}")
-    log_to_file(f"  LOG_DIR: {LOG_DIR}")
-    log_to_file(f"  LOCALES_DIR: {LOCALES_DIR}")
 

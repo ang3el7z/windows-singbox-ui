@@ -20,7 +20,7 @@ if getattr(sys, 'frozen', False):
     else:
         ROOT = exe_path.parent
 else:
-    ROOT = Path(__file__).resolve().parent
+    ROOT = Path(__file__).resolve().parent.parent
 
 
 class UpdateThread(QThread):

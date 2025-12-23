@@ -61,7 +61,8 @@
     "added": "Added subscription: {name}",
     "removed": "Removed subscription: {name}",
     "renamed": "Profile '{old_name}' renamed to '{new_name}'",
-    "fill_all_fields": "Please fill in all fields"
+    "fill_all_fields": "Please fill in all fields",
+    "unknown": "Unknown"
   },
   "settings": {
     "title": "Settings",

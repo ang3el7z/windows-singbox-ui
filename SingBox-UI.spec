@@ -23,18 +23,16 @@ if locales_dir.exists():
 
 # Добавляем иконку в сборку для использования в трее
 icon_data = []
-icon_file = Path('icon.ico')
+icon_file = Path('icons/icon.ico')
 if icon_file.exists():
-    icon_data.append((str(icon_file), '.'))
-    # print(f"Including icon in build: {icon_file}")  # Removed to avoid encoding issues in CI
+    icon_data.append((str(icon_file), 'icons'))
 else:
-    icon_png = Path('icon.png')
+    icon_png = Path('icons/icon.png')
     if icon_png.exists():
-        icon_data.append((str(icon_png), '.'))
-        # print(f"Including PNG icon in build: {icon_png}")  # Removed to avoid encoding issues in CI
+        icon_data.append((str(icon_png), 'icons'))
 
 a = Analysis(
-    ['main.py'],
+    ['main/main.py'],
     pathex=[],
     binaries=binaries_list,
     datas=locales_data + icon_data,
@@ -47,11 +45,38 @@ a = Analysis(
         'managers',
         'managers.settings',
         'managers.subscriptions',
+        'managers.log_ui_manager',
         'utils',
         'utils.i18n',
+        'utils.logger',
         'utils.singbox',
         'core',
         'core.downloader',
+        'core.protocol',
+        'core.singbox_manager',
+        'core.deep_link_handler',
+        'workers',
+        'workers.base_worker',
+        'workers.init_worker',
+        'workers.version_worker',
+        'app',
+        'app.application',
+        'ui',
+        'ui.tray_manager',
+        'ui.pages',
+        'ui.pages.base_page',
+        'ui.pages.profile_page',
+        'ui.pages.home_page',
+        'ui.pages.settings_page',
+        'ui.widgets',
+        'ui.widgets.card',
+        'ui.widgets.nav_button',
+        'ui.widgets.version_label',
+        'ui.dialogs',
+        'ui.dialogs.base_dialog',
+        'ui.dialogs.confirm_dialog',
+        'ui.dialogs.info_dialog',
+        'ui.dialogs.language_dialog',
     ],
     hookspath=[],
     hooksconfig={},
@@ -68,13 +93,13 @@ pyz = PYZ(a.pure)
 # Это позволит не создавать папку _internal
 # Проверяем наличие иконки и используем абсолютный путь
 icon_path = None
-icon_file = Path('icon.ico')
+icon_file = Path('icons/icon.ico')
 if icon_file.exists():
     icon_path = str(icon_file.resolve())
     # print(f"Using icon: {icon_path}")  # Removed to avoid encoding issues in CI
 else:
-    # Пробуем найти icon.png и конвертировать
-    icon_png = Path('icon.png')
+    # Пробуем найти icon.png
+    icon_png = Path('icons/icon.png')
     if icon_png.exists():
         # print("WARNING: icon.ico not found, but icon.png found. Use icon.ico for better compatibility.")  # Removed to avoid encoding issues in CI
         pass

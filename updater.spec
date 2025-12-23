@@ -8,16 +8,16 @@ block_cipher = None
 
 # Добавляем иконку в сборку
 icon_data = []
-icon_file = Path('icon.ico')
+icon_file = Path('icons/icon.ico')
 if icon_file.exists():
-    icon_data.append((str(icon_file), '.'))
+    icon_data.append((str(icon_file), 'icons'))
 else:
-    icon_png = Path('icon.png')
+    icon_png = Path('icons/icon.png')
     if icon_png.exists():
-        icon_data.append((str(icon_png), '.'))
+        icon_data.append((str(icon_png), 'icons'))
 
 a = Analysis(
-    ['updater.py'],
+    ['main/updater.py'],
     pathex=[],
     binaries=[],
     datas=icon_data,
@@ -40,11 +40,11 @@ pyz = PYZ(a.pure)
 
 # Проверяем наличие иконки и используем абсолютный путь
 icon_path = None
-icon_file = Path('icon.ico')
+icon_file = Path('icons/icon.ico')
 if icon_file.exists():
     icon_path = str(icon_file.resolve())
 else:
-    icon_png = Path('icon.png')
+    icon_png = Path('icons/icon.png')
     if icon_png.exists():
         pass
 

@@ -31,21 +31,61 @@
 
 ## Структура проекта
 
+Подробную документацию по архитектуре см. в [ARCHITECTURE.ru.md](./ARCHITECTURE.ru.md).
+
 ```
 SingBox-UI/
-├── main.py                 # Главный файл приложения
-├── updater.py              # Утилита обновления (собирается как updater.exe)
+├── .version                # Файл версии приложения
+├── main/                   # Основные файлы приложения
+│   ├── main.py            # Главный файл приложения (управление окном и координация)
+│   ├── updater.py         # Утилита обновления (собирается как updater.exe)
+│   └── post_build.py      # Скрипт пост-обработки сборки
+├── icons/                  # Иконки приложения
+│   ├── icon.ico           # Иконка Windows
+│   ├── icon.png           # PNG иконка
+│   └── icon.svg           # SVG иконка (исходник)
+├── scripts/                # Утилитарные скрипты
+│   └── register_protocol.py # Скрипт регистрации протоколов
 ├── config/                 # Конфигурация
 │   └── paths.py           # Пути к файлам
 ├── managers/              # Менеджеры данных
 │   ├── settings.py        # Настройки
-│   └── subscriptions.py   # Подписки
+│   ├── subscriptions.py   # Подписки
+│   └── log_ui_manager.py  # Менеджер логов для UI
 ├── utils/                 # Утилиты
 │   ├── i18n.py           # Локализация
 │   ├── logger.py         # Логирование
 │   └── singbox.py        # Утилиты SingBox
 ├── core/                  # Основная логика
-│   └── downloader.py     # Загрузка ядра
+│   ├── protocol.py       # Регистрация протоколов и работа с правами администратора
+│   ├── singbox_manager.py # Управление процессом SingBox
+│   └── deep_link_handler.py # Обработчик deep links
+├── app/                   # Инициализация приложения
+│   └── application.py    # Создание QApplication и применение темы
+├── workers/               # Фоновые потоки
+│   ├── base_worker.py    # Базовый класс для воркеров
+│   ├── init_worker.py    # Воркер инициализации
+│   └── version_worker.py # Воркеры проверки версий
+├── ui/                    # Интерфейс пользователя
+│   ├── pages/            # Страницы приложения
+│   │   ├── base_page.py  # Базовый класс для страниц
+│   │   ├── profile_page.py # Страница управления профилями
+│   │   ├── home_page.py  # Главная страница
+│   │   └── settings_page.py # Страница настроек
+│   ├── widgets/          # Переиспользуемые виджеты
+│   │   ├── card.py       # Виджет-карточка
+│   │   ├── nav_button.py # Кнопка навигации
+│   │   └── version_label.py # Лейбл версии
+│   ├── styles/           # Система стилей
+│   │   ├── constants.py  # Константы (цвета, шрифты, размеры)
+│   │   ├── theme.py      # Управление темой
+│   │   └── stylesheet.py # Генерация стилей для виджетов
+│   ├── dialogs/          # Диалоговые окна
+│   │   ├── base_dialog.py # Базовый класс для диалогов
+│   │   ├── confirm_dialog.py # Диалоги подтверждения
+│   │   ├── info_dialog.py # Информационные диалоги
+│   │   └── language_dialog.py # Диалог выбора языка
+│   └── tray_manager.py   # Менеджер системного трея
 ├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
 │   └── en.json           # Английский
@@ -76,7 +116,7 @@ SingBox-UI/
    ```
 3. Запустите приложение:
    ```bash
-   python main.py
+   python main/main.py
    ```
 
 ### Сборка exe
@@ -89,7 +129,7 @@ py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py -m PyInstaller updater.spec --clean --noconfirm
 
 # Запуск post-build скрипта для организации файлов
-py post_build.py
+py main/post_build.py
 ```
 
 Результат будет в папке `dist/SingBox-UI/` со следующей структурой:

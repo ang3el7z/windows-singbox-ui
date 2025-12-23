@@ -4,20 +4,20 @@
 
 ```
 SingBox-UI/
-├── .version                # Application version file (read at startup)
-├── main/                   # Main application files
-│   ├── main.py            # Main application file (window management and coordination)
-│   ├── updater.py         # Update utility (built as updater.exe)
-│   └── post_build.py      # Post-build script
-├── icons/                  # Application icons
-│   ├── icon.ico           # Windows icon
-│   ├── icon.png           # PNG icon
-│   └── icon.svg           # SVG icon (source)
-├── scripts/                # Utility scripts
-│   └── register_protocol.py # Protocol registration script
-├── config/                 # Configuration
+├── .version                # Файл версии приложения (читается при запуске)
+├── main/                   # Основные файлы приложения
+│   ├── main.py            # Главный файл приложения (управление окном и координация)
+│   ├── updater.py         # Утилита обновления (собирается как updater.exe)
+│   └── post_build.py      # Скрипт пост-обработки сборки
+├── icons/                  # Иконки приложения
+│   ├── icon.ico           # Иконка Windows
+│   ├── icon.png           # PNG иконка
+│   └── icon.svg           # SVG иконка (исходник)
+├── scripts/                # Утилитарные скрипты
+│   └── register_protocol.py # Скрипт регистрации протоколов
+├── config/                 # Конфигурация
 │   ├── __init__.py
-│   └── paths.py           # File paths and directories
+│   └── paths.py           # Пути к файлам и директориям
 ├── managers/              # Менеджеры данных
 │   ├── __init__.py
 │   ├── settings.py        # Менеджер настроек
@@ -79,52 +79,52 @@ SingBox-UI/
 │   ├── core/             # Ядро SingBox
 │   ├── logs/             # Логи
 │   ├── locales/          # Файлы локализации (копируются из locales/)
+│   ├── .version          # Файл версии (копируется из корня при сборке)
 │   └── config.json       # Конфиг
 ├── SingBox-UI.spec       # Конфигурация PyInstaller для основного приложения
 ├── updater.spec          # Конфигурация PyInstaller для updater
-├── post_build.py         # Скрипт пост-обработки сборки
 └── requirements.txt      # Зависимости
 ```
 
-## Version Management
+## Управление версией
 
-The application version is stored in the `.version` file in the project root. During build, this file is copied to `data/.version`, from where the application reads the version at startup.
+Версия приложения хранится в файле `.version` в корне проекта. При сборке этот файл копируется в `data/.version`, откуда приложение читает версию при запуске.
 
-The `get_version()` function in `main/main.py`:
-1. First tries to read `data/.version` (for built application)
-2. Then tries to read root `.version` (for development)
-3. Falls back to version "1.0.0" on error
+Функция `get_version()` в `main/main.py`:
+1. Сначала пытается прочитать `data/.version` (для собранного приложения)
+2. Затем пытается прочитать корневой `.version` (для разработки)
+3. В случае ошибки использует fallback версию "1.0.0"
 
-During CI/CD build by tag, the version in `.version` should be updated automatically if the tag is greater than the current version.
+При CI/CD сборке по тегу, версия в `.version` должна обновляться автоматически, если тег больше текущей версии.
 
 ## Модули
 
 ### main/
-- **main.py** - Main application file
-  - `get_version()` function - reads version from file
-  - `MainWindow` class - main application window
-  - Manages pages, subscriptions, SingBox start/stop
+- **main.py** - Главный файл приложения
+  - Функция `get_version()` - чтение версии из файла
+  - Класс `MainWindow` - главное окно приложения
+  - Управление страницами, подписками, запуском/остановкой SingBox
   
-- **updater.py** - Update utility
-  - GUI updater window in application style
-  - Update execution thread
-  - Downloads update from GitHub
-  - Installs update with user data protection
+- **updater.py** - Утилита обновления
+  - GUI окно updater в стиле приложения
+  - Поток для выполнения обновления
+  - Скачивание обновления с GitHub
+  - Установка обновления с защитой пользовательских данных
   
-- **post_build.py** - Post-build script
-  - Organizes files after build
-  - Copies locales, icons, .version file
-  - Creates folder structure
+- **post_build.py** - Скрипт пост-обработки сборки
+  - Организация файлов после сборки
+  - Копирование локалей, иконок, .version файла
+  - Создание структуры папок
 
 ### icons/
-- **icon.ico** - Windows icon (used in exe and tray)
-- **icon.png** - PNG version of icon (fallback)
-- **icon.svg** - Source SVG icon
+- **icon.ico** - Иконка Windows (используется в exe и трее)
+- **icon.png** - PNG версия иконки (fallback)
+- **icon.svg** - Исходная SVG иконка
 
 ### scripts/
-- **register_protocol.py** - Protocol registration script
-  - Registers `sing-box://` and `singbox-ui://` in Windows
-  - Requires administrator rights
+- **register_protocol.py** - Скрипт регистрации протоколов
+  - Регистрация `sing-box://` и `singbox-ui://` в Windows
+  - Требует прав администратора
 
 ### config/
 - **paths.py** - Определение всех путей к файлам и директориям
@@ -262,18 +262,6 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - Метод `show_message()` - показ уведомлений через системный трей
   - Метод `cleanup()` - очистка ресурсов при закрытии приложения
 
-### updater.py
-- **UpdaterWindow** - GUI окно updater в стиле приложения
-- **UpdateThread** - Поток для выполнения обновления
-  - Скачивание обновления с GitHub
-  - Остановка процессов приложения
-  - Установка обновления с защитой пользовательских данных
-  - Запуск обновленного приложения
-
-### locales/
-- **ru.json** - Русские переводы
-- **en.json** - Английские переводы
-
 ## Использование локализации
 
 ```python
@@ -333,12 +321,13 @@ py main/post_build.py
 - `data/locales/` - файлы локализации
 - `data/core/` - ядро SingBox (если было включено)
 - `data/updater.exe` - утилита обновления
+- `data/.version` - файл версии приложения
 
 ## Разработка
 
 ### Запуск в режиме разработки
 ```bash
-python main.py
+python main/main.py
 ```
 
 ### Структура данных
@@ -351,10 +340,11 @@ python main.py
 - `data/config.json` - конфигурация SingBox (скачивается из подписки)
 - `data/.subscriptions` - список подписок (JSON, сохраняется при обновлениях)
 - `data/.settings` - настройки приложения (JSON, объединяются при обновлениях)
+- `data/.version` - версия приложения (копируется из корня при сборке)
 - `data/updater.exe` - утилита обновления (обновляется при обновлениях)
 
 ### Система обновлений
-- Updater (`updater.py`) - отдельное приложение с GUI
+- Updater (`main/updater.py`) - отдельное приложение с GUI
 - Выполняет весь процесс обновления: скачивание, установка, перезапуск
 - Защищает пользовательские данные: подписки, настройки, ядро, логи
 - Объединяет настройки: новые ключи добавляются, существующие сохраняются
@@ -368,7 +358,7 @@ python main.py
 - Доступ к элементам страниц через `self.page_profile`, `self.page_home`, `self.page_settings`
 
 ### Разделение функциональности на менеджеры
-Для уменьшения размера `main.py` и улучшения архитектуры, функциональность вынесена в отдельные менеджеры:
+Для уменьшения размера `main/main.py` и улучшения архитектуры, функциональность вынесена в отдельные менеджеры:
 - **TrayManager** (`ui/tray_manager.py`) - управление системным треем
 - **LogUIManager** (`managers/log_ui_manager.py`) - управление отображением логов в UI
 - **DeepLinkHandler** (`core/deep_link_handler.py`) - обработка deep links и импорт подписок
@@ -392,7 +382,7 @@ python main.py
 - `VersionLabel` - лейбл версии
 
 ### Уменьшение размера main.py
-Для улучшения поддерживаемости и читаемости кода, из `main.py` были вынесены:
+Для улучшения поддерживаемости и читаемости кода, из `main/main.py` были вынесены:
 - **Управление треем** → `ui/tray_manager.py` (класс `TrayManager`)
   - Методы `setup_tray()`, `tray_icon_activated()`, `quit_application()` и связанная логика
 - **Управление логами в UI** → `managers/log_ui_manager.py` (класс `LogUIManager`)
@@ -400,4 +390,5 @@ python main.py
 - **Обработка deep links** → `core/deep_link_handler.py` (класс `DeepLinkHandler`)
   - Метод `handle_deep_link()` и вся логика парсинга URL и импорта подписок
 
-Текущий размер `main.py`: ~2069 строк (было значительно больше до рефакторинга)
+Текущий размер `main/main.py`: ~2127 строк (было значительно больше до рефакторинга)
+

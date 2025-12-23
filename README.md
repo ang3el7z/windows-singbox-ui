@@ -31,21 +31,61 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 
 ## Project Structure
 
+For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ```
 SingBox-UI/
-├── main.py                 # Main application file
-├── updater.py              # Update utility (built as updater.exe)
+├── .version                # Application version file
+├── main/                   # Main application files
+│   ├── main.py            # Main application file (window management and coordination)
+│   ├── updater.py         # Update utility (built as updater.exe)
+│   └── post_build.py      # Post-build script
+├── icons/                  # Application icons
+│   ├── icon.ico           # Windows icon
+│   ├── icon.png           # PNG icon
+│   └── icon.svg           # SVG icon (source)
+├── scripts/                # Utility scripts
+│   └── register_protocol.py # Protocol registration script
 ├── config/                 # Configuration
 │   └── paths.py           # File paths
 ├── managers/              # Data managers
 │   ├── settings.py        # Settings
-│   └── subscriptions.py   # Subscriptions
+│   ├── subscriptions.py   # Subscriptions
+│   └── log_ui_manager.py  # Log UI manager
 ├── utils/                 # Utilities
 │   ├── i18n.py           # Localization
 │   ├── logger.py         # Logging
 │   └── singbox.py        # SingBox utilities
 ├── core/                  # Core logic
-│   └── downloader.py     # Core download
+│   ├── protocol.py       # Protocol registration and admin rights
+│   ├── singbox_manager.py # SingBox process management
+│   └── deep_link_handler.py # Deep link handler
+├── app/                   # Application initialization
+│   └── application.py    # QApplication creation and theme
+├── workers/               # Background threads
+│   ├── base_worker.py    # Base worker class
+│   ├── init_worker.py    # Initialization worker
+│   └── version_worker.py # Version check workers
+├── ui/                    # User interface
+│   ├── pages/            # Application pages
+│   │   ├── base_page.py  # Base page class
+│   │   ├── profile_page.py # Profile management page
+│   │   ├── home_page.py  # Home page
+│   │   └── settings_page.py # Settings page
+│   ├── widgets/          # Reusable widgets
+│   │   ├── card.py       # Card widget
+│   │   ├── nav_button.py # Navigation button
+│   │   └── version_label.py # Version label
+│   ├── styles/           # Styling system
+│   │   ├── constants.py  # Constants (colors, fonts, sizes)
+│   │   ├── theme.py      # Theme management
+│   │   └── stylesheet.py # Widget stylesheet generation
+│   ├── dialogs/          # Dialog windows
+│   │   ├── base_dialog.py # Base dialog class
+│   │   ├── confirm_dialog.py # Confirmation dialogs
+│   │   ├── info_dialog.py # Info dialogs
+│   │   └── language_dialog.py # Language selection dialog
+│   └── tray_manager.py   # System tray manager
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   └── en.json           # English
@@ -76,7 +116,7 @@ SingBox-UI/
    ```
 3. Run the application:
    ```bash
-   python main.py
+   python main/main.py
    ```
 
 ### Build exe

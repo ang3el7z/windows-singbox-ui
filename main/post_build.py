@@ -113,6 +113,22 @@ def post_build():
         core_dir.mkdir(parents=True, exist_ok=True)
         log(f"[post_build] Created directory structure: {core_dir} (sing-box.exe will be downloaded on first run)")
     
+    # Copy .version file to data/.version
+    source_version = Path('.version')
+    log(f"[post_build] Checking for .version: {source_version}")
+    if source_version.exists():
+        log(f"[post_build] Found .version, copying to data/")
+        data_dir = project_dir / 'data'
+        data_dir.mkdir(parents=True, exist_ok=True)
+        version_dest = data_dir / '.version'
+        try:
+            shutil.copy2(source_version, version_dest)
+            log(f"[post_build] .version copied to: {version_dest}")
+        except Exception as e:
+            log(f"[post_build] ERROR copying .version: {e}")
+    else:
+        log(f"[post_build] WARNING: .version not found at {source_version}")
+    
     log(f"[post_build] Post-build script completed")
     log(f"[post_build] Project structure:")
     log(f"[post_build]   {project_dir}/")

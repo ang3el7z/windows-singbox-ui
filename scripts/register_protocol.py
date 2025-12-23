@@ -15,7 +15,7 @@ def register_protocol():
     else:
         # В режиме разработки используем python скрипт
         exe_path = sys.executable
-        script_path = Path(__file__).parent / "main.py"
+        script_path = Path(__file__).parent.parent / "main" / "main.py"
         exe_path = f'"{exe_path}" "{script_path}"'
     
     try:

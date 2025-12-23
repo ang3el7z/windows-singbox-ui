@@ -51,14 +51,22 @@ try:
         resized = img.resize(s, Image.Resampling.LANCZOS)
         icon_images.append(resized)
     
+    # Определяем путь для сохранения (в папку icons/)
+    from pathlib import Path
+    script_dir = Path(__file__).parent.parent
+    icons_dir = script_dir / 'icons'
+    icons_dir.mkdir(exist_ok=True)
+    
     # Сохраняем ICO с указанием всех размеров
-    icon_images[0].save('icon.ico', format='ICO', sizes=[(img.width, img.height) for img in icon_images])
-    print("Иконка создана: icon.ico")
+    icon_path = icons_dir / 'icon.ico'
+    icon_images[0].save(str(icon_path), format='ICO', sizes=[(img.width, img.height) for img in icon_images])
+    print(f"Иконка создана: {icon_path}")
     print(f"Размеры в иконке: {[(img.width, img.height) for img in icon_images]}")
     
     # Также сохраняем PNG для использования в приложении
-    img.save('icon.png')
-    print("PNG иконка создана: icon.png")
+    png_path = icons_dir / 'icon.png'
+    img.save(str(png_path))
+    print(f"PNG иконка создана: {png_path}")
     
 except ImportError:
     print("Pillow не установлен. Устанавливаю...")
