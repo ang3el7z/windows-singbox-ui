@@ -457,5 +457,5 @@ python main/main.py
 - **Обработка deep links** → `core/deep_link_handler.py` (класс `DeepLinkHandler`)
   - Метод `handle_deep_link()` и вся логика парсинга URL и импорта подписок
 
-Текущий размер `main/main.py`: ~2127 строк (было значительно больше до рефакторинга)
+Текущий размер `main/main.py`: ~2295 строк (было значительно больше до рефакторинга)
 
