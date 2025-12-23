@@ -88,9 +88,16 @@ class StyleSheet:
     def card(radius: Optional[int] = None) -> str:
         """Генерирует стиль карточки"""
         radius = radius or theme.get_size('border_radius_large')
+        bg_color = theme.get_color('background_secondary')
         return f"""
-        QWidget {{
-            background-color: {theme.get_color('background_secondary')};
+        CardWidget {{
+            background-color: {bg_color};
+            border-radius: {radius}px;
+            border: none;
+            min-height: 1px;
+        }}
+        QWidget#CardWidget {{
+            background-color: {bg_color};
             border-radius: {radius}px;
             border: none;
         }}
@@ -355,6 +362,10 @@ class StyleSheet:
         }}
         QTextEdit {{
             outline: none;
+        }}
+        /* Исключаем CardWidget из глобальных стилей, чтобы его стили не перезаписывались */
+        CardWidget {{
+            /* Стили CardWidget устанавливаются отдельно */
         }}
         """
 

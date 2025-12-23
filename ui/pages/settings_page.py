@@ -125,11 +125,38 @@ class SettingsPage(BasePage):
         language_row.addWidget(self.combo_language)
         settings_layout.addLayout(language_row)
         
-        # Кнопка "Убить" для полной остановки всех процессов
+        # Кнопка "Убить" для полной остановки всех процессов (без отдельной подложки, просто кнопка)
         self.btn_kill_all = QPushButton(tr("settings.kill_all"))
         self.btn_kill_all.setFont(QFont("Segoe UI", 13))
         self.btn_kill_all.setCursor(Qt.PointingHandCursor)
-        self.btn_kill_all.setStyleSheet(StyleSheet.button(variant="danger"))
+        # Кнопка внутри карточки, без отдельной подложки
+        # Добавляем минимальные размеры для адаптивности
+        self.btn_kill_all.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.get_color('error')};
+                color: #ffffff;
+                border: none;
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                font-size: {theme.get_font('size_medium')}px;
+                font-weight: {theme.get_font('weight_medium')};
+                font-family: {theme.get_font('family')};
+                min-width: 100px;
+                min-height: 36px;
+            }}
+            QPushButton:hover {{
+                background-color: #ff5252;
+            }}
+            QPushButton:pressed {{
+                opacity: 0.9;
+            }}
+            QPushButton:disabled {{
+                background-color: {theme.get_color('background_secondary')};
+                color: {theme.get_color('text_disabled')};
+                opacity: 0.5;
+            }}
+        """)
+        self.btn_kill_all.setMinimumSize(100, 36)
         self.btn_kill_all.clicked.connect(self.main_window.on_kill_all_clicked)
         settings_layout.addWidget(self.btn_kill_all)
         
@@ -153,46 +180,21 @@ class SettingsPage(BasePage):
         logs_layout.addWidget(self.logs, 1)
         # Логи загружаются при активации страницы через switch_page
         
-        # Debug логи (скрыты по умолчанию, показываются только при isDebug=True)
-        debug_logs_title = QLabel("Debug Logs")
-        debug_logs_title.setFont(QFont("Segoe UI Semibold", 16, QFont.Bold))
-        debug_logs_title.setStyleSheet(StyleSheet.label(variant="error", size="large"))
-        self.debug_logs_title = debug_logs_title
-        logs_layout.addWidget(debug_logs_title)
-        debug_logs_title.setVisible(False)
-        
-        self.debug_logs = QTextEdit()
-        self.debug_logs.setReadOnly(True)
-        self.debug_logs.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: rgba(255, 107, 107, 0.05);
-                color: {theme.get_color('error')};
-                border-radius: {theme.get_size('border_radius_large')}px;
-                padding: {theme.get_size('padding_large')}px;
-                border: 2px solid rgba(255, 107, 107, 0.2);
-                font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 10px;
-                outline: none;
-            }}
-        """)
-        logs_layout.addWidget(self.debug_logs, 1)
-        self.debug_logs.setVisible(False)
-        
-        self.main_window._update_debug_logs_visibility()
         self._layout.addWidget(logs_card, 1)
         
         # Дебаг секция (скрыта по умолчанию, появляется снизу после логов)
+        # Включает дебаг настройки и дебаг логи на одной подложке
         self.debug_card = CardWidget()
         self.debug_layout = QVBoxLayout(self.debug_card)
         self.debug_layout.setContentsMargins(20, 16, 20, 16)
         self.debug_layout.setSpacing(16)
         
-        debug_title = QLabel("Debug Settings")
+        debug_title = QLabel(tr("settings.debug_title"))
         debug_title.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
         debug_title.setStyleSheet(StyleSheet.label(variant="error", size="large"))
         self.debug_layout.addWidget(debug_title)
         
-        self.cb_allow_multiple = QCheckBox("Разрешить несколько процессов одновременно")
+        self.cb_allow_multiple = QCheckBox(tr("settings.allow_multiple_processes"))
         self.cb_allow_multiple.setChecked(self.main_window.settings.get("allow_multiple_processes", True))
         self.cb_allow_multiple.stateChanged.connect(self.main_window.on_allow_multiple_changed)
         self.cb_allow_multiple.setFont(QFont("Segoe UI", 13))
@@ -217,8 +219,36 @@ class SettingsPage(BasePage):
         """)
         self.debug_layout.addWidget(self.cb_allow_multiple)
         
+        # Debug логи (в дебаг секции, под дебаг настройками)
+        debug_logs_title = QLabel("Debug Logs")
+        debug_logs_title.setFont(QFont("Segoe UI Semibold", 16, QFont.Bold))
+        debug_logs_title.setStyleSheet(StyleSheet.label(variant="error", size="large"))
+        self.debug_logs_title = debug_logs_title
+        self.debug_layout.addWidget(debug_logs_title)
+        debug_logs_title.setVisible(False)
+        
+        self.debug_logs = QTextEdit()
+        self.debug_logs.setReadOnly(True)
+        self.debug_logs.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: rgba(255, 107, 107, 0.05);
+                color: {theme.get_color('error')};
+                border-radius: {theme.get_size('border_radius_large')}px;
+                padding: {theme.get_size('padding_large')}px;
+                border: 2px solid rgba(255, 107, 107, 0.2);
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 10px;
+                outline: none;
+            }}
+        """)
+        self.debug_layout.addWidget(self.debug_logs, 1)
+        self.debug_logs.setVisible(False)
+        
         self.debug_card.setVisible(False)
         self._layout.addWidget(self.debug_card)
+        
+        # Инициализируем видимость дебаг логов
+        self.main_window._update_debug_logs_visibility()
     
     def load_logs(self):
         """Загрузка логов в QTextEdit"""
@@ -229,10 +259,11 @@ class SettingsPage(BasePage):
         self.main_window.log_ui_manager.load_debug_logs(self.debug_logs)
     
     def update_debug_logs_visibility(self):
-        """Обновляет видимость дебаг логов и секции дебага"""
+        """Обновляет видимость всей дебаг секции на основе настройки isDebug"""
         is_debug = self.main_window.settings.get("isDebug", False)
+        # Вся дебаг секция (debug_card, debug_logs_title, debug_logs) видима только если isDebug=True
+        self.debug_card.setVisible(is_debug)
         self.debug_logs_title.setVisible(is_debug)
         self.debug_logs.setVisible(is_debug)
-        self.debug_card.setVisible(is_debug)
         if is_debug:
             self.load_debug_logs()

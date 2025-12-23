@@ -9,6 +9,13 @@ class BasePage(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Устанавливаем явный фон страницы
+        from ui.styles import theme
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+        """)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(16, 16, 16, 16)
         self._layout.setSpacing(16)

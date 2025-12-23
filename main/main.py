@@ -181,7 +181,6 @@ class MainWindow(QMainWindow):
         self.cached_app_latest_version = None  # Кэш последней версии приложения
         self.app_update_checked = False  # Флаг: была ли проверка обновлений приложения выполнена
         self.logs_click_count = 0  # Счетчик кликов по заголовку логов для дебаг меню
-        self.debug_section_visible = False  # Флаг видимости дебаг секции
 
         self.setWindowTitle(tr("app.title"))
         self.setMinimumSize(420, 780)
@@ -1404,9 +1403,6 @@ class MainWindow(QMainWindow):
             return
         self.logs_click_count += 1
         if self.logs_click_count >= 6:
-            self.debug_section_visible = not self.debug_section_visible
-            if hasattr(self.page_settings, 'debug_card'):
-                self.page_settings.debug_card.setVisible(self.debug_section_visible)
             self.logs_click_count = 0  # Сбрасываем счетчик
             
             # Переключаем настройку isDebug
@@ -1414,16 +1410,16 @@ class MainWindow(QMainWindow):
             new_debug = not current_debug
             self.settings.set("isDebug", new_debug)
             
-            # Автоматически обновляем видимость debug логов на основе isDebug
+            # Обновляем видимость всей дебаг секции на основе isDebug
             self._update_debug_logs_visibility()
             
-            if self.debug_section_visible:
+            if new_debug:
                 log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
             else:
                 log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
     
     def _update_debug_logs_visibility(self):
-        """Обновляет видимость debug логов на основе настройки isDebug"""
+        """Обновляет видимость всей дебаг секции (debug_card и debug_logs) на основе настройки isDebug"""
         if hasattr(self, 'page_settings'):
             self.page_settings.update_debug_logs_visibility()
     

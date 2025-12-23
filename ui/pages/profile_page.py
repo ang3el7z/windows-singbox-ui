@@ -6,7 +6,7 @@ from PyQt5.QtGui import QFont
 import qtawesome as qta
 from ui.pages.base_page import BasePage
 from ui.widgets import CardWidget
-from ui.styles import StyleSheet
+from ui.styles import StyleSheet, theme
 from utils.i18n import tr
 
 if TYPE_CHECKING:
@@ -33,6 +33,7 @@ class ProfilePage(BasePage):
         card = CardWidget()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(16)
         
         # Заголовок
         self.lbl_profile_title = QLabel(tr("profile.title"))
@@ -40,22 +41,77 @@ class ProfilePage(BasePage):
         self.lbl_profile_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
         layout.addWidget(self.lbl_profile_title)
         
-        # Список подписок
+        # Список подписок (без обводки, внутри карточки)
         self.sub_list = QListWidget()
         self.sub_list.currentRowChanged.connect(self.main_window.on_sub_changed)
-        self.sub_list.setStyleSheet(StyleSheet.list_widget())
+        # Убираем обводку у списка, оставляем только фон
+        self.sub_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {theme.get_color('background_tertiary')};
+                border: none;
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_small')}px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: transparent;
+                border-radius: {theme.get_size('border_radius_small')}px;
+                padding: {theme.get_size('padding_medium')}px;
+                margin: 2px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {theme.get_color('accent_light')};
+            }}
+            QListWidget::item:selected {{
+                background-color: {theme.get_color('accent_light')};
+                color: {theme.get_color('accent')};
+            }}
+        """)
         layout.addWidget(self.sub_list, 1)
         
-        # Кнопки управления
+        # Кнопки управления (без отдельных подложек, просто кнопки)
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
         self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
         self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
         self.btn_rename_sub = QPushButton(qta.icon("mdi.rename-box"), tr("profile.rename"))
         self.btn_test_sub = QPushButton(qta.icon("mdi.network"), tr("profile.test"))
         
+        # Стиль кнопок без подложек, просто с фоном и границей
+        # Добавляем минимальные размеры для адаптивности
+        button_style = f"""
+            QPushButton {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border: 1px solid {theme.get_color('border')};
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                font-size: {theme.get_font('size_medium')}px;
+                font-weight: {theme.get_font('weight_medium')};
+                font-family: {theme.get_font('family')};
+                min-width: 70px;
+                min-height: 36px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.get_color('accent_light')};
+                border-color: {theme.get_color('border_hover')};
+            }}
+            QPushButton:pressed {{
+                background-color: {theme.get_color('accent_light_hover')};
+                opacity: 0.9;
+            }}
+            QPushButton:disabled {{
+                background-color: {theme.get_color('background_secondary')};
+                color: {theme.get_color('text_disabled')};
+                opacity: 0.5;
+            }}
+        """
+        
         for b in (self.btn_add_sub, self.btn_del_sub, self.btn_rename_sub, self.btn_test_sub):
             b.setCursor(Qt.PointingHandCursor)
-            b.setStyleSheet(StyleSheet.button(variant="secondary", size="medium"))
+            b.setStyleSheet(button_style)
+            # Устанавливаем минимальный размер для адаптивности
+            b.setMinimumSize(70, 36)
             btn_row.addWidget(b)
         
         self.btn_add_sub.clicked.connect(self.main_window.on_add_sub)

@@ -119,16 +119,24 @@ class HomePage(BasePage):
         
         self._layout.addWidget(profile_card)
         
-        # Информация о правах администратора
+        # Информация о правах администратора (на подложке, текст должен быть виден)
         admin_info_card = CardWidget()
         admin_info_layout = QVBoxLayout(admin_info_card)
-        admin_info_layout.setContentsMargins(20, 12, 20, 12)
+        admin_info_layout.setContentsMargins(20, 16, 20, 16)
         admin_info_layout.setSpacing(0)
         
         self.lbl_admin_status = QLabel()
-        self.lbl_admin_status.setFont(QFont("Segoe UI", 10))
+        self.lbl_admin_status.setFont(QFont("Segoe UI", 11))
         self.lbl_admin_status.setAlignment(Qt.AlignCenter)
         self.lbl_admin_status.mousePressEvent = self.main_window.admin_status_mouse_press
+        # Убеждаемся, что текст виден - устанавливаем стиль явно
+        self.lbl_admin_status.setStyleSheet("""
+            QLabel {
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+            }
+        """)
         self.main_window.update_admin_status_label()
         admin_info_layout.addWidget(self.lbl_admin_status)
         
