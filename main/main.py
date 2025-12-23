@@ -145,7 +145,8 @@ class MainWindow(QMainWindow):
         self.version_click_count = 0  # Счетчик кликов по версии для дебаг меню
 
         self.setWindowTitle(tr("app.title"))
-        self.setMinimumSize(420, 780)
+        self.setMinimumSize(700, 780)
+        self.setMaximumSize(700, 780)
         
         # Инициализируем систему адаптивного масштабирования
         from ui.utils.responsive_scaler import init_scaler
@@ -1380,21 +1381,16 @@ class MainWindow(QMainWindow):
 
     # Настройки
     def on_interval_changed(self):
-        """Изменение интервала автообновления"""
-        if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'edit_interval'):
-            return
-        try:
-            value = int(self.page_settings.edit_interval.text())
-            if 5 <= value <= 1440:
-                self.settings.set("auto_update_minutes", value)
-                self.update_timer.start(value * 60 * 1000)
-                self.log(tr("messages.interval_changed", value=value))
-            else:
-                # Восстанавливаем значение если вне диапазона
-                self.page_settings.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
-        except ValueError:
-            # Восстанавливаем значение если не число
-            self.page_settings.edit_interval.setText(str(self.settings.get("auto_update_minutes", 90)))
+        """Изменение интервала автообновления (старый метод для обратной совместимости)"""
+        # Этот метод больше не используется, оставлен для совместимости
+        pass
+    
+    def on_interval_changed_from_radio(self, value: int):
+        """Изменение интервала автообновления через радиокнопки"""
+        if 30 <= value <= 120:
+            self.settings.set("auto_update_minutes", value)
+            self.update_timer.start(value * 60 * 1000)
+            self.log(tr("messages.interval_changed", value=value))
     
     def on_version_clicked(self, event):
         """Обработка клика по версии для показа дебаг меню и обновлений"""
@@ -2062,10 +2058,10 @@ class MainWindow(QMainWindow):
                       self.page_settings.cb_auto_start_singbox, self.page_settings.cb_minimize_to_tray):
                 scaler.register_widget(cb, base_font_size=13)
             
-            # Поля ввода
-            if hasattr(self.page_settings, 'edit_interval'):
-                scaler.register_widget(self.page_settings.edit_interval, base_font_size=13, 
-                                      base_min_size=(80, 0), base_max_size=(150, 0))
+            # Поля ввода (интервал обновления теперь через радиокнопки)
+            # if hasattr(self.page_settings, 'edit_interval'):
+            #     scaler.register_widget(self.page_settings.edit_interval, base_font_size=13, 
+            #                           base_min_size=(80, 0), base_max_size=(150, 0))
 
     def eventFilter(self, obj, event):
         """Обработка событий для адаптивности"""

@@ -55,7 +55,7 @@
   },
   "settings": {
     "title": "Settings",
-    "auto_update_interval": "Auto-update interval (min):",
+    "auto_update_interval": "Auto-update interval (min)",
     "autostart": "Start with Windows",
     "run_as_admin": "Run as administrator",
     "auto_start_singbox": "Auto-start SingBox when application starts",

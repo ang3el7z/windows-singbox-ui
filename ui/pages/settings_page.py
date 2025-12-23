@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QLineEdit, QCheckBox, QComboBox, QTextEdit, QSizePolicy
+    QCheckBox, QComboBox, QTextEdit, QSizePolicy
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -44,32 +44,36 @@ class SettingsPage(BasePage):
         self.main_window = main_window
         # Не устанавливаем отступы в основном layout, как в ProfilePage
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # Убираем отступы из базового layout для настроек
+        self._layout.setContentsMargins(16, 16, 16, 16)
+        self._layout.setSpacing(16)
         self._build_ui()
     
     def _build_ui(self):
         """Построение UI страницы"""
-        # Настройки
-        settings_card = CardWidget()
-        settings_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        settings_layout = QVBoxLayout(settings_card)
-        settings_layout.setContentsMargins(20, 18, 20, 18)
-        settings_layout.setSpacing(16)
-        
         # Заголовок страницы
-        self.settings_title = QLabel(tr("settings.title"))
-        self.settings_title.setFont(QFont("Segoe UI Semibold", 16, QFont.Bold))
-        self.settings_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
-        settings_layout.addWidget(self.settings_title)
+        self.lbl_settings_title = QLabel(tr("settings.title"))
+        self.lbl_settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
+        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
+        self._layout.addWidget(self.lbl_settings_title)
         
         # Регистрируем для адаптивного масштабирования
         if hasattr(self.main_window, 'responsive_scaler'):
             self.main_window.responsive_scaler.register_widget(
-                self.settings_title, base_font_size=16
+                self.lbl_settings_title, base_font_size=20
             )
         
-        # Интервал автообновления (по образцу языка)
+        # Настройки
+        settings_card = CardWidget()
+        settings_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        settings_layout = QVBoxLayout(settings_card)
+        settings_layout.setContentsMargins(20, 18, 20, 18)
+        settings_layout.setSpacing(16)
+        
+        # Интервал автообновления (в одну линию, как язык и тема)
         interval_row = QHBoxLayout()
         interval_row.setSpacing(12)
+        
         self.interval_label = QLabel(tr("settings.auto_update_interval"))
         self.interval_label.setFont(QFont("Segoe UI", 13))
         self.interval_label.setStyleSheet(StyleSheet.label(variant="secondary"))
@@ -80,13 +84,24 @@ class SettingsPage(BasePage):
         if hasattr(self.main_window, 'responsive_scaler'):
             self.main_window.responsive_scaler.register_widget(self.interval_label, base_font_size=13)
         
-        self.edit_interval = QLineEdit()
-        self.edit_interval.setText(str(self.main_window.settings.get("auto_update_minutes", 90)))
-        self.edit_interval.setPlaceholderText("90")
-        self.edit_interval.editingFinished.connect(self.main_window.on_interval_changed)
-        self.edit_interval.setStyleSheet(StyleSheet.combo_box())  # Используем стиль комбобокса для единообразия
-        self.edit_interval.setMinimumWidth(120)
-        interval_row.addWidget(self.edit_interval, 1)
+        # Чекбоксы для выбора интервала (в одну линию)
+        self.interval_buttons = {}
+        interval_values = [30, 60, 90, 120]
+        current_interval = self.main_window.settings.get("auto_update_minutes", 90)
+        
+        for value in interval_values:
+            radio = QCheckBox(str(value))
+            radio.setFont(QFont("Segoe UI", 12))
+            radio.setChecked(value == current_interval)
+            # Используем lambda с правильным захватом значения
+            def make_handler(v):
+                return lambda checked: self._on_interval_radio_toggled(v) if checked else None
+            radio.toggled.connect(make_handler(value))
+            radio.setStyleSheet(StyleSheet.checkbox())
+            self.interval_buttons[value] = radio
+            interval_row.addWidget(radio)
+        
+        interval_row.addStretch()
         settings_layout.addLayout(interval_row)
         
         # Чекбоксы настроек
@@ -306,6 +321,20 @@ class SettingsPage(BasePage):
     def load_debug_logs(self):
         """Загрузка дебаг логов в QTextEdit"""
         self.main_window.log_ui_manager.load_debug_logs(self.debug_logs)
+    
+    def _on_interval_radio_toggled(self, value: int):
+        """Обработка изменения интервала через радиокнопки"""
+        # Снимаем выделение с других радиокнопок
+        for v, radio in self.interval_buttons.items():
+            if v != value:
+                radio.blockSignals(True)
+                radio.setChecked(False)
+                radio.blockSignals(False)
+        
+        # Вызываем обработчик из main_window
+        if hasattr(self.main_window, 'on_interval_changed'):
+            self.main_window.settings.set("auto_update_minutes", value)
+            self.main_window.on_interval_changed_from_radio(value)
     
     def update_debug_logs_visibility(self):
         """Обновляет видимость дебаг элементов на основе настройки isDebug"""
