@@ -93,72 +93,44 @@ from utils.logger import log_to_file, set_main_window
 
 def load_icon_with_logging(context: str = "window") -> QIcon:
     """
-    Загружает иконку приложения с логированием попыток.
-    Возвращает QIcon или пустой QIcon если не удалось загрузить.
+    Загружает иконку приложения из самого exe файла (встроена в ресурсы при сборке).
+    Это 100% рабочий вариант - иконка всегда встроена в exe через PyInstaller.
     
     Args:
         context: Контекст загрузки ("window" или "app") для логирования
     """
     log_to_file(f"[Icon {context}] Начало загрузки иконки")
-    window_icon = QIcon()
     
-    # Список путей для попытки загрузки в порядке приоритета
-    icon_paths = []
-    
-    exe_path = None
     if getattr(sys, 'frozen', False):
-        # В frozen режиме (PyInstaller)
-        base_path = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+        # В собранном приложении - извлекаем иконку из самого exe
         exe_path = Path(sys.executable)
+        log_to_file(f"[Icon {context}] Извлечение иконки из exe: {exe_path}")
+        icon = QIcon(str(exe_path))
         
-        # Приоритетные пути в frozen режиме
-        icon_paths = [
-            base_path / "icons" / "icon.ico",
-            base_path / "icon.ico",
-            base_path / "icons" / "icon.png",
-            base_path / "icon.png",
-            exe_path.parent / "icons" / "icon.ico",
-            exe_path.parent / "icon.ico",
-            exe_path.parent / "icons" / "icon.png",
-            exe_path.parent / "icon.png",
-            exe_path,  # Извлечь из exe
-        ]
+        if not icon.isNull():
+            log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка из exe")
+            return icon
+        else:
+            log_to_file(f"[Icon {context}] ✗ Не удалось извлечь иконку из exe")
+            return QIcon()
     else:
-        # В режиме разработки
+        # В режиме разработки - загружаем из папки icons
         root = Path(__file__).parent.parent
-        icon_paths = [
-            root / "icons" / "icon.ico",
-            root / "icons" / "icon.png",
-        ]
-    
-    # Пробуем загрузить из каждого пути
-    for icon_path in icon_paths:
-        try:
-            # Проверяем, является ли это exe файлом (для извлечения иконки)
-            is_exe = exe_path and icon_path.resolve() == exe_path.resolve()
+        icon_path = root / "icons" / "icon.ico"
+        
+        if not icon_path.exists():
+            icon_path = root / "icons" / "icon.png"
+        
+        if icon_path.exists():
+            log_to_file(f"[Icon {context}] Загрузка иконки из: {icon_path}")
+            icon = QIcon(str(icon_path))
             
-            if is_exe:
-                # Специальный случай - извлечение из exe
-                log_to_file(f"[Icon {context}] Попытка извлечь иконку из exe: {icon_path}")
-                window_icon = QIcon(str(icon_path))
-            elif icon_path.exists():
-                log_to_file(f"[Icon {context}] Попытка загрузить: {icon_path}")
-                window_icon = QIcon(str(icon_path))
-            else:
-                log_to_file(f"[Icon {context}] Файл не найден: {icon_path}")
-                continue
-            
-            if not window_icon.isNull():
-                log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка из: {icon_path}")
-                return window_icon
-            else:
-                log_to_file(f"[Icon {context}] ✗ Иконка пустая после загрузки из: {icon_path}")
-        except Exception as e:
-            log_to_file(f"[Icon {context}] ✗ Ошибка при загрузке из {icon_path}: {e}")
-            continue
-    
-    log_to_file(f"[Icon {context}] ✗ Не удалось загрузить иконку ни из одного источника")
-    return window_icon
+            if not icon.isNull():
+                log_to_file(f"[Icon {context}] ✓ Успешно загружена иконка")
+                return icon
+        
+        log_to_file(f"[Icon {context}] ✗ Иконка не найдена в режиме разработки")
+        return QIcon()
 
 
 # register_protocols, is_admin, restart_as_admin перенесены в core/protocol.py
@@ -952,6 +924,8 @@ class MainWindow(QMainWindow):
     
     def update_profile_info(self):
         """Обновление информации о профиле"""
+        if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_profile'):
+            return
         running = self.proc and self.proc.poll() is None
         running_sub = None
         selected_sub = None
@@ -968,39 +942,39 @@ class MainWindow(QMainWindow):
         if running_sub and selected_sub:
             if self.running_sub_index == self.current_sub_index:
                 # Профили совпадают
-                self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
+                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
             else:
                 # Профили разные - добавляем отступ для второй строки
                 text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
-                self.lbl_profile.setText(text)
-                self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setText(text)
+                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         elif running_sub:
             # Только запущенный профиль
-            self.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
+            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         elif selected_sub:
             # Только выбранный профиль
-            self.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
-            self.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
+            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         else:
             # Нет профиля
-            self.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
+            self.page_home.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
             # Делаем кликабельным для перехода в профили
             # Сохраняем оригинальный mousePressEvent если он есть
-            if not hasattr(self.lbl_profile, '_original_mousePressEvent'):
-                self.lbl_profile._original_mousePressEvent = self.lbl_profile.mousePressEvent
+            if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):
+                self.page_home.lbl_profile._original_mousePressEvent = self.page_home.lbl_profile.mousePressEvent
             
             def handle_click(event):
                 if event.button() == Qt.LeftButton:
                     self.switch_page(0)  # Переход на страницу профилей (индекс 0)
                 else:
                     # Вызываем оригинальный обработчик для других кнопок
-                    if hasattr(self.lbl_profile, '_original_mousePressEvent') and self.lbl_profile._original_mousePressEvent:
-                        self.lbl_profile._original_mousePressEvent(event)
+                    if hasattr(self.page_home.lbl_profile, '_original_mousePressEvent') and self.page_home.lbl_profile._original_mousePressEvent:
+                        self.page_home.lbl_profile._original_mousePressEvent(event)
             
-            self.lbl_profile.mousePressEvent = handle_click
+            self.page_home.lbl_profile.mousePressEvent = handle_click
     
     def update_admin_status_label(self):
         """Обновление надписи о правах администратора"""
