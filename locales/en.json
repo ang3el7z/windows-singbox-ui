@@ -74,7 +74,9 @@
     "language": "Interface language:",
     "language_changed": "Language changed to {language}",
     "kill_all": "Kill all processes",
-    "logs": "Logs"
+    "logs": "Logs",
+    "debug_title": "Debug Settings",
+    "allow_multiple_processes": "Allow multiple processes"
   },
   "download": {
     "title": "Install SingBox",

@@ -74,7 +74,9 @@
     "language": "Язык интерфейса:",
     "language_changed": "Язык изменен на {language}",
     "kill_all": "Убить все процессы",
-    "logs": "Логи"
+    "logs": "Логи",
+    "debug_title": "Отладочные настройки",
+    "allow_multiple_processes": "Разрешить несколько процессов одновременно"
   },
   "download": {
     "title": "Установка SingBox",
