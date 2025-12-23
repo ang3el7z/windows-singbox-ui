@@ -1941,8 +1941,8 @@ if __name__ == "__main__":
         # Создаем папки для логов ДО логирования
         ensure_dirs()
         
-        app = QApplication(sys.argv)
-        app.setApplicationName("SingBox-UI")
+        # Создаем приложение с применением темы
+        app = create_application()
         
         # Загружаем настройки для проверки разрешения нескольких процессов
         settings = SettingsManager()

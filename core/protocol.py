@@ -26,7 +26,7 @@ def register_protocols() -> bool:
             exe_path = sys.executable
         else:
             exe_path = sys.executable
-            script_path = Path(__file__).parent.parent / "main.py"
+            script_path = Path(__file__).parent.parent / "main" / "main.py"
             exe_path = f'"{exe_path}" "{script_path}"'
         
         # Формируем команду запуска
@@ -132,9 +132,9 @@ def restart_as_admin() -> bool:
             params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
             work_dir = str(Path(exe_path).parent)
         else:
-            # В режиме разработки запускаем main.py через Python
+            # В режиме разработки запускаем main/main.py через Python
             exe_path = sys.executable
-            script_path = Path(__file__).parent.parent / "main.py"
+            script_path = Path(__file__).parent.parent / "main" / "main.py"
             params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
             work_dir = str(Path(__file__).parent.parent)
         
