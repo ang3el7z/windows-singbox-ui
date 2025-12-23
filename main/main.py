@@ -941,11 +941,13 @@ class MainWindow(QMainWindow):
             return
         if is_admin():
             self.page_home.lbl_admin_status.setText(tr("home.admin_running"))
-            self.page_home.lbl_admin_status.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            # Используем StyleSheet.label с вариантом success, аналогично lbl_update_info
+            self.page_home.lbl_admin_status.setStyleSheet(StyleSheet.label(variant="success"))
             self.page_home.lbl_admin_status.setCursor(Qt.ArrowCursor)
         else:
             self.page_home.lbl_admin_status.setText(tr("home.admin_not_running"))
-            self.page_home.lbl_admin_status.setStyleSheet("color: #ffa500; background-color: transparent; border: none; padding: 0px; text-decoration: underline;")
+            # Используем StyleSheet.label с вариантом warning, аналогично lbl_update_info
+            self.page_home.lbl_admin_status.setStyleSheet(StyleSheet.label(variant="warning"))
             self.page_home.lbl_admin_status.setCursor(Qt.PointingHandCursor)
     
     def admin_status_mouse_press(self, event):

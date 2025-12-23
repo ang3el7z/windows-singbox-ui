@@ -129,14 +129,8 @@ class HomePage(BasePage):
         self.lbl_admin_status.setFont(QFont("Segoe UI", 11))
         self.lbl_admin_status.setAlignment(Qt.AlignCenter)
         self.lbl_admin_status.mousePressEvent = self.main_window.admin_status_mouse_press
-        # Убеждаемся, что текст виден - устанавливаем стиль явно
-        self.lbl_admin_status.setStyleSheet("""
-            QLabel {
-                background-color: transparent;
-                border: none;
-                padding: 0px;
-            }
-        """)
+        # Используем StyleSheet.label как базовый стиль, аналогично lbl_update_info
+        self.lbl_admin_status.setStyleSheet(StyleSheet.label(variant="warning"))
         self.main_window.update_admin_status_label()
         admin_info_layout.addWidget(self.lbl_admin_status)
         
