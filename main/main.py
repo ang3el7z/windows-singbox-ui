@@ -1955,6 +1955,27 @@ from app.application import create_application
 
 
 if __name__ == "__main__":
+    # Устанавливаем глобальный обработчик исключений для PyQt5
+    import sys
+    def excepthook(exc_type, exc_value, exc_traceback):
+        """Глобальный обработчик исключений"""
+        if exc_type == KeyboardInterrupt:
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        
+        import traceback
+        error_msg = f"[Unhandled Exception] {exc_type.__name__}: {exc_value}\n{traceback.format_exception(exc_type, exc_value, exc_traceback)}"
+        try:
+            from utils.logger import log_to_file
+            log_to_file(error_msg)
+        except:
+            pass
+        
+        # Вызываем стандартный обработчик
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    
+    sys.excepthook = excepthook
+    
     try:
         # Создаем папки для логов ДО логирования
         ensure_dirs()
