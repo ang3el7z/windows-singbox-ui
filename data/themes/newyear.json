@@ -1,0 +1,26 @@
+{
+  "_theme_name": "New Year",
+  "_theme_name_ru": "Новогодняя",
+  "isActive": true,
+  "colors": {
+    "background_primary": "#0a1a2e",
+    "background_secondary": "#1a2a3e",
+    "background_tertiary": "#2a3a4e",
+    "accent": "#ffd700",
+    "accent_hover": "#ffed4e",
+    "accent_light": "rgba(255,215,0,0.15)",
+    "accent_light_hover": "rgba(255,215,0,0.2)",
+    "text_primary": "#ffffff",
+    "text_secondary": "#a0c4ff",
+    "text_tertiary": "#87ceeb",
+    "text_disabled": "#5a7a9a",
+    "success": "#00ff88",
+    "warning": "#ffaa00",
+    "error": "#ff4444",
+    "info": "#ffd700",
+    "border": "rgba(255,215,0,0.3)",
+    "border_hover": "rgba(255,215,0,0.5)",
+    "border_focus": "#ffd700"
+  }
+}
+

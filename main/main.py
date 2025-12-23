@@ -92,13 +92,6 @@ from utils.logger import log_to_file, set_main_window
 from utils.icon_manager import get_icon, set_window_icon
 
 
-# load_icon_with_logging удалена - теперь используется utils.icon_manager
-
-
-# register_protocols, is_admin, restart_as_admin перенесены в core/protocol.py
-# Все диалоги перенесены в ui/dialogs/
-
-
 class MainWindow(QMainWindow):
     """Главное окно приложения"""
     
@@ -458,15 +451,6 @@ class MainWindow(QMainWindow):
         # Автозапуск
         if self.settings.get("start_with_windows", False):
             self.set_autostart(True)
-
-    # UI helpers (устаревшие методы, оставлены для обратной совместимости)
-    def make_nav_button(self, text: str, icon_name: str) -> QPushButton:
-        """Создает кнопку навигации (использует новый NavButton)"""
-        return NavButton(text, icon_name)
-
-    def build_card(self) -> QWidget:
-        """Создает карточку (использует новый CardWidget)"""
-        return CardWidget()
 
     # Страницы перенесены в ui/pages/ - ProfilePage, HomePage, SettingsPage
 
@@ -2059,9 +2043,6 @@ class MainWindow(QMainWindow):
                 scaler.register_widget(cb, base_font_size=13)
             
             # Поля ввода (интервал обновления теперь через радиокнопки)
-            # if hasattr(self.page_settings, 'edit_interval'):
-            #     scaler.register_widget(self.page_settings.edit_interval, base_font_size=13, 
-            #                           base_min_size=(80, 0), base_max_size=(150, 0))
 
     def eventFilter(self, obj, event):
         """Обработка событий для адаптивности"""

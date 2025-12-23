@@ -28,6 +28,7 @@ DATA_DIR = ROOT / "data"
 CORE_DIR = DATA_DIR / "core"
 LOG_DIR = DATA_DIR / "logs"
 LOCALES_DIR = DATA_DIR / "locales"
+THEMES_DIR = DATA_DIR / "themes"
 
 # Файлы
 SUB_FILE = DATA_DIR / ".subscriptions"
@@ -40,7 +41,7 @@ DEBUG_LOG_FILE = LOG_DIR / "debug.log"
 
 def ensure_dirs():
     """Создает все необходимые папки и проверяет их создание"""
-    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR]
+    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR]
     for p in dirs_to_create:
         try:
             p.mkdir(parents=True, exist_ok=True)

@@ -46,6 +46,9 @@ SingBox-UI/
 │   └── icon.svg           # SVG icon (source)
 ├── scripts/                # Utility scripts
 │   ├── build_parallel.py   # Parallel build script (builds both exe simultaneously)
+│   ├── build_qrc.py        # QRC compilation script
+│   ├── check_locales.py    # Locale validation script
+│   ├── create_icon.py      # Icon creation script
 │   └── register_protocol.py # Protocol registration script
 ├── config/                 # Configuration
 │   └── paths.py           # File paths
@@ -55,12 +58,15 @@ SingBox-UI/
 │   └── log_ui_manager.py  # Log UI manager
 ├── utils/                 # Utilities
 │   ├── i18n.py           # Localization
+│   ├── icon_manager.py   # Icon management
 │   ├── logger.py         # Logging
-│   └── singbox.py        # SingBox utilities
+│   ├── singbox.py        # SingBox utilities
+│   └── theme_manager.py  # Theme management
 ├── core/                  # Core logic
+│   ├── deep_link_handler.py # Deep link handler
+│   ├── downloader.py     # Core downloader
 │   ├── protocol.py       # Protocol registration and admin rights
-│   ├── singbox_manager.py # SingBox process management
-│   └── deep_link_handler.py # Deep link handler
+│   └── singbox_manager.py # SingBox process management
 ├── app/                   # Application initialization
 │   └── application.py    # QApplication creation and theme
 ├── workers/               # Background threads
@@ -74,9 +80,15 @@ SingBox-UI/
 │   │   ├── home_page.py  # Home page
 │   │   └── settings_page.py # Settings page
 │   ├── widgets/          # Reusable widgets
+│   │   ├── animated_button.py # Animated button widget
 │   │   ├── card.py       # Card widget
+│   │   ├── logs_window.py # Logs window widget
 │   │   ├── nav_button.py # Navigation button
 │   │   └── version_label.py # Version label
+│   ├── utils/            # UI utilities
+│   │   ├── animations.py # Page transition animations
+│   │   ├── responsive_layout.py # Responsive layout helpers
+│   │   └── responsive_scaler.py # Responsive scaling system
 │   ├── styles/           # Styling system
 │   │   ├── constants.py  # Constants (colors, fonts, sizes)
 │   │   ├── theme.py      # Theme management
@@ -87,6 +99,11 @@ SingBox-UI/
 │   │   ├── info_dialog.py # Info dialogs
 │   │   └── language_dialog.py # Language selection dialog
 │   └── tray_manager.py   # System tray manager
+├── resources/            # Resources
+│   ├── app.qrc          # Qt resource file
+│   └── icons/           # Icon resources
+│       └── app.ico      # Application icon
+├── resources_rc.py       # Compiled Qt resources (generated)
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   └── en.json           # English
@@ -102,6 +119,10 @@ SingBox-UI/
     ├── locales/          # Localization files (copied from locales/)
     │   ├── ru.json       # Russian
     │   └── en.json       # English
+    ├── themes/           # Theme files (copied from themes/)
+    │   ├── dark.json     # Dark theme
+    │   ├── light.json    # Light theme
+    │   └── ...
     ├── updater.exe       # Update utility executable (with GUI)
     └── config.json       # Config
 ```
@@ -148,6 +169,7 @@ The result will be in the `dist/SingBox-UI/` folder with the following structure
 - `SingBox-UI.exe` - Main application
 - `data/updater.exe` - Update utility
 - `data/locales/` - Localization files
+- `data/themes/` - Theme files
 - `data/core/` - SingBox core (downloaded on first run)
 
 ## Usage
@@ -181,6 +203,11 @@ On first launch, the application automatically creates:
 - `data/locales/` - Localization files (copied during build)
   - `ru.json` - Russian translations
   - `en.json` - English translations
+- `data/themes/` - Theme files (copied during build)
+  - `dark.json` - Dark theme
+  - `light.json` - Light theme
+  - `black.json` - Black theme
+  - `newyear.json` - New Year theme
 - `data/updater.exe` - Update utility with GUI (handles entire update process)
 - `data/config.json` - Configuration file (downloaded from subscription)
 - `data/.subscriptions` - Subscription list (preserved during updates)

@@ -1,0 +1,26 @@
+{
+  "_theme_name": "Dark",
+  "_theme_name_ru": "Темная",
+  "isActive": true,
+  "colors": {
+    "background_primary": "#0f1419",
+    "background_secondary": "#1a1f2e",
+    "background_tertiary": "#1f2937",
+    "accent": "#00f5d4",
+    "accent_hover": "#00d4b8",
+    "accent_light": "rgba(0,245,212,0.1)",
+    "accent_light_hover": "rgba(0,245,212,0.15)",
+    "text_primary": "#ffffff",
+    "text_secondary": "#64748b",
+    "text_tertiary": "#9ca3af",
+    "text_disabled": "#475569",
+    "success": "#00f5d4",
+    "warning": "#ffa500",
+    "error": "#ff6b6b",
+    "info": "#00f5d4",
+    "border": "rgba(0,245,212,0.2)",
+    "border_hover": "rgba(0,245,212,0.4)",
+    "border_focus": "#00f5d4"
+  }
+}
+

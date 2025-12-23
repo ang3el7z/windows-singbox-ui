@@ -58,11 +58,12 @@ def post_build():
     else:
         log(f"[post_build] WARNING: locales directory not found at {source_locales}")
     
-    # Copy themes from source to themes in project directory
-    source_themes = Path('themes')
+    # Copy themes from source to data/themes in project directory
+    source_themes = Path('data/themes')
     log(f"[post_build] Checking for themes: {source_themes}")
     if source_themes.exists():
-        themes_dest = project_dir / 'themes'
+        data_dir = project_dir / 'data'
+        themes_dest = data_dir / 'themes'
         # Remove existing directory if exists
         if themes_dest.exists():
             try:
@@ -142,6 +143,7 @@ def post_build():
     log(f"[post_build]   {project_dir}/")
     log(f"[post_build]     - SingBox-UI.exe")
     log(f"[post_build]     - data/locales/")
+    log(f"[post_build]     - data/themes/")
     log(f"[post_build]     - data/core/")
     log(f"[post_build]     - data/updater.exe")
 

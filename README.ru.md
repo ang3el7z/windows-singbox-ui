@@ -46,6 +46,9 @@ SingBox-UI/
 │   └── icon.svg           # SVG иконка (исходник)
 ├── scripts/                # Утилитарные скрипты
 │   ├── build_parallel.py   # Скрипт параллельной сборки (собирает оба exe одновременно)
+│   ├── build_qrc.py        # Скрипт компиляции QRC
+│   ├── check_locales.py    # Скрипт проверки локализации
+│   ├── create_icon.py      # Скрипт создания иконок
 │   └── register_protocol.py # Скрипт регистрации протоколов
 ├── config/                 # Конфигурация
 │   └── paths.py           # Пути к файлам
@@ -55,12 +58,15 @@ SingBox-UI/
 │   └── log_ui_manager.py  # Менеджер логов для UI
 ├── utils/                 # Утилиты
 │   ├── i18n.py           # Локализация
+│   ├── icon_manager.py   # Управление иконками
 │   ├── logger.py         # Логирование
-│   └── singbox.py        # Утилиты SingBox
+│   ├── singbox.py        # Утилиты SingBox
+│   └── theme_manager.py  # Управление темами
 ├── core/                  # Основная логика
+│   ├── deep_link_handler.py # Обработчик deep links
+│   ├── downloader.py     # Загрузчик ядра
 │   ├── protocol.py       # Регистрация протоколов и работа с правами администратора
-│   ├── singbox_manager.py # Управление процессом SingBox
-│   └── deep_link_handler.py # Обработчик deep links
+│   └── singbox_manager.py # Управление процессом SingBox
 ├── app/                   # Инициализация приложения
 │   └── application.py    # Создание QApplication и применение темы
 ├── workers/               # Фоновые потоки
@@ -74,9 +80,15 @@ SingBox-UI/
 │   │   ├── home_page.py  # Главная страница
 │   │   └── settings_page.py # Страница настроек
 │   ├── widgets/          # Переиспользуемые виджеты
+│   │   ├── animated_button.py # Виджет анимированной кнопки
 │   │   ├── card.py       # Виджет-карточка
+│   │   ├── logs_window.py # Виджет окна логов
 │   │   ├── nav_button.py # Кнопка навигации
 │   │   └── version_label.py # Лейбл версии
+│   ├── utils/            # Утилиты UI
+│   │   ├── animations.py # Анимации переходов между страницами
+│   │   ├── responsive_layout.py # Помощники для адаптивных layout'ов
+│   │   └── responsive_scaler.py # Система адаптивного масштабирования
 │   ├── styles/           # Система стилей
 │   │   ├── constants.py  # Константы (цвета, шрифты, размеры)
 │   │   ├── theme.py      # Управление темой
@@ -87,6 +99,11 @@ SingBox-UI/
 │   │   ├── info_dialog.py # Информационные диалоги
 │   │   └── language_dialog.py # Диалог выбора языка
 │   └── tray_manager.py   # Менеджер системного трея
+├── resources/            # Ресурсы
+│   ├── app.qrc          # Файл ресурсов Qt
+│   └── icons/           # Ресурсы иконок
+│       └── app.ico      # Иконка приложения
+├── resources_rc.py       # Скомпилированные ресурсы Qt (генерируется)
 ├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
 │   └── en.json           # Английский
@@ -102,6 +119,10 @@ SingBox-UI/
     ├── locales/          # Файлы локализации (копируются из locales/)
     │   ├── ru.json       # Русский
     │   └── en.json       # Английский
+    ├── themes/          # Файлы тем (копируются из themes/)
+    │   ├── dark.json     # Темная тема
+    │   ├── light.json    # Светлая тема
+    │   └── ...
     ├── updater.exe       # Утилита обновления (с GUI)
     └── config.json       # Конфиг
 ```
@@ -148,6 +169,7 @@ python main/post_build.py
 - `SingBox-UI.exe` - Основное приложение
 - `data/updater.exe` - Утилита обновления
 - `data/locales/` - Файлы локализации
+- `data/themes/` - Файлы тем
 - `data/core/` - Ядро SingBox (скачивается при первом запуске)
 
 ## Использование
@@ -181,6 +203,11 @@ python main/post_build.py
 - `data/locales/` - Файлы локализации (копируются при сборке)
   - `ru.json` - Русские переводы
   - `en.json` - Английские переводы
+- `data/themes/` - Файлы тем (копируются при сборке)
+  - `dark.json` - Темная тема
+  - `light.json` - Светлая тема
+  - `black.json` - Черная тема
+  - `newyear.json` - Новогодняя тема
 - `data/updater.exe` - Утилита обновления с GUI (выполняет весь процесс обновления)
 - `data/config.json` - Конфигурационный файл (скачивается из подписки)
 - `data/.subscriptions` - Список подписок (сохраняется при обновлениях)

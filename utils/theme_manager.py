@@ -2,7 +2,7 @@
 import json
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from config.paths import ROOT
+from config.paths import THEMES_DIR
 
 
 class ThemeFileNotFoundError(Exception):
@@ -29,7 +29,7 @@ class ThemeManager:
     
     def load_themes(self):
         """Загружает все темы из папки themes"""
-        themes_dir = ROOT / "themes"
+        themes_dir = THEMES_DIR
         
         if not themes_dir.exists():
             log_to_file(f"Папка тем не найдена: {themes_dir}")
@@ -57,11 +57,10 @@ class ThemeManager:
                 self.theme_name = "dark"
                 self.current_theme = self.themes["dark"]
             else:
-                themes_dir = ROOT / "themes"
                 raise ThemeFileNotFoundError(
                     f"Файл темы не найден. Запрошенная тема '{theme_name}' не существует, "
                     f"и резервная тема 'dark' также отсутствует. "
-                    f"Проверьте наличие файлов тем в директории: {themes_dir}"
+                    f"Проверьте наличие файлов тем в директории: {THEMES_DIR}"
                 )
     
     def get_color(self, name: str) -> str:
