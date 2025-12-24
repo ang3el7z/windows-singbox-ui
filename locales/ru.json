@@ -55,7 +55,7 @@
   },
   "settings": {
     "title": "Настройки",
-    "auto_update_interval": "Интервал автообновления (мин)",
+    "auto_update_interval": "Интервал автообновления",
     "autostart": "Запускать вместе с Windows",
     "run_as_admin": "Запускать от имени администратора",
     "auto_start_singbox": "Автозапуск SingBox при запуске приложения",
