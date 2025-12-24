@@ -4,7 +4,6 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
@@ -49,14 +48,6 @@ if locales_dir.exists():
         locales_data.append((str(locale_file), 'data/locales'))
         # print(f"Including locale: {locale_file}")  # Removed to avoid encoding issues in CI
 
-# Collect qtawesome fonts and data files
-# This ensures fonts are available in bundled data, not just temp directory
-# Critical for app restart - prevents errors when temp _MEI directory is deleted
-qtawesome_data = collect_data_files('qtawesome')
-
-# Combine all data files
-all_datas = locales_data + qtawesome_data
-
 # Icon is NO LONGER added to datas - it's embedded via Qt Resource System (QRC)
 # Uses resources_rc.py, which is compiled from resources/app.qrc
 
@@ -64,7 +55,7 @@ a = Analysis(
     ['main/main.py'],
     pathex=[],
     binaries=binaries_list,
-    datas=all_datas,  # Includes locales and qtawesome fonts/data
+    datas=locales_data,  # Icon is embedded via QRC, not needed in datas
     hiddenimports=[
         'resources_rc',  # Critical: registers Qt resources (icon)
         'qtawesome',
