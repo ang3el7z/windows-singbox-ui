@@ -161,7 +161,10 @@ class HomePage(BasePage):
         # Подложка для кнопки
         self.btn_wrapper = QWidget()
         # Фиксированные размеры для круглой формы
-        wrapper_size = 170
+        # Увеличен размер wrapper, чтобы градиент и тень не обрезались
+        # Кнопка 150x150, тень blurRadius 32, поэтому нужен минимум 214px
+        # Делаем 230px для полного раскрытия градиента
+        wrapper_size = 230
         self.btn_wrapper.setFixedSize(wrapper_size, wrapper_size)
         from ui.styles import theme
         self.btn_wrapper.setStyleSheet(f"""
