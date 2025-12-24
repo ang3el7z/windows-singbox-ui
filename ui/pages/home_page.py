@@ -133,7 +133,8 @@ class HomePage(BasePage):
         admin_info_layout.setSpacing(0)
         
         self.lbl_admin_status = QLabel()
-        self.lbl_admin_status.setFont(QFont("Segoe UI", 11))
+        # Уменьшаем шрифт на ~2 пункта (было 11)
+        self.lbl_admin_status.setFont(QFont("Segoe UI", 9))
         self.lbl_admin_status.setAlignment(Qt.AlignCenter)
         self.lbl_admin_status.mousePressEvent = self.main_window.admin_status_mouse_press
         # Устанавливаем начальный стиль с цветом из темы

@@ -179,8 +179,8 @@ class MainWindow(QMainWindow):
         self.version_click_count = 0  # Счетчик кликов по версии для дебаг меню
 
         self.setWindowTitle(tr("app.title"))
-        self.setMinimumSize(600, 780)
-        self.setMaximumSize(600, 780)
+        self.setMinimumSize(520, 780)
+        self.setMaximumSize(520, 780)
 
         # Устанавливаем иконку окна через IconManager
         set_window_icon(self)
