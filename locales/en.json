@@ -113,6 +113,7 @@
     "restart_required_text": "To apply the 'Run as administrator' setting, the application needs to be restarted.\n\nRestart now?",
     "restart_as_admin_question": "The application is not running as administrator.\n\nRestart the application as administrator?",
     "admin_restart_failed": "Failed to restart the application as administrator",
+    "restart_in_progress": "Restart is already in progress, please wait...",
     "auto_start_singbox_enabled": "Auto-start SingBox when application starts enabled",
     "auto_start_singbox_disabled": "Auto-start SingBox when application starts disabled",
     "minimize_to_tray_enabled": "Minimize to tray enabled",

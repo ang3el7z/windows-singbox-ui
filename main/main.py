@@ -160,6 +160,9 @@ class MainWindow(QMainWindow):
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
         
+        # Флаг для предотвращения множественных перезапусков
+        self._restarting = False
+        
         # Локальный сервер будет установлен из main() после создания окна
         if not hasattr(self, "local_server"):
             self.local_server = None
@@ -1720,6 +1723,11 @@ class MainWindow(QMainWindow):
     
     def on_theme_changed(self, index: int):
         """Обработка изменения темы"""
+        # Защита от множественных перезапусков
+        if self._restarting:
+            self.log(tr("messages.restart_in_progress"))
+            return
+        
         if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'combo_theme'):
             return
         if index >= 0:
@@ -1735,8 +1743,13 @@ class MainWindow(QMainWindow):
                     current_language = get_translator().language
                     theme_name = get_theme_name(theme_id, current_language)
                     self.log(tr("settings.theme_changed", theme=theme_name))
+                    
+                    # Устанавливаем флаг перед перезапуском
+                    self._restarting = True
                     # Быстрый перезапуск для гарантированного применения темы
-                    restart_application(self, run_as_admin=False)
+                    if not restart_application(self, run_as_admin=False):
+                        # Если перезапуск не удался, сбрасываем флаг
+                        self._restarting = False
 
 
     # Полное точечное обновление UI заменено на быстрый перезапуск приложения при смене темы.

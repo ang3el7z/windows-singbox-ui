@@ -113,6 +113,7 @@
     "restart_required_text": "应用“以管理员身份运行”设置需要重启应用后生效。\\n\\n现在重启？",
     "restart_as_admin_question": "应用当前未以管理员身份运行。\\n\\n是否以管理员身份重新启动应用？",
     "admin_restart_failed": "无法以管理员身份重新启动应用",
+    "restart_in_progress": "重启正在进行中，请稍候...",
     "auto_start_singbox_enabled": "已启用应用启动时自动启动 SingBox",
     "auto_start_singbox_disabled": "已禁用应用启动时自动启动 SingBox",
     "minimize_to_tray_enabled": "已启用最小化到托盘",

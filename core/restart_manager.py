@@ -75,7 +75,8 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
                 wait_time = 4.0
             else:
                 subprocess.Popen([exe_path] + restart_args, cwd=work_dir, close_fds=False)
-                wait_time = 2.0
+                # Для onefile приложений нужно больше времени на распаковку
+                wait_time = 3.0
         else:
             # Режим разработки
             exe_path = sys.executable
