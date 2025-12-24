@@ -8,47 +8,87 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+import json
+
+
+VERSION_KEYS = {
+    "ui_current": "Текущая версия singbox-ui",
+    "ui_latest": "Актуальная версия singbox-ui",
+    "core_current": "Текущая версия ядра singbox",
+    "core_latest": "Актуальная версия ядра singbox",
+}
+
+
+def _get_version_file_path() -> Path:
+    """Определяет путь к .version (data/.version для сборки или корень в деве)."""
+    if getattr(sys, 'frozen', False):
+        exe_path = Path(sys.executable)
+        root = exe_path.parent.parent if exe_path.parent.name == "_internal" else exe_path.parent
+        data_version = root / "data" / ".version"
+        if data_version.exists():
+            return data_version
+        return root / ".version"
+    return Path(__file__).parent.parent / ".version"
+
+
+def _load_version_dict(path: Path) -> dict:
+    """Читает .version в виде JSON-словара с дефолтами."""
+    defaults = {
+        VERSION_KEYS["ui_current"]: "",
+        VERSION_KEYS["ui_latest"]: "",
+        VERSION_KEYS["core_current"]: "",
+        VERSION_KEYS["core_latest"]: "",
+    }
+    if not path.exists():
+        return defaults
+    try:
+        raw = path.read_text(encoding="utf-8").strip()
+        if not raw:
+            return defaults
+        try:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                merged = defaults | {k: str(v) if v is not None else "" for k, v in data.items()}
+                return merged
+        except json.JSONDecodeError:
+            # Старый формат — просто строка версии
+            defaults[VERSION_KEYS["ui_current"]] = raw
+            return defaults
+    except Exception:
+        return defaults
+
+
+def _save_version_dict(path: Path, data: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def update_version_file(ui_current: str | None = None,
+                        ui_latest: str | None = None,
+                        core_current: str | None = None,
+                        core_latest: str | None = None):
+    """Обновляет поля в .version (JSON)."""
+    path = _get_version_file_path()
+    data = _load_version_dict(path)
+    if ui_current is not None:
+        data[VERSION_KEYS["ui_current"]] = ui_current
+    if ui_latest is not None:
+        data[VERSION_KEYS["ui_latest"]] = ui_latest
+    if core_current is not None:
+        data[VERSION_KEYS["core_current"]] = core_current
+    if core_latest is not None:
+        data[VERSION_KEYS["core_latest"]] = core_latest
+    _save_version_dict(path, data)
 
 
 def get_version() -> str:
     """
-    Читает версию из файла .version
-    Сначала пытается прочитать из data/.version (для собранного приложения),
-    затем из корневого .version (для разработки)
+    Читает текущую версию UI из .version (JSON) или из строкового старого формата.
     """
-    # Определяем корневую папку
-    if getattr(sys, 'frozen', False):
-        # В собранном приложении
-        exe_path = Path(sys.executable)
-        if exe_path.parent.name == '_internal':
-            root = exe_path.parent.parent
-        else:
-            root = exe_path.parent
-        # Пробуем data/.version
-        data_version = root / "data" / ".version"
-        if data_version.exists():
-            try:
-                version = data_version.read_text(encoding="utf-8").strip()
-                if version:
-                    return version
-            except Exception:
-                pass
-    else:
-        # В режиме разработки
-        root = Path(__file__).parent.parent
-    
-    # Пробуем корневой .version
-    root_version = root / ".version"
-    if root_version.exists():
-        try:
-            version = root_version.read_text(encoding="utf-8").strip()
-            if version:
-                return version
-        except Exception:
-            pass
-    
-    # Fallback на дефолтную версию
-    return "1.0.0"
+    path = _get_version_file_path()
+    data = _load_version_dict(path)
+    current = data.get(VERSION_KEYS["ui_current"], "").strip()
+    return current or "1.0.0"
 
 
 __version__ = get_version()  # Версия приложения
@@ -110,7 +150,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
 # Импорты новых UI компонентов
-from ui.widgets import CardWidget, NavButton
+from ui.widgets import CardWidget, NavButton, TitleBar
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
 
@@ -146,6 +186,9 @@ class MainWindow(QMainWindow):
         # Сначала создаем папки
         ensure_dirs()
         
+        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        
         # Инициализируем менеджеры
         self.settings = SettingsManager()
         self.subs = SubscriptionManager()
@@ -154,6 +197,12 @@ class MainWindow(QMainWindow):
         self.tray_manager = TrayManager(self)
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
+        
+        # Обновляем .version текущей версией UI (запишем если пусто)
+        try:
+            update_version_file(ui_current=get_version())
+        except Exception:
+            pass
         
         # Локальный сервер будет установлен из main() после создания окна
         if not hasattr(self, "local_server"):
@@ -201,6 +250,10 @@ class MainWindow(QMainWindow):
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
+
+        # Собственный статус-бар в стиле приложения
+        self.title_bar = TitleBar(self)
+        root.addWidget(self.title_bar)
 
         # Стек страниц
         self.stack = QStackedWidget()
@@ -396,6 +449,10 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_version'):
             return
         if current_version:
+            try:
+                update_version_file(core_current=current_version, core_latest=latest_version or None)
+            except Exception:
+                pass
             self.page_home.lbl_version.setText(tr("home.installed", version=current_version))
             self.page_home.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
             if hasattr(self.page_home, 'btn_version_warning'):
@@ -440,6 +497,10 @@ class MainWindow(QMainWindow):
     def _on_app_version_ready(self, latest_version):
         """Обработка проверенной версии приложения"""
         if latest_version:
+            try:
+                update_version_file(ui_latest=latest_version)
+            except Exception:
+                pass
             self.cached_app_latest_version = latest_version
             self.app_update_checked = True
             self.update_app_version_display()
@@ -1717,6 +1778,8 @@ class MainWindow(QMainWindow):
         """Обновление всех текстов в интерфейсе после смены языка"""
         # Обновляем заголовок окна
         self.setWindowTitle(tr("app.title"))
+        if hasattr(self, "title_bar"):
+            self.title_bar.set_title(tr("app.title"))
         
         # Обновляем кнопки навигации
         if hasattr(self, 'btn_nav_profile'):
@@ -1830,6 +1893,8 @@ class MainWindow(QMainWindow):
         
         # Обновляем статус администратора (чтобы цвет текста обновился при смене темы)
         self.update_admin_status_label()
+        if hasattr(self, "title_bar"):
+            self.title_bar.apply_theme()
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
         """Обновляет текст и иконку кнопки навигации"""
