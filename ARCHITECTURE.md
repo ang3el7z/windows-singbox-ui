@@ -39,6 +39,7 @@ SingBox-UI/
 │   ├── deep_link_handler.py # Deep link handler
 │   ├── downloader.py     # Core downloader
 │   ├── protocol.py       # Protocol registration and admin rights
+│   ├── restart_manager.py # Application restart manager
 │   └── singbox_manager.py # SingBox process management
 ├── app/                   # Application initialization
 │   ├── __init__.py
@@ -62,11 +63,10 @@ SingBox-UI/
 │   │   ├── card.py       # Card widget
 │   │   ├── logs_window.py # Logs window widget
 │   │   ├── nav_button.py # Navigation button
+│   │   ├── title_bar.py  # Custom title bar widget
 │   │   └── version_label.py # Version label
 │   ├── utils/            # UI utilities
-│   │   ├── animations.py # Page transition animations
-│   │   ├── responsive_layout.py # Responsive layout helpers
-│   │   └── responsive_scaler.py # Responsive scaling system
+│   │   └── animations.py # Page transition animations
 │   ├── styles/           # Styling system
 │   │   ├── __init__.py
 │   │   ├── constants.py  # Constants (colors, fonts, sizes)
@@ -84,21 +84,28 @@ SingBox-UI/
 │   └── icons/           # Icon resources
 │       └── app.ico      # Application icon
 ├── resources_rc.py       # Compiled Qt resources (generated)
-├── locales/              # Исходные файлы локализации
-│   ├── ru.json           # Русский язык
-│   └── en.json           # Английский язык
-├── changelog/            # История изменений версий
+├── locales/              # Localization source files
+│   ├── ru.json           # Russian
+│   ├── en.json           # English
+│   └── zh.json           # Chinese
+├── themes/               # Theme source files
+│   ├── dark.json         # Dark theme
+│   ├── light.json        # Light theme
+│   ├── black.json        # Black theme
+│   └── newyear.json      # New Year theme
+├── changelog/            # Version changelogs
 │   ├── CHANGELOG_v1.0.0.md
 │   ├── CHANGELOG_v1.0.1.md
 │   ├── CHANGELOG_v1.0.2.md
 │   ├── CHANGELOG_v1.0.3.md
 │   └── ...
-├── data/                 # Данные приложения (создается автоматически)
-│   ├── core/             # Ядро SingBox
-│   ├── logs/             # Логи
-│   ├── locales/          # Файлы локализации (копируются из locales/)
-│   ├── themes/           # Файлы тем (находятся в data/themes в исходном проекте)
-│   └── config.json       # Конфиг
+├── data/                 # Application data (created automatically)
+│   ├── core/             # SingBox core
+│   ├── logs/             # Logs
+│   ├── locales/          # Localization files (copied from locales/)
+│   ├── themes/           # Theme files (copied from themes/)
+│   ├── .version          # Application version (copied from root during build)
+│   └── config.json       # Config
 ├── SingBox-UI.spec       # Конфигурация PyInstaller для основного приложения
 ├── updater.spec          # Конфигурация PyInstaller для updater
 ├── post_build.py         # Скрипт пост-обработки сборки
@@ -217,6 +224,11 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - `is_admin()` function - checks admin rights
   - `restart_as_admin()` function - restarts with admin rights
 
+- **restart_manager.py** - Application restart manager
+  - `restart_application()` function - restarts application (optionally as admin)
+  - Used for theme changes, admin mode activation, and settings updates
+  - Properly shuts down SingBox and releases resources before restart
+
 - **singbox_manager.py** - SingBox process management
   - `SingBoxManager` class - manages process lifecycle
   - `StartSingBoxWorker` class - thread for starting SingBox
@@ -271,20 +283,16 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
 - **card.py** - Card widget with background and rounded corners
 - **logs_window.py** - Logs window widget for displaying application logs
 - **nav_button.py** - Navigation button with icon and text
+- **title_bar.py** - Custom title bar widget for frameless windows
+  - Drag support for moving window
+  - Minimize and close buttons
+  - Theme-aware styling
 - **version_label.py** - Version label for displaying version information
 
 ### ui/utils/
 - **animations.py** - Page transition animations
-  - Slide animations for page transitions
-
-- **responsive_layout.py** - Responsive layout helpers
-  - `ResponsiveLayoutHelper` class - helpers for creating responsive layouts
-  - Widget and button size calculations based on window size
-
-- **responsive_scaler.py** - Responsive scaling system
-  - `ResponsiveScaler` class - scales all UI elements proportionally to window size
-  - Font size, minimum and maximum size scaling
-  - Automatic scaling on window resize
+  - `PageTransitionAnimation` class - slide animations for page transitions
+  - `FadeAnimation` class - fade in/out animations
 
 ### ui/styles/
 - **constants.py** - UI constants (colors, fonts, sizes, transitions)
@@ -335,6 +343,7 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
 ### locales/
 - **ru.json** - Russian translations
 - **en.json** - English translations
+- **zh.json** - Chinese translations
 
 ## Localization Usage
 
@@ -436,6 +445,7 @@ python main.py
 - **TrayManager** (`ui/tray_manager.py`) - управление системным треем
 - **LogUIManager** (`managers/log_ui_manager.py`) - управление отображением логов в UI
 - **DeepLinkHandler** (`core/deep_link_handler.py`) - обработка deep links и импорт подписок
+- **RestartManager** (`core/restart_manager.py`) - управление перезапуском приложения
 
 ### Централизованная система стилей
 Все стили централизованы в `ui/styles/`:
@@ -453,6 +463,7 @@ python main.py
 Общие UI компоненты вынесены в `ui/widgets/`:
 - `CardWidget` - карточка с фоном
 - `NavButton` - кнопка навигации
+- `TitleBar` - кастомный заголовок для фреймлесс окон
 - `VersionLabel` - лейбл версии
 
 ### Уменьшение размера main.py

@@ -66,6 +66,7 @@ SingBox-UI/
 │   ├── deep_link_handler.py # Обработчик deep links
 │   ├── downloader.py     # Загрузчик ядра
 │   ├── protocol.py       # Регистрация протоколов и работа с правами администратора
+│   ├── restart_manager.py # Менеджер перезапуска приложения
 │   └── singbox_manager.py # Управление процессом SingBox
 ├── app/                   # Инициализация приложения
 │   └── application.py    # Создание QApplication и применение темы
@@ -84,11 +85,10 @@ SingBox-UI/
 │   │   ├── card.py       # Виджет-карточка
 │   │   ├── logs_window.py # Виджет окна логов
 │   │   ├── nav_button.py # Кнопка навигации
+│   │   ├── title_bar.py  # Виджет кастомного заголовка
 │   │   └── version_label.py # Лейбл версии
 │   ├── utils/            # Утилиты UI
-│   │   ├── animations.py # Анимации переходов между страницами
-│   │   ├── responsive_layout.py # Помощники для адаптивных layout'ов
-│   │   └── responsive_scaler.py # Система адаптивного масштабирования
+│   │   └── animations.py # Анимации переходов между страницами
 │   ├── styles/           # Система стилей
 │   │   ├── constants.py  # Константы (цвета, шрифты, размеры)
 │   │   ├── theme.py      # Управление темой
@@ -106,7 +106,13 @@ SingBox-UI/
 ├── resources_rc.py       # Скомпилированные ресурсы Qt (генерируется)
 ├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
-│   └── en.json           # Английский
+│   ├── en.json           # Английский
+│   └── zh.json           # Китайский
+├── themes/               # Исходные файлы тем
+│   ├── dark.json         # Темная тема
+│   ├── light.json        # Светлая тема
+│   ├── black.json        # Черная тема
+│   └── newyear.json      # Новогодняя тема
 ├── changelog/            # История изменений версий
 │   ├── CHANGELOG_v1.0.0.md
 │   ├── CHANGELOG_v1.0.1.md
@@ -118,12 +124,15 @@ SingBox-UI/
     ├── logs/             # Логи
     ├── locales/          # Файлы локализации (копируются из locales/)
     │   ├── ru.json       # Русский
-    │   └── en.json       # Английский
+    │   ├── en.json       # Английский
+    │   └── zh.json       # Китайский
     ├── themes/          # Файлы тем (копируются из themes/)
     │   ├── dark.json     # Темная тема
     │   ├── light.json    # Светлая тема
-    │   └── ...
+    │   ├── black.json    # Черная тема
+    │   └── newyear.json  # Новогодняя тема
     ├── updater.exe       # Утилита обновления (с GUI)
+    ├── .version          # Версия приложения (копируется из корня при сборке)
     └── config.json       # Конфиг
 ```
 

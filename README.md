@@ -66,6 +66,7 @@ SingBox-UI/
 │   ├── deep_link_handler.py # Deep link handler
 │   ├── downloader.py     # Core downloader
 │   ├── protocol.py       # Protocol registration and admin rights
+│   ├── restart_manager.py # Application restart manager
 │   └── singbox_manager.py # SingBox process management
 ├── app/                   # Application initialization
 │   └── application.py    # QApplication creation and theme
@@ -84,11 +85,10 @@ SingBox-UI/
 │   │   ├── card.py       # Card widget
 │   │   ├── logs_window.py # Logs window widget
 │   │   ├── nav_button.py # Navigation button
+│   │   ├── title_bar.py  # Custom title bar widget
 │   │   └── version_label.py # Version label
 │   ├── utils/            # UI utilities
-│   │   ├── animations.py # Page transition animations
-│   │   ├── responsive_layout.py # Responsive layout helpers
-│   │   └── responsive_scaler.py # Responsive scaling system
+│   │   └── animations.py # Page transition animations
 │   ├── styles/           # Styling system
 │   │   ├── constants.py  # Constants (colors, fonts, sizes)
 │   │   ├── theme.py      # Theme management
@@ -106,7 +106,13 @@ SingBox-UI/
 ├── resources_rc.py       # Compiled Qt resources (generated)
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
-│   └── en.json           # English
+│   ├── en.json           # English
+│   └── zh.json           # Chinese
+├── themes/               # Theme source files
+│   ├── dark.json         # Dark theme
+│   ├── light.json        # Light theme
+│   ├── black.json        # Black theme
+│   └── newyear.json      # New Year theme
 ├── changelog/            # Version changelogs
 │   ├── CHANGELOG_v1.0.0.md
 │   ├── CHANGELOG_v1.0.1.md
@@ -118,12 +124,15 @@ SingBox-UI/
     ├── logs/             # Logs
     ├── locales/          # Localization files (copied from locales/)
     │   ├── ru.json       # Russian
-    │   └── en.json       # English
+    │   ├── en.json       # English
+    │   └── zh.json       # Chinese
     ├── themes/           # Theme files (copied from themes/)
     │   ├── dark.json     # Dark theme
     │   ├── light.json    # Light theme
-    │   └── ...
+    │   ├── black.json    # Black theme
+    │   └── newyear.json  # New Year theme
     ├── updater.exe       # Update utility executable (with GUI)
+    ├── .version          # Application version (copied from root)
     └── config.json       # Config
 ```
 
