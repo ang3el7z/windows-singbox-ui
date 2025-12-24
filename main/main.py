@@ -7,6 +7,7 @@ import zipfile
 import shutil
 import tempfile
 import time
+import atexit
 from pathlib import Path
 from typing import Optional
 
@@ -2063,7 +2064,10 @@ class MainWindow(QMainWindow):
             self.local_server.close()
             QLocalServer.removeServer("SingBox-UI-Instance")
         release_global_mutex()
-        event.accept()
+        
+        # Даем время на освобождение ресурсов перед закрытием
+        # Это помогает избежать предупреждения PyInstaller о временных файлах
+        QTimer.singleShot(100, lambda: event.accept())
 
 
 # apply_dark_theme перенесена в app/application.py
