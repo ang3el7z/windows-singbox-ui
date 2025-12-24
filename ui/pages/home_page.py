@@ -152,9 +152,9 @@ class HomePage(BasePage):
         self._layout.addWidget(admin_info_card)
         
         # Кнопка Start/Stop
-        btn_container = QWidget()
-        btn_container.setStyleSheet("background-color: transparent; border: none;")
-        btn_layout = QVBoxLayout(btn_container)
+        self.btn_container = QWidget()
+        self.btn_container.setStyleSheet("background-color: transparent; border: none;")
+        btn_layout = QVBoxLayout(self.btn_container)
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setAlignment(Qt.AlignCenter)
         
@@ -168,6 +168,10 @@ class HomePage(BasePage):
         
         btn_layout.addWidget(self.big_btn, 1, alignment=Qt.AlignCenter)
         
-        self._layout.addWidget(btn_container, 1)
+        # Скрываем кнопку по умолчанию - она будет показана через update_big_button_state
+        # когда будет выбран профиль или если singbox запущен
+        self.btn_container.hide()
+        
+        self._layout.addWidget(self.btn_container, 1)
     
 

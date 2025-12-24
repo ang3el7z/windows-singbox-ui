@@ -26,9 +26,12 @@
     "button_start": "ЗАПУСК",
     "button_stop": "ОСТАНОВИТЬ",
     "button_change": "СМЕНИТЬ",
+    "button_unavailable": "НЕДОСТУПЕН",
     "current_profile": "Текущий профиль: {name}",
     "selected_profile": "Выбранный профиль: {name}",
-    "profile_not_selected_click": "Профиль не выбран (нажмите для выбора)"
+    "profile_not_selected_click": "Профиль не выбран (нажмите для выбора)",
+    "profile_not_selected_hint": "Профиль не выбран",
+    "core_not_available": "Core не установлен"
   },
   "profile": {
     "title": "Профили",

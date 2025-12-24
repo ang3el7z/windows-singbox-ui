@@ -925,12 +925,16 @@ class MainWindow(QMainWindow):
         selected_sub = None
         
         # Получаем запущенный профиль
-        if running and self.running_sub_index >= 0 and self.sub_list.count() > 0:
-            running_sub = self.subs.get(self.running_sub_index)
+        if running and self.running_sub_index >= 0:
+            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
+                if self.page_profile.sub_list.count() > 0:
+                    running_sub = self.subs.get(self.running_sub_index)
         
         # Получаем выбранный профиль
-        if self.current_sub_index >= 0 and self.sub_list.count() > 0:
-            selected_sub = self.subs.get(self.current_sub_index)
+        if self.current_sub_index >= 0:
+            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
+                if self.page_profile.sub_list.count() > 0:
+                    selected_sub = self.subs.get(self.current_sub_index)
         
         # Формируем текст
         if running_sub and selected_sub:
@@ -1238,8 +1242,10 @@ class MainWindow(QMainWindow):
             self.page_home.big_btn.set_running(running)
         
         if running:
-            # Если запущен - кнопка всегда активна (можно остановить)
-            self.page_home.big_btn.setEnabled(core_ok)
+            # Если запущен - кнопка всегда видна и активна (можно остановить), даже если профиль не выбран
+            if hasattr(self.page_home, 'btn_container'):
+                self.page_home.btn_container.show()
+            self.page_home.big_btn.setEnabled(True)
             # Проверяем, совпадает ли выбранный профиль с запущенным
             if self.running_sub_index != self.current_sub_index and self.current_sub_index >= 0:
                 # Выбран другой профиль - показываем "Сменить"
@@ -1248,12 +1254,23 @@ class MainWindow(QMainWindow):
                 # Профили совпадают или не выбран - показываем "Остановить"
                 self.page_home.big_btn.setText(tr("home.button_stop"))
         else:
-            # Если не запущен - нужен выбранный профиль
+            # Если не запущен - нужен выбранный профиль для запуска
             has_sub = False
             if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
                 has_sub = self.page_profile.sub_list.count() > 0 and self.current_sub_index >= 0
-            self.page_home.big_btn.setEnabled(core_ok and has_sub)
-            self.page_home.big_btn.setText(tr("home.button_start"))
+            
+            if has_sub and core_ok:
+                # Профиль выбран и core доступен - показываем кнопку
+                if hasattr(self.page_home, 'btn_container'):
+                    self.page_home.btn_container.show()
+                self.page_home.big_btn.setEnabled(True)
+                self.page_home.big_btn.setText(tr("home.button_start"))
+            else:
+                # Профиль не выбран или core недоступен - показываем кнопку как неактивную
+                if hasattr(self.page_home, 'btn_container'):
+                    self.page_home.btn_container.show()
+                self.page_home.big_btn.setEnabled(False)
+                self.page_home.big_btn.setText(tr("home.button_unavailable", default="НЕДОСТУПЕН"))
         
         self.style_big_btn_running(bool(running))
 
@@ -1916,22 +1933,33 @@ class MainWindow(QMainWindow):
         if socket:
             # Ждем данные от нового экземпляра
             if socket.waitForReadyRead(1000):
-                data = socket.readAll().data().decode('utf-8')
+                data = socket.readAll().data()
                 socket.disconnectFromServer()
                 socket.close()
                 socket.deleteLater()
                 
+                # Проверяем команду перезапуска
+                if data == b"__RESTART__":
+                    log_to_file("[Restart] Получена команда перезапуска, закрываем приложение")
+                    # Закрываем приложение для перезапуска
+                    QTimer.singleShot(100, QApplication.quit)
+                    return
+                
+                # Обычные аргументы (deep link)
+                try:
+                    data_str = data.decode('utf-8')
+                    if data_str and data_str.strip():
+                        args = data_str.strip().split('\n')
+                        # Сохраняем аргументы для обработки
+                        self._pending_args = args
+                        QTimer.singleShot(200, self._process_pending_args)
+                    else:
+                        self._pending_args = []
+                except:
+                    self._pending_args = []
+                
                 # Восстанавливаем окно
                 self._restore_window()
-                
-                # Если есть аргументы (deep link), обрабатываем их
-                if data and data.strip():
-                    args = data.strip().split('\n')
-                    # Сохраняем аргументы для обработки
-                    self._pending_args = args
-                    QTimer.singleShot(200, self._process_pending_args)
-                else:
-                    self._pending_args = []
             else:
                 # Если данных нет, просто восстанавливаем окно
                 socket.disconnectFromServer()
@@ -2100,6 +2128,15 @@ if __name__ == "__main__":
         except Exception:
             pass
     
+        # Проверяем флаг --restart
+        is_restart = "--restart" in sys.argv
+        if is_restart:
+            # Удаляем флаг из аргументов
+            sys.argv = [a for a in sys.argv if a != "--restart"]
+            log_to_file("[Startup] Перезапуск приложения...")
+            # Даем время старому процессу завершиться
+            time.sleep(1.0)
+        
         # Глобальный mutex для одного экземпляра (общий для admin/non-admin)
         mutex_handle, mutex_exists = create_global_mutex()
         
@@ -2108,34 +2145,64 @@ if __name__ == "__main__":
         local_server = None
         
         if not allow_multiple:
-            # Если глобальный mutex уже существует, пытаемся передать аргументы и выйти
+            # Если глобальный mutex уже существует
             if mutex_exists:
-                socket = QLocalSocket()
-                socket.connectToServer(server_name)
-                # Делаем несколько попыток подключения, вдруг сервер освободился
-                connected = False
-                for _ in range(3):
-                    if socket.waitForConnected(500):
-                        connected = True
-                        break
-                    QThread.msleep(100)
-                if connected:
-                    args = sys.argv[1:] if len(sys.argv) > 1 else []
-                    if args:
-                        data = '\n'.join(args).encode('utf-8')
-                        socket.write(data)
+                # При перезапуске закрываем старый процесс через local_server
+                if is_restart:
+                    socket = QLocalSocket()
+                    socket.connectToServer(server_name)
+                    if socket.waitForConnected(1000):
+                        # Отправляем команду на закрытие
+                        socket.write(b"__RESTART__")
                         socket.waitForBytesWritten(1000)
                         socket.flush()
-                    socket.disconnectFromServer()
-                    socket.close()
-                    log_to_file("[Startup] Другой экземпляр уже запущен (mutex), передаем аргументы и выходим")
-                    cleanup_single_instance(server_name, None)
-                    sys.exit(0)
-                else:
-                    # Экземпляр в другой сессии (admin/non-admin) или сервер ещё не поднялся — выходим, чтобы не плодить процессы
-                    log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии или недоступен. Выходим.")
-                    cleanup_single_instance(server_name, None)
-                    sys.exit(0)
+                        socket.disconnectFromServer()
+                        socket.close()
+                        log_to_file("[Restart] Команда перезапуска отправлена старому процессу")
+                    else:
+                        log_to_file("[Restart] Не удалось подключиться к старому процессу, продолжаем...")
+                    
+                    # Освобождаем наш временный mutex и ждем
+                    release_global_mutex()
+                    # Ждем, пока старый процесс закроется и освободит ресурсы
+                    time.sleep(2.0)
+                    # Создаем новый mutex
+                    mutex_handle, mutex_exists = create_global_mutex()
+                    if mutex_exists:
+                        # Старый процесс еще не закрылся, продолжаем ждать
+                        log_to_file("[Restart] Старый процесс еще не закрылся, ждем еще...")
+                        release_global_mutex()
+                        time.sleep(1.0)
+                        mutex_handle, mutex_exists = create_global_mutex()
+                
+                if mutex_exists and not is_restart:
+                    # Обычный запуск - передаем аргументы и выходим
+                    socket = QLocalSocket()
+                    socket.connectToServer(server_name)
+                    # Делаем несколько попыток подключения, вдруг сервер освободился
+                    connected = False
+                    for _ in range(3):
+                        if socket.waitForConnected(500):
+                            connected = True
+                            break
+                        QThread.msleep(100)
+                    if connected:
+                        args = sys.argv[1:] if len(sys.argv) > 1 else []
+                        if args:
+                            data = '\n'.join(args).encode('utf-8')
+                            socket.write(data)
+                            socket.waitForBytesWritten(1000)
+                            socket.flush()
+                        socket.disconnectFromServer()
+                        socket.close()
+                        log_to_file("[Startup] Другой экземпляр уже запущен (mutex), передаем аргументы и выходим")
+                        cleanup_single_instance(server_name, None)
+                        sys.exit(0)
+                    else:
+                        # Экземпляр в другой сессии (admin/non-admin) или сервер ещё не поднялся — выходим, чтобы не плодить процессы
+                        log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии или недоступен. Выходим.")
+                        cleanup_single_instance(server_name, None)
+                        sys.exit(0)
 
             # Если mutex новый — создаем локальный сервер
             socket = QLocalSocket()

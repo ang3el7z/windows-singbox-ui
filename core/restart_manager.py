@@ -14,7 +14,7 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
     """
     Перезапускает приложение (опционально от имени администратора).
     
-    Используется в трех местах:
+    Универсальная функция перезапуска для всех случаев:
     1. После смены темы (run_as_admin=False)
     2. На главной странице при клике на статус администратора (run_as_admin=True)
     3. В настройках при включении галочки "Запускать от имени администратора" (run_as_admin=True)
@@ -27,6 +27,7 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
         True если перезапуск успешно инициирован
     """
     from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtCore import QTimer
     from core.protocol import is_admin
     
     app = QApplication.instance()
@@ -38,7 +39,16 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
         if run_as_admin and is_admin():
             return False
         
+        # Останавливаем sing-box перед перезапуском
+        try:
+            if hasattr(main_window, 'stop_singbox'):
+                main_window.stop_singbox()
+        except Exception:
+            pass
+        
         args = sys.argv[1:]
+        # Добавляем специальный флаг для перезапуска
+        restart_args = args + ["--restart"]
         
         if getattr(sys, 'frozen', False):
             # Собранное приложение
@@ -46,7 +56,7 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
             work_dir = str(Path(exe_path).parent)
             
             if run_as_admin and sys.platform == "win32":
-                params = " ".join(f'"{a}"' for a in args)
+                params = " ".join(f'"{a}"' for a in restart_args) if restart_args else ""
                 result = ctypes.windll.shell32.ShellExecuteW(
                     None,
                     "runas",  # Запуск от имени администратора
@@ -57,9 +67,13 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
                 )
                 # ShellExecuteW возвращает значение > 32 при успехе
                 if result <= 32:
+                    # Пользователь отменил UAC или произошла ошибка
                     return False
+                # Для UAC нужно больше времени
+                wait_time = 4.0
             else:
-                subprocess.Popen([exe_path] + args, cwd=work_dir, close_fds=True)
+                subprocess.Popen([exe_path] + restart_args, cwd=work_dir, close_fds=False)
+                wait_time = 2.0
         else:
             # Режим разработки
             exe_path = sys.executable
@@ -67,7 +81,7 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
             work_dir = str(Path(__file__).parent.parent)
             
             if run_as_admin and sys.platform == "win32":
-                params = f'"{script}" ' + " ".join(f'"{a}"' for a in args)
+                params = f'"{script}" ' + " ".join(f'"{a}"' for a in restart_args) if restart_args else f'"{script}"'
                 result = ctypes.windll.shell32.ShellExecuteW(
                     None,
                     "runas",
@@ -77,55 +91,48 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
                     1
                 )
                 if result <= 32:
+                    # Пользователь отменил UAC или произошла ошибка
                     return False
+                wait_time = 4.0
             else:
-                subprocess.Popen([exe_path, str(script)] + args, cwd=work_dir, close_fds=True)
+                subprocess.Popen([exe_path, str(script)] + restart_args, cwd=work_dir, close_fds=False)
+                wait_time = 2.0
         
-        # Даем время новому процессу запуститься перед закрытием старого
-        # Это важно для корректной работы QSharedMemory и трея
-        if run_as_admin:
-            time.sleep(1)
-            # Используем processEvents чтобы дать время новому процессу запуститься
-            for _ in range(10):
-                app.processEvents()
-                time.sleep(0.1)
+        # Даем время новому процессу запуститься
+        # Новый процесс с флагом --restart должен закрыть старый процесс
+        elapsed = 0
+        step = 0.1
         
-        # Корректно завершаем текущее приложение
+        while elapsed < wait_time:
+            app.processEvents()
+            time.sleep(step)
+            elapsed += step
+        
+        # Закрываем текущее приложение
+        # Если новый процесс не запустился, это закроет приложение
+        # Если запустился - он уже взял управление
         _shutdown_and_quit(main_window)
         
         return True
-    except Exception:
+    except Exception as e:
+        import traceback
+        from utils.logger import log_to_file
+        log_to_file(f"[Restart Error] Ошибка перезапуска: {e}\n{traceback.format_exc()}")
         return False
 
 
 def _shutdown_and_quit(main_window: 'MainWindow'):
     """Корректно завершает приложение перед перезапуском"""
     from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtNetwork import QLocalServer
-    from main import release_global_mutex
+    from PyQt5.QtCore import QTimer
     
-    try:
-        # Останавливаем sing-box, если запущен
-        main_window.stop_singbox()
-    except Exception:
-        pass
-    
-    try:
-        # Закрываем local_server
-        if hasattr(main_window, "local_server") and main_window.local_server:
-            main_window.local_server.close()
-            QLocalServer.removeServer("SingBox-UI-Instance")
-    except Exception:
-        pass
-    
-    try:
-        # Освобождаем mutex
-        release_global_mutex()
-    except Exception:
-        pass
+    # Закрываем окно, но НЕ закрываем local_server и mutex здесь
+    # Они будут автоматически закрыты при выходе из процесса
+    # Это важно, чтобы новый процесс мог их перехватить
     
     # Завершаем приложение
     app = QApplication.instance()
     if app:
-        app.quit()
+        # Используем singleShot для асинхронного закрытия
+        QTimer.singleShot(50, app.quit)
 
