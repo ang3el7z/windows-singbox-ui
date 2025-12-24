@@ -24,17 +24,31 @@ class CardWidget(QWidget):
         # Карточки должны расширяться
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         
-        # Сохраняем параметры для отрисовки
-        self._bg_color = theme.get_color('background_secondary')
+        # Параметры темы (инициализация)
         self._radius = radius or theme.get_size('border_radius_large')
+        self.apply_theme()
+    
+    def paintEvent(self, event):
+        """Переопределяем paintEvent для гарантированного отображения фона"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
         
-        # Устанавливаем явный фон через палитру
+        # Рисуем фон с закругленными углами
+        rect = self.rect()
+        painter.setBrush(QColor(self._bg_color))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(rect, self._radius, self._radius)
+        
+        super().paintEvent(event)
+
+    def apply_theme(self):
+        """Пере-применяет цвета/радиус под текущую тему"""
+        self._bg_color = theme.get_color('background_secondary')
+        self._radius = self._radius or theme.get_size('border_radius_large')
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor(self._bg_color))
         self.setPalette(palette)
         self.setAutoFillBackground(True)
-        
-        # Устанавливаем стиль
         card_style = f"""
         CardWidget {{
             background-color: {self._bg_color};
@@ -49,17 +63,4 @@ class CardWidget(QWidget):
         }}
         """
         self.setStyleSheet(card_style)
-    
-    def paintEvent(self, event):
-        """Переопределяем paintEvent для гарантированного отображения фона"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        
-        # Рисуем фон с закругленными углами
-        rect = self.rect()
-        painter.setBrush(QColor(self._bg_color))
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(rect, self._radius, self._radius)
-        
-        super().paintEvent(event)
 

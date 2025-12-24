@@ -251,9 +251,9 @@ class MainWindow(QMainWindow):
         root.addWidget(self.stack, 1)
         
         # Версия приложения над навигацией
-        version_container = QWidget()
-        version_container.setFixedHeight(30)
-        version_layout = QHBoxLayout(version_container)
+        self.version_container = QWidget()
+        self.version_container.setFixedHeight(30)
+        version_layout = QHBoxLayout(self.version_container)
         version_layout.setContentsMargins(16, 0, 16, 0)
         version_layout.setAlignment(Qt.AlignCenter)
         
@@ -266,14 +266,14 @@ class MainWindow(QMainWindow):
         version_layout.addWidget(self.lbl_app_version)
         
         from ui.styles import theme
-        version_container.setStyleSheet(f"""
+        self.version_container.setStyleSheet(f"""
             QWidget {{
                 background-color: {theme.get_color('background_primary')};
                 border: none;
             }}
         """)
         
-        root.addWidget(version_container)
+        root.addWidget(self.version_container)
         root.addWidget(nav)
 
         # Инициализация
@@ -1101,19 +1101,27 @@ class MainWindow(QMainWindow):
             btn_download.setText(tr("download.download"))
     
     # Кнопка Start/Stop
-    def _apply_big_btn_wrapper_style(self, border_color: Optional[str] = None):
-        """Обновляет стиль подложки большой кнопки с учетом текущей темы"""
+    def _apply_big_btn_wrapper_style(self, glow_color: Optional[str] = None):
+        """Обновляет стиль подложки большой кнопки с мягким градиентным свечением"""
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'btn_wrapper'):
             return
         from ui.styles import theme
         bg_secondary = theme.get_color('background_secondary')
-        if border_color is None:
-            border_color = theme.get_color('accent_light')
+        if glow_color is None:
+            glow_color = theme.get_color('accent')
+        # Создаем радиальный градиент: от цвета в центре к прозрачности по краям
         self.page_home.btn_wrapper.setStyleSheet(f"""
             QWidget {{
                 background-color: {bg_secondary};
                 border-radius: 50%;
-                border: 2px solid {border_color};
+                border: none;
+                background: qradialgradient(
+                    cx:0.5, cy:0.5, radius:0.55,
+                    fx:0.5, fy:0.5,
+                    stop:0 {glow_color},
+                    stop:0.6 {glow_color},
+                    stop:1 rgba(0,0,0,0)
+                );
             }}
         """)
 
@@ -1147,19 +1155,21 @@ class MainWindow(QMainWindow):
         text_disabled = theme.get_color('text_disabled')
         bg_disabled = theme.get_color('background_secondary')
         
-        # Обновляем подложку
+        # Определяем цвет состояния (для свечения и текста)
+        state_color = accent
+        if running:
+            state_color = warning if is_change_mode else error
+
+        # Обновляем подложку (градиент)
         if hasattr(self.page_home, 'btn_wrapper'):
-            if running:
-                if is_change_mode:
-                    # Оранжевый для режима "Сменить"
-                    border_color = warning if 'rgba' in warning else f"{warning}80"
-                else:
-                    # Красный для режима "Остановить"
-                    border_color = error if 'rgba' in error else f"{error}80"
-                self._apply_big_btn_wrapper_style(border_color)
-            else:
-                border_color = accent if 'rgba' in accent else f"{accent}80"
-                self._apply_big_btn_wrapper_style(border_color)
+            self._apply_big_btn_wrapper_style(state_color)
+        
+        # Обновляем тень под кнопку под цвет состояния
+        if hasattr(self.page_home, 'big_btn'):
+            from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+            effect = self.page_home.big_btn.graphicsEffect()
+            if isinstance(effect, QGraphicsDropShadowEffect):
+                effect.setColor(QColor(state_color))
         
         if running:
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
@@ -1190,8 +1200,8 @@ class MainWindow(QMainWindow):
                 self.page_home.big_btn.setStyleSheet(f"""
                     QPushButton {{
                         border-radius: 50%;
-                        background-color: {error};
-                        color: {bg_secondary};
+                        background-color: {bg_secondary};
+                        color: {error};
                         font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
@@ -1212,15 +1222,15 @@ class MainWindow(QMainWindow):
             self.page_home.big_btn.setStyleSheet(f"""
                 QPushButton {{
                     border-radius: 50%;
-                    background-color: {accent};
-                    color: {bg_secondary};
+                    background-color: {bg_secondary};
+                    color: {accent};
                     font-size: {font_size}px;
                     font-weight: 700;
                     font-family: 'Segoe UI', sans-serif;
                     border: 2px solid {accent};
                 }}
                 QPushButton:hover {{
-                    background-color: {theme.get_color('accent_hover')};
+                    background-color: {theme.get_color('accent_light')};
                     border: 2px solid {accent_hover};
                 }}
                 QPushButton:disabled {{
@@ -1713,17 +1723,30 @@ class MainWindow(QMainWindow):
                     from utils.i18n import get_translator
                     set_theme(theme_id)
                     theme.reload_theme()
-                    # Применяем тему ко всему приложению
-                    from app.application import apply_theme
-                    app = QApplication.instance()
-                    if app:
-                        apply_theme(app)
-                    # Обновляем стили всех виджетов
-                    self.refresh_ui_styles()
                     current_language = get_translator().language
                     theme_name = get_theme_name(theme_id, current_language)
                     self.log(tr("settings.theme_changed", theme=theme_name))
-    
+                    # Быстрый перезапуск для гарантированного применения темы
+                    self.restart_application()
+
+    def restart_application(self):
+        """Перезапускает приложение, чтобы мгновенно применить тему"""
+        app = QApplication.instance()
+        if not app:
+            return
+        try:
+            args = sys.argv[1:]
+            if getattr(sys, 'frozen', False):
+                cmd = [sys.executable] + args
+            else:
+                script = Path(__file__).resolve()
+                cmd = [sys.executable, str(script)] + args
+            subprocess.Popen(cmd, close_fds=True)
+        except Exception:
+            pass
+        app.quit()
+
+    # Полное точечное обновление UI заменено на быстрый перезапуск приложения при смене темы.
     def refresh_ui_texts(self):
         """Обновление всех текстов в интерфейсе после смены языка"""
         # Обновляем заголовок окна
@@ -1779,80 +1802,6 @@ class MainWindow(QMainWindow):
         self.update_app_version_display()
         self.update_big_button_state()
         self.update_admin_status_label()
-    
-    def refresh_ui_styles(self):
-        """Обновление всех стилей в интерфейсе после смены темы"""
-        from ui.styles import StyleSheet, theme
-        
-        # Обновляем стили всех страниц
-        if hasattr(self, 'page_profile'):
-            self.page_profile.setStyleSheet("")
-            # Пересоздаем стили для виджетов на странице профилей
-            if hasattr(self.page_profile, 'sub_list'):
-                self.page_profile.sub_list.setStyleSheet(f"""
-                    QListWidget {{
-                        background-color: {theme.get_color('background_tertiary')};
-                        border: none;
-                        border-radius: {theme.get_size('border_radius_medium')}px;
-                        padding: {theme.get_size('padding_small')}px;
-                        outline: none;
-                    }}
-                    QListWidget::item {{
-                        background-color: transparent;
-                        border-radius: {theme.get_size('border_radius_small')}px;
-                        padding: {theme.get_size('padding_medium')}px;
-                        margin: 2px;
-                    }}
-                    QListWidget::item:hover {{
-                        background-color: {theme.get_color('accent_light')};
-                    }}
-                    QListWidget::item:selected {{
-                        background-color: {theme.get_color('accent_light')};
-                        color: {theme.get_color('accent')};
-                    }}
-                """)
-        
-        if hasattr(self, 'page_settings'):
-            self.page_settings.setStyleSheet("")
-            # Обновляем стили виджетов на странице настроек
-            if hasattr(self.page_settings, 'logs'):
-                self.page_settings.logs.setStyleSheet(StyleSheet.text_edit())
-            if hasattr(self.page_settings, 'debug_logs'):
-                self.page_settings.debug_logs.setStyleSheet(f"""
-                    QTextEdit {{
-                        background-color: rgba(255, 107, 107, 0.05);
-                        color: {theme.get_color('error')};
-                        border-radius: {theme.get_size('border_radius_large')}px;
-                        padding: {theme.get_size('padding_large')}px;
-                        border: 2px solid rgba(255, 107, 107, 0.2);
-                        font-family: 'Consolas', 'Courier New', monospace;
-                        font-size: 10px;
-                        outline: none;
-                    }}
-                """)
-        
-        if hasattr(self, 'page_home'):
-            self.page_home.setStyleSheet("")
-            # Обновляем стили кнопки
-            self.update_big_button_state()
-            # Обновляем подложку большой кнопки
-            self._apply_big_btn_wrapper_style()
-            # Обновляем свечение кнопки при смене темы
-            if hasattr(self.page_home, 'big_btn'):
-                from PyQt5.QtWidgets import QGraphicsDropShadowEffect
-                effect = self.page_home.big_btn.graphicsEffect()
-                if isinstance(effect, QGraphicsDropShadowEffect):
-                    effect.setColor(QColor(theme.get_color('accent')))
-        
-        # Обновляем навигацию
-        nav = self.findChild(QWidget, "nav")
-        if nav:
-            nav.setStyleSheet(StyleSheet.navigation())
-        
-        # Обновляем статус администратора (чтобы цвет текста обновился при смене темы)
-        self.update_admin_status_label()
-        if hasattr(self, "title_bar"):
-            self.title_bar.apply_theme()
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
         """Обновляет текст и иконку кнопки навигации"""
