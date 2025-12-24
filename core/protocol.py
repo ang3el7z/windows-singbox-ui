@@ -129,20 +129,13 @@ def restart_as_admin() -> bool:
         # Получаем путь к исполняемому файлу
         if getattr(sys, 'frozen', False):
             exe_path = sys.executable
-            base_params = [arg for arg in sys.argv[1:] if arg != "--ignore-single-instance"]
-            # При перезапуске всегда пробуем игнорировать single-instance, чтобы новый процесс стартовал
-            if "--ignore-single-instance" not in base_params:
-                base_params.append("--ignore-single-instance")
-            params = " ".join(f'"{arg}"' for arg in base_params)
+            params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
             work_dir = str(Path(exe_path).parent)
         else:
             # В режиме разработки запускаем main/main.py через Python
             exe_path = sys.executable
             script_path = Path(__file__).parent.parent / "main" / "main.py"
-            base_params = [arg for arg in sys.argv[1:] if arg != "--ignore-single-instance"]
-            if "--ignore-single-instance" not in base_params:
-                base_params.append("--ignore-single-instance")
-            params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in base_params)
+            params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
             work_dir = str(Path(__file__).parent.parent)
         
         # Перезапускаем с правами администратора

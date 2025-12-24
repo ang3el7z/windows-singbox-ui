@@ -2173,20 +2173,22 @@ if __name__ == "__main__":
         mutex_handle, mutex_exists = create_global_mutex()
         
         # Проверка единственного экземпляра приложения через локальный сервер
-        skip_single_instance = False
-        if "--ignore-single-instance" in sys.argv:
-            skip_single_instance = True
-            sys.argv.remove("--ignore-single-instance")
-
         server_name = "SingBox-UI-Instance"
         local_server = None
         
-        if not allow_multiple and not skip_single_instance:
+        if not allow_multiple:
             # Если глобальный mutex уже существует, пытаемся передать аргументы и выйти
             if mutex_exists:
                 socket = QLocalSocket()
                 socket.connectToServer(server_name)
-                if socket.waitForConnected(500):
+                # Делаем несколько попыток подключения, вдруг сервер освободился
+                connected = False
+                for _ in range(3):
+                    if socket.waitForConnected(500):
+                        connected = True
+                        break
+                    QThread.msleep(100)
+                if connected:
                     args = sys.argv[1:] if len(sys.argv) > 1 else []
                     if args:
                         data = '\n'.join(args).encode('utf-8')
@@ -2198,8 +2200,8 @@ if __name__ == "__main__":
                     log_to_file("[Startup] Другой экземпляр уже запущен (mutex), передаем аргументы и выходим")
                     sys.exit(0)
                 else:
-                    # Экземпляр в другой сессии (admin/non-admin). Просто выходим.
-                    log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии. Выходим.")
+                    # Экземпляр в другой сессии (admin/non-admin) или сервер ещё не поднялся — выходим, чтобы не плодить процессы
+                    log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии или недоступен. Выходим.")
                     sys.exit(0)
 
             # Если mutex новый — создаем локальный сервер
