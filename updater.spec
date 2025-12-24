@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
@@ -16,16 +17,25 @@ else:
     if icon_png.exists():
         icon_data.append((str(icon_png), 'icons'))
 
+# Collect qtawesome fonts and data files
+# This ensures fonts are available in bundled data, not just temp directory
+# Critical for app restart - prevents errors when temp _MEI directory is deleted
+qtawesome_data = collect_data_files('qtawesome')
+
+# Combine all data files
+all_datas = icon_data + qtawesome_data
+
 a = Analysis(
     ['main/updater.py'],
     pathex=[],
     binaries=[],
-    datas=icon_data,
+    datas=all_datas,  # Includes icon and qtawesome fonts/data
     hiddenimports=[
         'config',
         'config.paths',
         'requests',
         'zipfile',
+        'qtawesome',
     ],
     hookspath=[],
     hooksconfig={},
