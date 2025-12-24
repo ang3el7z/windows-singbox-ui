@@ -87,6 +87,17 @@ def release_global_mutex():
             pass
         GLOBAL_MUTEX_HANDLE = None
 
+
+def cleanup_single_instance(server_name: str, local_server: QLocalServer | None):
+    """Освобождает локальный сервер и глобальный mutex"""
+    try:
+        if local_server:
+            local_server.close()
+        QLocalServer.removeServer(server_name)
+    except Exception:
+        pass
+    release_global_mutex()
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
@@ -2198,10 +2209,12 @@ if __name__ == "__main__":
                     socket.disconnectFromServer()
                     socket.close()
                     log_to_file("[Startup] Другой экземпляр уже запущен (mutex), передаем аргументы и выходим")
+                    cleanup_single_instance(server_name, None)
                     sys.exit(0)
                 else:
                     # Экземпляр в другой сессии (admin/non-admin) или сервер ещё не поднялся — выходим, чтобы не плодить процессы
                     log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии или недоступен. Выходим.")
+                    cleanup_single_instance(server_name, None)
                     sys.exit(0)
 
             # Если mutex новый — создаем локальный сервер
@@ -2218,6 +2231,7 @@ if __name__ == "__main__":
                 socket.disconnectFromServer()
                 socket.close()
                 log_to_file("[Startup] Другой экземпляр уже запущен, передаем аргументы и выходим")
+                cleanup_single_instance(server_name, None)
                 sys.exit(0)
             else:
                 QLocalServer.removeServer(server_name)
@@ -2329,4 +2343,9 @@ if __name__ == "__main__":
         except:
             pass
         sys.exit(1)
+    finally:
+        try:
+            cleanup_single_instance("SingBox-UI-Instance", locals().get("local_server"))
+        except Exception:
+            pass
 
