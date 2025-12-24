@@ -270,18 +270,14 @@ class StyleSheet:
         QComboBox::drop-down {{
             border: none;
             width: 0px;
+            subcontrol-origin: padding;
+            subcontrol-position: right;
         }}
         QComboBox::down-arrow {{
             image: none;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 6px solid {theme.get_color('text_secondary')};
             width: 0px;
             height: 0px;
-            margin-right: 8px;
-        }}
-        QComboBox::down-arrow:hover {{
-            border-top-color: {theme.get_color('text_primary')};
+            border: none;
         }}
         QComboBox QAbstractItemView {{
             background-color: {theme.get_color('background_secondary')};
