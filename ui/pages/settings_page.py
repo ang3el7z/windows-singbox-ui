@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QCheckBox, QComboBox, QTextEdit, QSizePolicy
+    QCheckBox, QComboBox, QTextEdit
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -42,8 +42,6 @@ class SettingsPage(BasePage):
         """
         super().__init__(parent)
         self.main_window = main_window
-        # Не устанавливаем отступы в основном layout, как в ProfilePage
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # Убираем отступы из базового layout для настроек
         self._layout.setContentsMargins(16, 16, 16, 16)
         self._layout.setSpacing(16)
@@ -53,22 +51,22 @@ class SettingsPage(BasePage):
         """Построение UI страницы"""
         # Настройки
         settings_card = CardWidget()
-        settings_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         settings_layout = QVBoxLayout(settings_card)
-        settings_layout.setContentsMargins(20, 18, 20, 18)
+        settings_layout.setContentsMargins(20, 12, 20, 18)
         settings_layout.setSpacing(16)
         
         # Заголовок страницы (внутри карточки)
         self.lbl_settings_title = QLabel(tr("settings.title"))
         self.lbl_settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
+        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + """
+            QLabel {
+                line-height: 24px;
+                padding: 0px;
+                margin: 0px;
+            }
+        """)
+        self.lbl_settings_title.setFixedHeight(28)
         settings_layout.addWidget(self.lbl_settings_title)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(
-                self.lbl_settings_title, base_font_size=20
-            )
         
         # Интервал автообновления (в одну линию, как язык и тема)
         interval_row = QHBoxLayout()
@@ -77,12 +75,7 @@ class SettingsPage(BasePage):
         self.interval_label = QLabel(tr("settings.auto_update_interval"))
         self.interval_label.setFont(QFont("Segoe UI", 13))
         self.interval_label.setStyleSheet(StyleSheet.label(variant="secondary"))
-        self.interval_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         interval_row.addWidget(self.interval_label)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.interval_label, base_font_size=13)
         
         # Чекбоксы для выбора интервала (в одну линию)
         self.interval_buttons = {}
@@ -112,20 +105,12 @@ class SettingsPage(BasePage):
         self.cb_autostart.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_autostart)
         
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.cb_autostart, base_font_size=13)
-        
         self.cb_run_as_admin = QCheckBox(tr("settings.run_as_admin"))
         self.cb_run_as_admin.setChecked(self.main_window.settings.get("run_as_admin", False))
         self.cb_run_as_admin.stateChanged.connect(self.main_window.on_run_as_admin_changed)
         self.cb_run_as_admin.setFont(QFont("Segoe UI", 13))
         self.cb_run_as_admin.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_run_as_admin)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.cb_run_as_admin, base_font_size=13)
         
         self.cb_auto_start_singbox = QCheckBox(tr("settings.auto_start_singbox"))
         self.cb_auto_start_singbox.setChecked(self.main_window.settings.get("auto_start_singbox", False))
@@ -134,20 +119,12 @@ class SettingsPage(BasePage):
         self.cb_auto_start_singbox.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_auto_start_singbox)
         
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.cb_auto_start_singbox, base_font_size=13)
-        
         self.cb_minimize_to_tray = QCheckBox(tr("settings.minimize_to_tray"))
         self.cb_minimize_to_tray.setChecked(self.main_window.settings.get("minimize_to_tray", True))
         self.cb_minimize_to_tray.stateChanged.connect(self.main_window.on_minimize_to_tray_changed)
         self.cb_minimize_to_tray.setFont(QFont("Segoe UI", 13))
         self.cb_minimize_to_tray.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_minimize_to_tray)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.cb_minimize_to_tray, base_font_size=13)
         
         # Дебаг настройка (появляется только в дебаг режиме)
         self.cb_allow_multiple = QCheckBox(tr("settings.allow_multiple_processes"))
@@ -182,12 +159,7 @@ class SettingsPage(BasePage):
         self.language_label = QLabel(tr("settings.language"))
         self.language_label.setFont(QFont("Segoe UI", 13))
         self.language_label.setStyleSheet(StyleSheet.label(variant="secondary"))
-        self.language_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         language_row.addWidget(self.language_label)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.language_label, base_font_size=13)
         
         self.combo_language = QComboBox()
         available_languages = get_available_languages()
@@ -201,7 +173,6 @@ class SettingsPage(BasePage):
                 self.combo_language.setCurrentIndex(self.combo_language.count() - 1)
         self.combo_language.currentIndexChanged.connect(self.main_window.on_language_changed)
         self.combo_language.setStyleSheet(StyleSheet.combo_box())
-        self.combo_language.setMinimumWidth(120)
         language_row.addWidget(self.combo_language, 1)
         settings_layout.addLayout(language_row)
         
@@ -211,12 +182,7 @@ class SettingsPage(BasePage):
         self.theme_label = QLabel(tr("settings.theme"))
         self.theme_label.setFont(QFont("Segoe UI", 13))
         self.theme_label.setStyleSheet(StyleSheet.label(variant="secondary"))
-        self.theme_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         theme_row.addWidget(self.theme_label)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(self.theme_label, base_font_size=13)
         
         self.combo_theme = QComboBox()
         available_themes = get_available_themes()
@@ -229,7 +195,6 @@ class SettingsPage(BasePage):
                 self.combo_theme.setCurrentIndex(self.combo_theme.count() - 1)
         self.combo_theme.currentIndexChanged.connect(self.main_window.on_theme_changed)
         self.combo_theme.setStyleSheet(StyleSheet.combo_box())
-        self.combo_theme.setMinimumWidth(120)
         theme_row.addWidget(self.combo_theme, 1)
         settings_layout.addLayout(theme_row)
         
@@ -237,8 +202,6 @@ class SettingsPage(BasePage):
         self.btn_kill_all = QPushButton(tr("settings.kill_all"))
         self.btn_kill_all.setFont(QFont("Segoe UI", 13))
         self.btn_kill_all.setCursor(Qt.PointingHandCursor)
-        # Кнопка внутри карточки, без отдельной подложки
-        # Добавляем минимальные размеры для адаптивности
         self.btn_kill_all.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.get_color('error')};
@@ -249,8 +212,6 @@ class SettingsPage(BasePage):
                 font-size: {theme.get_font('size_medium')}px;
                 font-weight: {theme.get_font('weight_medium')};
                 font-family: {theme.get_font('family')};
-                min-width: 100px;
-                min-height: 36px;
             }}
             QPushButton:hover {{
                 background-color: #ff5252;
@@ -264,7 +225,6 @@ class SettingsPage(BasePage):
                 opacity: 0.5;
             }}
         """)
-        self.btn_kill_all.setMinimumSize(100, 36)
         self.btn_kill_all.clicked.connect(self.main_window.on_kill_all_clicked)
         settings_layout.addWidget(self.btn_kill_all)
         
@@ -288,7 +248,6 @@ class SettingsPage(BasePage):
                 font-size: {theme.get_font('size_medium')}px;
                 font-weight: {theme.get_font('weight_medium')};
                 font-family: {theme.get_font('family')};
-                min-height: 40px;
             }}
             QPushButton:hover {{
                 background-color: {theme.get_color('accent_light')};

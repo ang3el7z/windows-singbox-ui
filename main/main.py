@@ -138,16 +138,8 @@ class MainWindow(QMainWindow):
         self.version_click_count = 0  # Счетчик кликов по версии для дебаг меню
 
         self.setWindowTitle(tr("app.title"))
-        self.setMinimumSize(700, 780)
-        self.setMaximumSize(700, 780)
-        
-        # Инициализируем систему адаптивного масштабирования
-        from ui.utils.responsive_scaler import init_scaler
-        self.responsive_scaler = init_scaler(self)
-        
-        # Подключаем обработчик изменения размера для адаптивности
-        from PyQt5.QtCore import QEvent
-        self.installEventFilter(self)
+        self.setMinimumSize(600, 780)
+        self.setMaximumSize(600, 780)
 
         # Устанавливаем иконку окна через IconManager
         set_window_icon(self)
@@ -172,10 +164,7 @@ class MainWindow(QMainWindow):
         # По умолчанию открываем home (индекс 1)
         self.stack.setCurrentIndex(1)
         
-        # Регистрируем страницы для адаптивного масштабирования после создания всех виджетов
-        QTimer.singleShot(100, self._register_responsive_widgets)
-        
-        # Нижняя навигация (адаптивная)
+        # Нижняя навигация
         nav = QWidget()
         nav.setObjectName("nav")
         nav.setMinimumHeight(80)
@@ -691,10 +680,6 @@ class MainWindow(QMainWindow):
         sub_name = sub.get("name", "Unknown") if sub else "Unknown"
         
         self.log(tr("profile.test_loading"))
-        # Отключаем кнопку на время теста
-        if hasattr(self.page_profile, 'btn_test_sub'):
-            self.page_profile.btn_test_sub.setEnabled(False)
-            self.page_profile.btn_test_sub.setText(tr("profile.test") + "...")
         
         try:
             ok = self.subs.download_config(row)
@@ -755,10 +740,7 @@ class MainWindow(QMainWindow):
                 """)
                 msg.exec_()
         finally:
-            # Восстанавливаем кнопку
-            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'btn_test_sub'):
-                self.page_profile.btn_test_sub.setEnabled(True)
-                self.page_profile.btn_test_sub.setText(tr("profile.test"))
+            pass
     
     def _log_version_debug(self, msg: str):
         """Логирование версий в debug логи"""
@@ -1712,8 +1694,6 @@ class MainWindow(QMainWindow):
                 self.page_profile.btn_del_sub.setText(tr("profile.delete"))
             if hasattr(self.page_profile, 'btn_rename_sub'):
                 self.page_profile.btn_rename_sub.setText(tr("profile.rename"))
-            if hasattr(self.page_profile, 'btn_test_sub'):
-                self.page_profile.btn_test_sub.setText(tr("profile.test"))
         
         # Обновляем настройки
         if hasattr(self, 'page_settings'):
@@ -2004,59 +1984,7 @@ class MainWindow(QMainWindow):
         except Exception:
             pass  # Игнорируем ошибки записи в файл
 
-    def _register_responsive_widgets(self):
-        """Регистрирует виджеты для адаптивного масштабирования"""
-        if not hasattr(self, 'responsive_scaler'):
-            return
-        
-        scaler = self.responsive_scaler
-        
-        # Регистрируем заголовки страниц
-        if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'lbl_profile_title'):
-            scaler.register_widget(self.page_profile.lbl_profile_title, base_font_size=20)
-        
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'settings_title'):
-            scaler.register_widget(self.page_settings.settings_title, base_font_size=16)
-        
-        if hasattr(self, 'page_home') and hasattr(self.page_home, 'profile_title'):
-            scaler.register_widget(self.page_home.profile_title, base_font_size=13)
-            if hasattr(self.page_home, 'version_title'):
-                scaler.register_widget(self.page_home.version_title, base_font_size=13)
-        
-        # Регистрируем кнопки на странице профилей
-        if hasattr(self, 'page_profile'):
-            for btn in (self.page_profile.btn_add_sub, self.page_profile.btn_del_sub,
-                       self.page_profile.btn_rename_sub, self.page_profile.btn_test_sub):
-                scaler.register_widget(btn, base_font_size=14, base_min_size=(70, 36))
-        
-        # Регистрируем элементы настроек
-        if hasattr(self, 'page_settings'):
-            # Метки
-            if hasattr(self.page_settings, 'language_label'):
-                scaler.register_widget(self.page_settings.language_label, base_font_size=13)
-            if hasattr(self.page_settings, 'theme_label'):
-                scaler.register_widget(self.page_settings.theme_label, base_font_size=13)
-            
-            # Чекбоксы
-            for cb in (self.page_settings.cb_autostart, self.page_settings.cb_run_as_admin,
-                      self.page_settings.cb_auto_start_singbox, self.page_settings.cb_minimize_to_tray):
-                scaler.register_widget(cb, base_font_size=13)
-            
-            # Поля ввода (интервал обновления теперь через радиокнопки)
 
-    def eventFilter(self, obj, event):
-        """Обработка событий для адаптивности"""
-        from PyQt5.QtCore import QEvent
-        from PyQt5.QtGui import QResizeEvent
-        
-        if event.type() == QEvent.Resize and obj == self:
-            # При изменении размера окна обновляем размер кнопки на главной странице
-            if hasattr(self, 'page_home') and hasattr(self.page_home, 'resizeEvent'):
-                # Вызываем resizeEvent страницы для обновления кнопки
-                resize_event = QResizeEvent(self.size(), self.size())
-                self.page_home.resizeEvent(resize_event)
-        
-        return super().eventFilter(obj, event)
     
     def closeEvent(self, event):
         """Закрытие окна"""

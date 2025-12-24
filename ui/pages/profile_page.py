@@ -1,6 +1,6 @@
 """Страница профилей"""
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton, QLabel, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton, QLabel
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 import qtawesome as qta
@@ -26,29 +26,20 @@ class ProfilePage(BasePage):
         """
         super().__init__(parent)
         self.main_window = main_window
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._build_ui()
     
     def _build_ui(self):
         """Построение UI страницы"""
         card = CardWidget()
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(16)
         
         # Заголовок
         self.lbl_profile_title = QLabel(tr("profile.title"))
-        # Шрифт будет масштабироваться через responsive_scaler
         self.lbl_profile_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
         self.lbl_profile_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
         layout.addWidget(self.lbl_profile_title)
-        
-        # Регистрируем для адаптивного масштабирования
-        if hasattr(self.main_window, 'responsive_scaler'):
-            self.main_window.responsive_scaler.register_widget(
-                self.lbl_profile_title, base_font_size=20
-            )
         
         # Список подписок (без обводки, внутри карточки)
         self.sub_list = QListWidget()
@@ -76,8 +67,6 @@ class ProfilePage(BasePage):
                 color: {theme.get_color('accent')};
             }}
         """)
-        # Список должен расширяться
-        self.sub_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.sub_list, 1)
         
         # Кнопки управления (без отдельных подложек, просто кнопки)
@@ -86,10 +75,8 @@ class ProfilePage(BasePage):
         self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
         self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
         self.btn_rename_sub = QPushButton(qta.icon("mdi.rename-box"), tr("profile.rename"))
-        self.btn_test_sub = QPushButton(qta.icon("mdi.network"), tr("profile.test"))
         
         # Стиль кнопок без подложек, просто с фоном и границей
-        # Добавляем минимальные размеры для адаптивности
         button_style = f"""
             QPushButton {{
                 background-color: {theme.get_color('background_tertiary')};
@@ -100,8 +87,6 @@ class ProfilePage(BasePage):
                 font-size: {theme.get_font('size_medium')}px;
                 font-weight: {theme.get_font('weight_medium')};
                 font-family: {theme.get_font('family')};
-                min-width: 70px;
-                min-height: 36px;
             }}
             QPushButton:hover {{
                 background-color: {theme.get_color('accent_light')};
@@ -118,24 +103,14 @@ class ProfilePage(BasePage):
             }}
         """
         
-        for b in (self.btn_add_sub, self.btn_del_sub, self.btn_rename_sub, self.btn_test_sub):
+        for b in (self.btn_add_sub, self.btn_del_sub, self.btn_rename_sub):
             b.setCursor(Qt.PointingHandCursor)
             b.setStyleSheet(button_style)
-            # Устанавливаем минимальный размер для адаптивности
-            b.setMinimumSize(70, 36)
-            b.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
-            btn_row.addWidget(b, 1)  # Добавляем stretch factor чтобы кнопки равномерно распределялись
-            
-            # Регистрируем для адаптивного масштабирования
-            if hasattr(self.main_window, 'responsive_scaler'):
-                self.main_window.responsive_scaler.register_widget(
-                    b, base_font_size=14, base_min_size=(70, 36)
-                )
+            btn_row.addWidget(b, 1)
         
         self.btn_add_sub.clicked.connect(self.main_window.on_add_sub)
         self.btn_del_sub.clicked.connect(self.main_window.on_del_sub)
         self.btn_rename_sub.clicked.connect(self.main_window.on_rename_sub)
-        self.btn_test_sub.clicked.connect(self.main_window.on_test_sub)
         
         layout.addLayout(btn_row)
         self._layout.addWidget(card)
