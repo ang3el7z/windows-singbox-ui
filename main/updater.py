@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
-    QTextEdit,
+    QProgressBar,
     QVBoxLayout,
     QWidget,
 )
@@ -27,7 +27,8 @@ from PyQt5.QtGui import QFont
 from app.application import create_application
 from config.paths import ROOT
 from ui.styles import StyleSheet, theme
-from utils.i18n import tr
+from utils.i18n import tr, set_language
+from managers.settings import SettingsManager
 
 GITHUB_OWNER = "ang3el7z"
 GITHUB_REPO = "SingBox-UI"
@@ -59,8 +60,8 @@ def read_version_from_dir(base: Path) -> Optional[str]:
 class UpdateThread(QThread):
     """Поток, выполняющий обновление."""
     
-    log_signal = pyqtSignal(str)
-    progress_signal = pyqtSignal(int)
+    status_signal = pyqtSignal(str)  # Текст текущего действия
+    progress_signal = pyqtSignal(int)  # Процент выполнения (0-100)
     finished_signal = pyqtSignal(bool, str)
     
     def __init__(
@@ -78,9 +79,9 @@ class UpdateThread(QThread):
         self.current_version = read_version_from_dir(self.app_dir)
         self.target_version: Optional[str] = None
     
-    def log(self, msg: str):
-        """Отправляет сообщение в UI лог."""
-        self.log_signal.emit(msg)
+    def status(self, msg: str):
+        """Отправляет статус текущего действия в UI."""
+        self.status_signal.emit(msg)
     
     def _fetch_remote_version(self) -> Optional[str]:
         """Читает .version из ветки main."""
@@ -91,7 +92,7 @@ class UpdateThread(QThread):
             version = response.text.strip()
             return version or None
         except Exception as exc:  # noqa: BLE001
-            self.log(f"Warning: could not fetch remote version: {exc}")
+            # Логируем, но не показываем пользователю, это не критично
             return None
     
     def _download_latest_archive(self, dest: Path):
@@ -111,10 +112,7 @@ class UpdateThread(QThread):
                 downloaded += len(chunk)
                 if total_size:
                     progress_pct = 10 + int((downloaded / total_size) * 30)
-                    self.progress_signal.emit(min(progress_pct, 45))
-        
-        size_mb = downloaded / 1024 / 1024
-        self.log(f"Download complete: {size_mb:.1f} MB")
+                    self.progress_signal.emit(min(progress_pct, 40))
     
     def _extract_archive(self, zip_path: Path, extract_dir: Path):
         """Распаковывает скачанный архив."""
@@ -155,9 +153,8 @@ class UpdateThread(QThread):
                     stderr=subprocess.DEVNULL,
                     timeout=5,
                 )
-                self.log(f"Stopped {process}")
-            except Exception as exc:  # noqa: BLE001
-                self.log(f"Warning: could not stop {process}: {exc}")
+            except Exception:  # noqa: BLE001
+                pass  # Игнорируем ошибки остановки процессов
         time.sleep(1)
     
     @staticmethod
@@ -198,8 +195,8 @@ class UpdateThread(QThread):
                     dest.unlink()
                 shutil.copy2(src, dest)
                 items_copied += 1
-            except Exception as exc:  # noqa: BLE001
-                self.log(f"Error updating {rel_path}: {exc}")
+            except Exception:  # noqa: BLE001
+                pass  # Продолжаем обновление даже при ошибках отдельных файлов
         return items_copied
     
     def _copy_locales(self, new_app_dir: Path) -> int:
@@ -216,7 +213,6 @@ class UpdateThread(QThread):
             dest = locales_dest / locale_file.name
             shutil.copy2(locale_file, dest)
             items_copied += 1
-            self.log(f"Updated locale: {locale_file.name}")
         return items_copied
     
     def _copy_themes(self, new_app_dir: Path) -> int:
@@ -233,7 +229,6 @@ class UpdateThread(QThread):
             dest = themes_dest / theme_file.name
             shutil.copy2(theme_file, dest)
             items_copied += 1
-            self.log(f"Updated theme: {theme_file.name}")
         return items_copied
     
     def _merge_settings(self, new_app_dir: Path):
@@ -244,6 +239,7 @@ class UpdateThread(QThread):
             return
         
         try:
+            # Читаем существующие настройки пользователя (они имеют приоритет)
             existing_settings = {}
             if app_settings.exists():
                 try:
@@ -251,7 +247,14 @@ class UpdateThread(QThread):
                 except Exception:
                     existing_settings = {}
             
-            new_settings_data = json.loads(new_settings.read_text(encoding="utf-8"))
+            # Читаем новые настройки из обновления
+            try:
+                new_settings_data = json.loads(new_settings.read_text(encoding="utf-8"))
+            except Exception:
+                return  # Если не можем прочитать новые настройки, оставляем старые
+            
+            # Объединяем: сначала новые (базовые), потом существующие (пользовательские перезаписывают)
+            # Это сохраняет пользовательские настройки (язык, тема, и т.д.)
             merged = {**new_settings_data, **existing_settings}
             
             app_settings.parent.mkdir(parents=True, exist_ok=True)
@@ -259,15 +262,9 @@ class UpdateThread(QThread):
                 json.dumps(merged, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
-            self.log("Updated .settings (merged with existing settings)")
-        except Exception as exc:  # noqa: BLE001
-            self.log(f"Warning: could not merge .settings: {exc}")
-            try:
-                if app_settings.exists():
-                    app_settings.unlink()
-                shutil.copy2(new_settings, app_settings)
-            except Exception as copy_exc:  # noqa: BLE001
-                self.log(f"Error copying .settings: {copy_exc}")
+        except Exception:  # noqa: BLE001
+            # В случае ошибки просто не трогаем существующие настройки
+            pass
     
     def _update_updater_exe(self, new_app_dir: Path) -> int:
         """Обновляет data/updater.exe, если это не текущий исполняемый файл."""
@@ -289,28 +286,41 @@ class UpdateThread(QThread):
             if app_updater.exists():
                 app_updater.unlink()
             shutil.copy2(new_updater, app_updater)
-            self.log("Updated updater.exe in data/")
             return 1
-        except Exception as exc:  # noqa: BLE001
-            self.log(f"Warning: could not update updater.exe: {exc}")
+        except Exception:  # noqa: BLE001
             return 0
     
     def _install_update(self, new_app_dir: Path) -> int:
         """Устанавливает обновление."""
-        items_copied = self._copy_general_files(new_app_dir)
+        items_copied = 0
+        
+        self.status(tr("updater.progress_updating_files"))
+        items_copied += self._copy_general_files(new_app_dir)
+        self.progress_signal.emit(70)
+        
+        self.status(tr("updater.progress_updating_locales"))
         items_copied += self._copy_locales(new_app_dir)
+        self.progress_signal.emit(75)
+        
+        self.status(tr("updater.progress_updating_themes"))
         items_copied += self._copy_themes(new_app_dir)
-        items_copied += self._update_updater_exe(new_app_dir)
+        self.progress_signal.emit(80)
+        
+        self._update_updater_exe(new_app_dir)
+        self.progress_signal.emit(82)
+        
+        self.status(tr("updater.progress_merging_settings"))
         self._merge_settings(new_app_dir)
+        self.progress_signal.emit(85)
+        
         return items_copied
     
     def _clean_temp(self, temp_root: Path):
         """Удаляет временные файлы."""
         try:
             shutil.rmtree(temp_root, ignore_errors=True)
-            self.log("Temporary files cleaned")
-        except Exception as exc:  # noqa: BLE001
-            self.log(f"Warning: could not clean temp files: {exc}")
+        except Exception:  # noqa: BLE001
+            pass
     
     def _start_application(self):
         """Запускает обновленное приложение."""
@@ -319,14 +329,8 @@ class UpdateThread(QThread):
             raise FileNotFoundError(f"SingBox-UI.exe not found at {new_exe}")
         
         try:
-            self.log(f"Starting application: {new_exe}")
-            proc = subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
+            subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
             time.sleep(0.5)
-            if proc.poll() is None:
-                self.log("Application started successfully!")
-                self.log(f"Process ID: {proc.pid}")
-            else:
-                self.log(f"Warning: application exited immediately with code {proc.returncode}")
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(f"Failed to start application: {exc}") from exc
     
@@ -334,26 +338,21 @@ class UpdateThread(QThread):
         """Основной цикл обновления."""
         temp_root = Path(tempfile.mkdtemp(prefix="singbox-ui-update-"))
         try:
-            self.log("=" * 60)
-            self.log("SingBox-UI Updater")
-            self.log("=" * 60)
-            if self.current_version:
-                self.log(f"Current version: {self.current_version}")
-            self.log(f"Repository: {self.repo_owner}/{self.repo_name}@{self.branch}")
+            self.progress_signal.emit(0)
+            
+            # Проверка версии
+            self.status(tr("updater.progress_checking"))
+            self.target_version = self._fetch_remote_version()
             self.progress_signal.emit(5)
             
-            self.target_version = self._fetch_remote_version()
-            if self.target_version:
-                self.log(f"Latest version in branch: {self.target_version}")
-            else:
-                self.log("Latest version could not be determined (will continue)")
-            
-            self.log("[1/6] Downloading latest build...")
+            # Загрузка
+            self.status(tr("updater.progress_downloading"))
             zip_path = temp_root / "singbox-ui-latest.zip"
             self._download_latest_archive(zip_path)
-            self.progress_signal.emit(45)
+            self.progress_signal.emit(40)
             
-            self.log("[2/6] Extracting archive...")
+            # Распаковка
+            self.status(tr("updater.progress_extracting"))
             extract_dir = temp_root / "extracted"
             extract_dir.mkdir(parents=True, exist_ok=True)
             self._extract_archive(zip_path, extract_dir)
@@ -361,32 +360,29 @@ class UpdateThread(QThread):
             
             new_app_dir = self._find_new_app_dir(extract_dir)
             self._adjust_target_dir_if_needed()
-            self.log(f"Source directory: {new_app_dir}")
-            self.log(f"Target directory: {self.app_dir}")
             self.progress_signal.emit(60)
             
-            self.log("[3/6] Stopping running processes...")
+            # Остановка процессов
+            self.status(tr("updater.progress_stopping"))
             self._stop_processes()
             self.progress_signal.emit(65)
             
-            self.log("[4/6] Installing update...")
+            # Установка обновления
+            self.status(tr("updater.progress_installing"))
             items_updated = self._install_update(new_app_dir)
-            self.log(f"Update installed: {items_updated} items updated")
+            self.progress_signal.emit(85)
+            
+            # Очистка
+            self.status(tr("updater.progress_cleaning"))
+            self._clean_temp(temp_root)
             self.progress_signal.emit(90)
             
-            self.log("[5/6] Cleaning up temporary files...")
-            self._clean_temp(temp_root)
-            self.progress_signal.emit(95)
-            
-            self.log("[6/6] Starting updated application...")
+            # Запуск приложения
+            self.status(tr("updater.progress_starting"))
             self._start_application()
             self.progress_signal.emit(100)
-            self.finished_signal.emit(True, "Update completed successfully")
+            self.finished_signal.emit(True, tr("updater.progress_complete"))
         except Exception as exc:  # noqa: BLE001
-            import traceback
-            
-            error_msg = f"Error during update: {exc}\n{traceback.format_exc()}"
-            self.log(error_msg)
             self.finished_signal.emit(False, str(exc))
         finally:
             if temp_root.exists():
@@ -425,15 +421,35 @@ class UpdaterWindow(QMainWindow):
         title.setStyleSheet("background-color: transparent; border: none;")
         layout.addWidget(title)
         
-        self.logs = QTextEdit()
-        self.logs.setReadOnly(True)
-        self.logs.setStyleSheet(StyleSheet.text_edit())
-        layout.addWidget(self.logs, 1)
+        # Статус текущего действия
+        self.status_label = QLabel(tr("updater.status_ready"))
+        self.status_label.setFont(QFont("Segoe UI", 12))
+        self.status_label.setStyleSheet(StyleSheet.label(variant="secondary"))
+        layout.addWidget(self.status_label)
         
-        self.status = QLabel(tr("updater.status_ready"))
-        self.status.setFont(QFont("Segoe UI", 12))
-        self.status.setStyleSheet(StyleSheet.label(variant="secondary"))
-        layout.addWidget(self.status)
+        # Прогресс-бар
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet(
+            f"""
+            QProgressBar {{
+                border: 1px solid {theme.get_color('border')};
+                border-radius: 8px;
+                text-align: center;
+                background-color: {theme.get_color('background_secondary')};
+                color: {theme.get_color('text_primary')};
+                font-family: {theme.get_font('family')};
+                font-size: 11px;
+                height: 24px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {theme.get_color('accent')};
+                border-radius: 7px;
+            }}
+            """
+        )
+        layout.addWidget(self.progress_bar)
         
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(12)
@@ -503,33 +519,32 @@ class UpdaterWindow(QMainWindow):
         
         QTimer.singleShot(500, self.start_update)
     
-    def log(self, msg: str):
-        """Добавляет сообщение в лог и прокручивает вниз."""
-        self.logs.append(msg)
-        scrollbar = self.logs.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-        QApplication.processEvents()
-    
     def start_update(self):
         """Запускает процесс обновления."""
-        self.log("Starting update to latest main build...")
-        self.status.setText("Updating to latest main build...")
+        self.status_label.setText(tr("updater.status_ready"))
+        self.progress_bar.setValue(0)
         
         self.update_thread = UpdateThread(ROOT)
-        self.update_thread.log_signal.connect(self.log)
+        self.update_thread.status_signal.connect(self.on_status)
         self.update_thread.progress_signal.connect(self.on_progress)
         self.update_thread.finished_signal.connect(self.on_finished)
         self.update_thread.start()
     
+    def on_status(self, text: str):
+        """Обновляет текст текущего действия."""
+        self.status_label.setText(text)
+        QApplication.processEvents()
+    
     def on_progress(self, value: int):
-        """Обновляет текст статуса по прогрессу."""
-        self.status.setText(f"Progress: {value}%")
+        """Обновляет прогресс-бар."""
+        self.progress_bar.setValue(value)
+        QApplication.processEvents()
     
     def update_countdown(self):
         """Обработчик обратного отсчета закрытия окна."""
         self.countdown_seconds -= 1
         if self.countdown_seconds > 0:
-            self.countdown_label.setText(f"Окно закроется через {self.countdown_seconds} сек...")
+            self.countdown_label.setText(tr("updater.countdown_close", seconds=self.countdown_seconds))
         else:
             self.countdown_timer.stop()
             self.countdown_label.hide()
@@ -538,35 +553,40 @@ class UpdaterWindow(QMainWindow):
     def on_finished(self, success: bool, message: str):
         """Обработка завершения обновления."""
         if success:
-            self.log("")
-            self.log("=" * 60)
-            self.log("Update completed successfully!")
-            self.log("The application should start automatically.")
-            self.log("")
-            self.log("Status: OK")
-            self.status.setText("Status: OK - Update completed successfully!")
+            self.progress_bar.setValue(100)
+            self.status_label.setText(tr("updater.progress_complete"))
             
             self.done_button.show()
             self.cancel_button.show()
             self.countdown_label.show()
             self.countdown_seconds = 5
-            self.countdown_label.setText(
-                f"Окно закроется через {self.countdown_seconds} сек..."
-            )
+            self.countdown_label.setText(tr("updater.countdown_close", seconds=self.countdown_seconds))
             self.countdown_timer.start(1000)
             self.close_timer.start(5000)
         else:
-            self.log("")
-            self.log("=" * 60)
-            self.log(f"ERROR: {message}")
-            self.log("")
-            self.log("Status: ERROR - Window will NOT close automatically")
-            self.status.setText("Status: ERROR - Window will NOT close automatically")
+            self.status_label.setText(tr("updater.progress_error"))
+            self.progress_bar.setValue(0)
+            # При ошибке не закрываем окно автоматически
     
 
 def main():
     """Точка входа в updater."""
+    # Создаем приложение с применением темы
     app = create_application()
+    
+    # Загружаем настройки и устанавливаем язык ДО создания UI
+    settings = SettingsManager()
+    language = settings.get("language", "")
+    if language:
+        try:
+            set_language(language)
+        except Exception:
+            # Если не удалось загрузить язык, используем английский по умолчанию
+            set_language("en")
+    else:
+        # Если язык не выбран, используем английский по умолчанию
+        set_language("en")
+    
     window = UpdaterWindow()
     window.show()
     sys.exit(app.exec_())
