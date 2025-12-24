@@ -126,7 +126,8 @@ from utils.i18n import tr, set_language, get_available_languages, get_language_n
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
 from core.deep_link_handler import DeepLinkHandler
-from core.protocol import register_protocols, is_admin, restart_as_admin
+from core.protocol import register_protocols, is_admin
+from core.restart_manager import restart_application
 from core.singbox_manager import StartSingBoxThread
 from workers.init_worker import InitOperationsWorker
 from workers.version_worker import CheckVersionWorker, CheckAppVersionWorker
@@ -995,14 +996,7 @@ class MainWindow(QMainWindow):
                 tr("messages.admin_required_title"),
                 tr("messages.restart_as_admin_question")
             ):
-                if restart_as_admin():
-                    # Закрываем приложение полностью, даже если включен трей режим
-                    release_global_mutex()
-                    if self.local_server:
-                        self.local_server.close()
-                        QLocalServer.removeServer("SingBox-UI-Instance")
-                    QApplication.instance().quit()
-                else:
+                if not restart_application(self, run_as_admin=True):
                     self.log(tr("messages.admin_restart_failed"))
         else:
             event.ignore()
@@ -1310,17 +1304,9 @@ class MainWindow(QMainWindow):
                 tr("messages.admin_required_title"),
                 tr("messages.admin_required_start")
             ):
-                if restart_as_admin():
-                    # Закрываем приложение полностью, даже если включен трей режим
-                    release_global_mutex()
-                    if self.local_server:
-                        self.local_server.close()
-                        QLocalServer.removeServer("SingBox-UI-Instance")
-                    QApplication.instance().quit()
-                    return
-                else:
+                if not restart_application(self, run_as_admin=True):
                     self.log(tr("messages.admin_restart_failed"))
-                    return
+                return
             else:
                 return
         
@@ -1378,17 +1364,9 @@ class MainWindow(QMainWindow):
                 tr("messages.admin_required_title"),
                 tr("messages.admin_required_stop")
             ):
-                if restart_as_admin():
-                    # Закрываем приложение полностью, даже если включен трей режим
-                    release_global_mutex()
-                    if self.local_server:
-                        self.local_server.close()
-                        QLocalServer.removeServer("SingBox-UI-Instance")
-                    QApplication.instance().quit()
-                    return
-                else:
+                if not restart_application(self, run_as_admin=True):
                     self.log(tr("messages.admin_restart_failed"))
-                    return
+                return
             else:
                 return
         
@@ -1645,15 +1623,7 @@ class MainWindow(QMainWindow):
                 tr("messages.restart_required_title"),
                 tr("messages.restart_required_text")
             ):
-                if restart_as_admin():
-                    # Закрываем приложение полностью, даже если включен трей режим
-                    release_global_mutex()
-                    if self.local_server:
-                        self.local_server.close()
-                        QLocalServer.removeServer("SingBox-UI-Instance")
-                    QApplication.instance().quit()
-                    return
-                else:
+                if not restart_application(self, run_as_admin=True):
                     self.log(tr("messages.admin_restart_failed"))
                     # Восстанавливаем состояние чекбокса при ошибке
                     if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_run_as_admin'):
@@ -1661,6 +1631,8 @@ class MainWindow(QMainWindow):
                         self.page_settings.cb_run_as_admin.setChecked(False)
                         self.settings.set("run_as_admin", False)
                         self.page_settings.cb_run_as_admin.blockSignals(False)
+                    return
+                return
         # Если выключили галочку — не требуем перезапуска. Настройка вступит в силу при следующем старте.
         
         # Действия пользователя - в обычные логи
@@ -1727,24 +1699,8 @@ class MainWindow(QMainWindow):
                     theme_name = get_theme_name(theme_id, current_language)
                     self.log(tr("settings.theme_changed", theme=theme_name))
                     # Быстрый перезапуск для гарантированного применения темы
-                    self.restart_application()
+                    restart_application(self, run_as_admin=False)
 
-    def restart_application(self):
-        """Перезапускает приложение, чтобы мгновенно применить тему"""
-        app = QApplication.instance()
-        if not app:
-            return
-        try:
-            args = sys.argv[1:]
-            if getattr(sys, 'frozen', False):
-                cmd = [sys.executable] + args
-            else:
-                script = Path(__file__).resolve()
-                cmd = [sys.executable, str(script)] + args
-            subprocess.Popen(cmd, close_fds=True)
-        except Exception:
-            pass
-        app.quit()
 
     # Полное точечное обновление UI заменено на быстрый перезапуск приложения при смене темы.
     def refresh_ui_texts(self):
@@ -2254,13 +2210,7 @@ if __name__ == "__main__":
             run_as_admin_setting = win.settings.get("run_as_admin", False)
             if run_as_admin_setting and not is_admin():
                 log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
-                if restart_as_admin():
-                    release_global_mutex()
-                    if local_server:
-                        local_server.close()
-                        QLocalServer.removeServer(server_name)
-                    sys.exit(0)
-                else:
+                if not restart_application(win, run_as_admin=True):
                     log_to_file("[Startup] Не удалось перезапустить от имени администратора")
         except Exception as e:
             log_to_file(f"[Startup Warning] Ошибка проверки run_as_admin: {e}")
