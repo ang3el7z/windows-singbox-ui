@@ -1149,21 +1149,10 @@ class MainWindow(QMainWindow):
         text_disabled = theme.get_color('text_disabled')
         bg_disabled = theme.get_color('background_secondary')
         
-        # Определяем цвет состояния (для свечения и текста)
+        # Определяем цвет состояния (для текста и обводки)
         state_color = accent
         if running:
             state_color = warning if is_change_mode else error
-
-        # Обновляем подложку (градиент)
-        if hasattr(self.page_home, 'btn_wrapper'):
-            self._apply_big_btn_wrapper_style(state_color)
-        
-        # Обновляем тень под кнопку под цвет состояния
-        if hasattr(self.page_home, 'big_btn'):
-            from PyQt5.QtWidgets import QGraphicsDropShadowEffect
-            effect = self.page_home.big_btn.graphicsEffect()
-            if isinstance(effect, QGraphicsDropShadowEffect):
-                effect.setColor(QColor(state_color))
         
         if running:
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
@@ -1171,13 +1160,14 @@ class MainWindow(QMainWindow):
                 # Оранжевый стиль для кнопки "Сменить"
                 self.page_home.big_btn.setStyleSheet(f"""
                     QPushButton {{
-                        border-radius: 50%;
+                        border-radius: 80px;
                         background-color: {bg_secondary};
                         color: {warning};
                         font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
                         border: 2px solid {warning};
+                        padding: 0px;
                     }}
                     QPushButton:hover {{
                         background-color: {theme.get_color('accent_light')};
@@ -1193,13 +1183,14 @@ class MainWindow(QMainWindow):
                 # Красный стиль для кнопки "Остановить"
                 self.page_home.big_btn.setStyleSheet(f"""
                     QPushButton {{
-                        border-radius: 50%;
+                        border-radius: 80px;
                         background-color: {bg_secondary};
                         color: {error};
                         font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
                         border: 2px solid {error};
+                        padding: 0px;
                     }}
                     QPushButton:hover {{
                         background-color: {theme.get_color('accent_light')};
@@ -1215,13 +1206,14 @@ class MainWindow(QMainWindow):
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
             self.page_home.big_btn.setStyleSheet(f"""
                 QPushButton {{
-                    border-radius: 50%;
+                    border-radius: 80px;
                     background-color: {bg_secondary};
                     color: {accent};
                     font-size: {font_size}px;
                     font-weight: 700;
                     font-family: 'Segoe UI', sans-serif;
                     border: 2px solid {accent};
+                    padding: 0px;
                 }}
                 QPushButton:hover {{
                     background-color: {theme.get_color('accent_light')};
@@ -1230,7 +1222,7 @@ class MainWindow(QMainWindow):
                 QPushButton:disabled {{
                     background-color: {bg_disabled};
                     color: {text_disabled};
-                    border: 2px solid {bg_disabled};
+                    border: 3px solid {bg_disabled};
                 }}
             """)
 

@@ -1,8 +1,8 @@
 """Главная страница"""
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy, QGraphicsDropShadowEffect
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont
 import qtawesome as qta
 from ui.pages.base_page import BasePage
 from ui.widgets import CardWidget
@@ -158,42 +158,15 @@ class HomePage(BasePage):
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setAlignment(Qt.AlignCenter)
         
-        # Подложка для кнопки
-        self.btn_wrapper = QWidget()
-        # Фиксированные размеры для круглой формы
-        # Увеличен размер wrapper, чтобы градиент и тень не обрезались
-        # Кнопка 150x150, тень blurRadius 32, поэтому нужен минимум 214px
-        # Делаем 230px для полного раскрытия градиента
-        wrapper_size = 230
-        self.btn_wrapper.setFixedSize(wrapper_size, wrapper_size)
-        from ui.styles import theme
-        self.btn_wrapper.setStyleSheet(f"""
-            QWidget {{
-                background-color: {theme.get_color('background_secondary')};
-                border-radius: 50%;
-                border: 2px solid {theme.get_color('accent_light')};
-            }}
-        """)
-        wrapper_layout = QVBoxLayout(self.btn_wrapper)
-        wrapper_layout.setContentsMargins(5, 5, 5, 5)
-        wrapper_layout.setAlignment(Qt.AlignCenter)
-        
         self.big_btn = QPushButton(tr("home.button_start"))
-        # Фиксированный размер кнопки
-        button_size = 150
+        # Фиксированный размер кнопки (круглая)
+        button_size = 160
         self.big_btn.setFixedSize(button_size, button_size)
-        # Легкое свечение вокруг кнопки (обновляется при смене темы)
-        shadow = QGraphicsDropShadowEffect(self.big_btn)
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 6)
-        shadow.setColor(QColor(theme.get_color('accent')))
-        self.big_btn.setGraphicsEffect(shadow)
         self.main_window.style_big_btn_running(False)
         self.big_btn.clicked.connect(self.main_window.on_big_button)
         self.big_btn.setCursor(Qt.PointingHandCursor)
-        wrapper_layout.addWidget(self.big_btn)
         
-        btn_layout.addWidget(self.btn_wrapper, 1, alignment=Qt.AlignCenter)
+        btn_layout.addWidget(self.big_btn, 1, alignment=Qt.AlignCenter)
         
         self._layout.addWidget(btn_container, 1)
     
