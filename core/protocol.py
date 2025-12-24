@@ -129,13 +129,17 @@ def restart_as_admin() -> bool:
         # Получаем путь к исполняемому файлу
         if getattr(sys, 'frozen', False):
             exe_path = sys.executable
-            params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
+            base_params = [arg for arg in sys.argv[1:] if arg != "--ignore-single-instance"]
+            base_params.append("--ignore-single-instance")
+            params = " ".join(f'"{arg}"' for arg in base_params)
             work_dir = str(Path(exe_path).parent)
         else:
             # В режиме разработки запускаем main/main.py через Python
             exe_path = sys.executable
             script_path = Path(__file__).parent.parent / "main" / "main.py"
-            params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
+            base_params = [arg for arg in sys.argv[1:] if arg != "--ignore-single-instance"]
+            base_params.append("--ignore-single-instance")
+            params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in base_params)
             work_dir = str(Path(__file__).parent.parent)
         
         # Перезапускаем с правами администратора
@@ -152,16 +156,22 @@ def restart_as_admin() -> bool:
         if result <= 32:
             return False
         
-        # Даем больше времени новому процессу запуститься перед закрытием старого
+        # Даем время новому процессу запуститься перед закрытием старого
         # Это важно для корректной работы QSharedMemory и трея
+        import time
+        time.sleep(1)  # Ждем 1 секунду, чтобы новый процесс начал запускаться
+        
+        # Закрываем старое приложение
         try:
             from PyQt5.QtWidgets import QApplication
-            from PyQt5.QtCore import QTimer
             app = QApplication.instance()
             if app:
-                # Используем QTimer чтобы не блокировать UI поток
-                # Увеличиваем задержку до 2 секунд, чтобы новый процесс успел полностью запуститься
-                QTimer.singleShot(2000, lambda: app.quit() if app else None)
+                # Используем processEvents чтобы дать время новому процессу запуститься
+                for _ in range(10):
+                    app.processEvents()
+                    time.sleep(0.1)
+                # Закрываем приложение
+                app.quit()
         except ImportError:
             # Если PyQt5 не доступен, просто возвращаем True
             pass

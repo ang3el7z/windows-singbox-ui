@@ -59,7 +59,8 @@ from PyQt5.QtWidgets import (
     QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
     QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QSharedMemory
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QByteArray
+from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
@@ -108,6 +109,13 @@ class MainWindow(QMainWindow):
         self.tray_manager = TrayManager(self)
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
+        
+        # Локальный сервер будет установлен из main() после создания окна
+        if not hasattr(self, "local_server"):
+            self.local_server = None
+        self._pending_args = []
+        if self.local_server:
+            self.local_server.newConnection.connect(self._handle_new_instance)
         
         # Проверяем, выбран ли язык (первый запуск)
         language = self.settings.get("language", "")
@@ -936,7 +944,8 @@ class MainWindow(QMainWindow):
                 tr("messages.restart_as_admin_question")
             ):
                 if restart_as_admin():
-                    self.close()
+                    # Закрываем приложение полностью, даже если включен трей режим
+                    QApplication.instance().quit()
                 else:
                     self.log(tr("messages.admin_restart_failed"))
         else:
@@ -1233,7 +1242,8 @@ class MainWindow(QMainWindow):
                 tr("messages.admin_required_start")
             ):
                 if restart_as_admin():
-                    self.close()
+                    # Закрываем приложение полностью, даже если включен трей режим
+                    QApplication.instance().quit()
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
@@ -1296,8 +1306,8 @@ class MainWindow(QMainWindow):
                 tr("messages.admin_required_stop")
             ):
                 if restart_as_admin():
-                    # Закрываем текущее приложение
-                    self.close()
+                    # Закрываем приложение полностью, даже если включен трей режим
+                    QApplication.instance().quit()
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
@@ -1559,7 +1569,8 @@ class MainWindow(QMainWindow):
                 tr("messages.restart_required_text")
             ):
                 if restart_as_admin():
-                    self.close()
+                    # Закрываем приложение полностью, даже если включен трей режим
+                    QApplication.instance().quit()
                     return
                 else:
                     self.log(tr("messages.admin_restart_failed"))
@@ -1579,17 +1590,32 @@ class MainWindow(QMainWindow):
             ):
                 # Перезапускаем без прав админа
                 try:
-                    exe_path = sys.executable
-                    work_dir = str(Path(exe_path).parent)
+                    if getattr(sys, 'frozen', False):
+                        exe_path = sys.executable
+                        params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
+                        work_dir = str(Path(exe_path).parent)
+                    else:
+                        exe_path = sys.executable
+                        script_path = Path(__file__).parent / "main.py"
+                        params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
+                        work_dir = str(Path(__file__).parent.parent)
+                    
                     # Запускаем новый процесс без прав админа
                     result = ctypes.windll.shell32.ShellExecuteW(
-                        None, "open", exe_path, "", work_dir, 1
+                        None, "open", exe_path, params, work_dir, 1
                     )
                     if result > 32:
+                        # Даем время новому процессу запуститься
+                        import time
+                        time.sleep(1)
                         app = QApplication.instance()
                         if app:
-                            QTimer.singleShot(2000, lambda: app.quit() if app else None)
-                        self.close()
+                            # Даем время новому процессу запуститься
+                            for _ in range(10):
+                                app.processEvents()
+                                time.sleep(0.1)
+                            # Закрываем приложение полностью
+                            app.quit()
                         return
                 except Exception as e:
                     log_to_file(f"Ошибка перезапуска без прав админа: {e}")
@@ -1941,10 +1967,64 @@ class MainWindow(QMainWindow):
             # Закрываем приложение после остановки всех процессов
             QApplication.quit()
     
+    
+    def _handle_new_instance(self):
+        """Обработка подключения нового экземпляра приложения"""
+        socket = self.local_server.nextPendingConnection()
+        if socket:
+            # Ждем данные от нового экземпляра
+            if socket.waitForReadyRead(1000):
+                data = socket.readAll().data().decode('utf-8')
+                socket.disconnectFromServer()
+                socket.close()
+                socket.deleteLater()
+                
+                # Восстанавливаем окно
+                self._restore_window()
+                
+                # Если есть аргументы (deep link), обрабатываем их
+                if data and data.strip():
+                    args = data.strip().split('\n')
+                    # Сохраняем аргументы для обработки
+                    self._pending_args = args
+                    QTimer.singleShot(200, self._process_pending_args)
+                else:
+                    self._pending_args = []
+            else:
+                # Если данных нет, просто восстанавливаем окно
+                socket.disconnectFromServer()
+                socket.close()
+                socket.deleteLater()
+                self._restore_window()
+    
+    def _restore_window(self):
+        """Восстановление окна из свернутого состояния"""
+        # Снимаем минимизацию и скрытое состояние
+        self.showNormal()
+        # Устанавливаем активное состояние окна
+        self.setWindowState((self.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
+        self.raise_()
+        self.activateWindow()
+    
+    def _process_pending_args(self):
+        """Обработка отложенных аргументов от нового экземпляра"""
+        if hasattr(self, '_pending_args') and self._pending_args:
+            # Временно сохраняем аргументы в sys.argv для обработки deep link
+            original_argv = sys.argv[:]
+            sys.argv = [sys.argv[0]] + self._pending_args
+            try:
+                self.handle_deep_link()
+            finally:
+                sys.argv = original_argv
+            self._pending_args = []
+    
     def quit_application(self):
         """Полное закрытие приложения с остановкой всех процессов"""
         self.kill_all_processes()
         self.tray_manager.cleanup()
+        if self.local_server:
+            self.local_server.close()
+            QLocalServer.removeServer("SingBox-UI-Instance")
         QApplication.quit()
     
     # Логи (делегируются в LogUIManager)
@@ -2022,6 +2102,9 @@ class MainWindow(QMainWindow):
         
         # Если трей режим выключен - закрываем приложение нормально
         self.kill_all_processes()
+        if hasattr(self, 'local_server') and self.local_server:
+            self.local_server.close()
+            QLocalServer.removeServer("SingBox-UI-Instance")
         event.accept()
 
 
@@ -2060,9 +2143,12 @@ if __name__ == "__main__":
         # Создаем приложение с применением темы
         app = create_application()
         
-        # Загружаем настройки для проверки разрешения нескольких процессов
+        # Загружаем настройки и принудительно запрещаем несколько экземпляров
         settings = SettingsManager()
-        allow_multiple = settings.get("allow_multiple_processes", True)
+        allow_multiple = False
+        if settings.get("allow_multiple_processes", True):
+            settings.set("allow_multiple_processes", False)
+            settings.save()
         
         # Регистрируем/обновляем протоколы при каждом запуске (без лишних логов)
         try:
@@ -2070,116 +2156,47 @@ if __name__ == "__main__":
         except Exception:
             pass
     
-        # Проверка единственного экземпляра приложения (только если не разрешены несколько процессов)
-        shared_memory = QSharedMemory("SingBox-UI-Instance")
-        if not allow_multiple and shared_memory.attach():
-            # Приложение уже запущено - проверяем, что процесс действительно работает
-            try:
-                import psutil
-                exe_name = Path(sys.executable).name
-                current_pid = os.getpid()
-                found_process = False
-                
-                for proc in psutil.process_iter(['pid', 'name', 'exe']):
-                    try:
-                        if proc.info['name'] and exe_name.lower() in proc.info['name'].lower():
-                            if proc.info['pid'] != current_pid:
-                                # Проверяем, что процесс действительно работает
-                                if proc.is_running():
-                                    found_process = True
-                                    break
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                        pass
-                
-                if found_process:
-                    # Процесс работает, пытаемся активировать окно
-                    try:
-                        import win32gui
-                        import win32con
-                        
-                        def enum_windows_callback(hwnd, windows):
-                            # Проверяем все окна, не только видимые (включая свернутые в трей)
-                            window_text = win32gui.GetWindowText(hwnd)
-                            if "SingBox-UI" in window_text:
-                                # Проверяем, что это действительно наше окно
-                                class_name = win32gui.GetClassName(hwnd)
-                                if "QWidget" in class_name or "Qt5QWindow" in class_name or "MainWindow" in class_name:
-                                    windows.append(hwnd)
-                            return True
-                        
-                        windows = []
-                        win32gui.EnumWindows(enum_windows_callback, windows)
-                        
-                        if windows:
-                            hwnd = windows[0]
-                            # Восстанавливаем окно (даже если оно скрыто)
-                            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-                            # Активируем окно
-                            win32gui.SetForegroundWindow(hwnd)
-                            win32gui.BringWindowToTop(hwnd)
-                            # Отправляем сообщение для активации
-                            win32gui.SetActiveWindow(hwnd)
-                    except ImportError:
-                        try:
-                            user32 = ctypes.windll.user32
-                            def enum_windows_proc(hwnd, lParam):
-                                # Проверяем все окна, не только видимые
-                                length = user32.GetWindowTextLengthW(hwnd)
-                                if length > 0:
-                                    buffer = ctypes.create_unicode_buffer(length + 1)
-                                    user32.GetWindowTextW(hwnd, buffer, length + 1)
-                                    if "SingBox-UI" in buffer.value:
-                                        # Восстанавливаем и показываем окно
-                                        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-                                        user32.ShowWindow(hwnd, 5)  # SW_SHOW
-                                        user32.SetForegroundWindow(hwnd)
-                                        user32.BringWindowToTop(hwnd)
-                                        user32.SetActiveWindow(hwnd)
-                                return True
-                            EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
-                            user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-                    
-                    sys.exit(0)
-                else:
-                    # Процесс не найден, но shared memory существует - освобождаем и продолжаем
-                    shared_memory.detach()
-            except ImportError:
-                # Если psutil не доступен, просто пытаемся активировать окно
-                try:
-                    import win32gui
-                    import win32con
-                    def enum_windows_callback(hwnd, windows):
-                        if win32gui.IsWindowVisible(hwnd):
-                            window_text = win32gui.GetWindowText(hwnd)
-                            if "SingBox-UI" in window_text:
-                                windows.append(hwnd)
-                        return True
-                    windows = []
-                    win32gui.EnumWindows(enum_windows_callback, windows)
-                    if windows:
-                        hwnd = windows[0]
-                        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                        win32gui.SetForegroundWindow(hwnd)
-                        win32gui.BringWindowToTop(hwnd)
-                        sys.exit(0)
-                except Exception:
-                    pass
+        # Проверка единственного экземпляра приложения через локальный сервер
+        skip_single_instance = False
+        if "--ignore-single-instance" in sys.argv:
+            skip_single_instance = True
+            sys.argv.remove("--ignore-single-instance")
+
+        server_name = "SingBox-UI-Instance"
+        local_server = None
         
-        # Создаем shared memory для этого экземпляра (только если не разрешены несколько процессов)
-        if not allow_multiple:
-            if not shared_memory.create(1):
-                # Если не удалось создать, возможно старый экземпляр завис - пробуем еще раз
-                try:
-                    shared_memory.detach()
-                    if not shared_memory.create(1):
-                        sys.exit(0)
-                except Exception:
-                    sys.exit(0)
+        if not allow_multiple and not skip_single_instance:
+            socket = QLocalSocket()
+            socket.connectToServer(server_name)
+            
+            # Ждем подключения (таймаут 500мс для надежности)
+            if socket.waitForConnected(500):
+                # Другой экземпляр уже запущен - отправляем ему аргументы и выходим
+                args = sys.argv[1:] if len(sys.argv) > 1 else []
+                if args:
+                    # Отправляем аргументы через сокет
+                    data = '\n'.join(args).encode('utf-8')
+                    socket.write(data)
+                    socket.waitForBytesWritten(1000)
+                    socket.flush()
+                socket.disconnectFromServer()
+                socket.close()
+                log_to_file("[Startup] Другой экземпляр уже запущен, передаем аргументы и выходим")
+                sys.exit(0)
+            else:
+                # Не удалось подключиться - значит это первый экземпляр
+                # Удаляем старый сервер если он существует (на случай зависшего процесса)
+                QLocalServer.removeServer(server_name)
+                
+                # Создаем локальный сервер для этого экземпляра
+                local_server = QLocalServer()
+                if not local_server.listen(server_name):
+                    error = local_server.errorString()
+                    log_to_file(f"[Startup Warning] Не удалось запустить локальный сервер: {error}")
+                    # Продолжаем работу даже если сервер не запустился
+                    local_server = None
+                else:
+                    log_to_file("[Startup] Локальный сервер запущен успешно")
         
         # Проверяем доступность системного трея
         # НЕ закрываем приложение если трей недоступен - просто не используем его
@@ -2194,6 +2211,12 @@ if __name__ == "__main__":
         log_to_file("[Startup] Создание главного окна...")
         try:
             win = MainWindow()
+            # Передаем локальный сервер в MainWindow
+            if local_server:
+                win.local_server = local_server
+                local_server.setParent(win)
+                win.local_server.newConnection.connect(win._handle_new_instance)
+                log_to_file("[Startup] Локальный сервер подключен к MainWindow")
             log_to_file("[Startup] Главное окно создано успешно")
         except Exception as e:
             import traceback
