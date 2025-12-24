@@ -30,24 +30,10 @@ jobs:
         $TAG_VERSION = "${{ github.ref_name }}" -replace '^v', ''
         $VERSION_FILE = ".version"
         
-        function Write-VersionJson($version) {
-          $obj = [ordered]@{
-            "Текущая версия singbox-ui" = $version
-            "Актуальная версия singbox-ui" = ""
-            "Текущая версия ядра singbox" = ""
-            "Актуальная версия ядра singbox" = ""
-          }
-          return ($obj | ConvertTo-Json -Depth 2)
-        }
-        
-        $CURRENT_VERSION = ""
         if (Test-Path $VERSION_FILE) {
-          try {
-            $json = Get-Content $VERSION_FILE -Raw | ConvertFrom-Json
-            $CURRENT_VERSION = $json."Текущая версия singbox-ui"
-          } catch {
-            $CURRENT_VERSION = (Get-Content $VERSION_FILE -Raw).Trim()
-          }
+          $CURRENT_VERSION = (Get-Content $VERSION_FILE -Raw).Trim()
+        } else {
+          $CURRENT_VERSION = ""
         }
         
         Write-Host "📦 Current .version file: $CURRENT_VERSION"
@@ -59,8 +45,7 @@ jobs:
           Start-Sleep -Seconds 30
           
           Write-Host "🔁 Updating .version file to match tag..."
-          $json = Write-VersionJson $TAG_VERSION
-          Set-Content -Path $VERSION_FILE -Value $json -Encoding UTF8
+          Set-Content -Path $VERSION_FILE -Value $TAG_VERSION -NoNewline
           
           Write-Host "✅ .version file updated."
         } else {
@@ -121,18 +106,8 @@ jobs:
     - name: Ensure version is set for build
       shell: pwsh
       run: |
-        function Write-VersionJson($version) {
-          $obj = [ordered]@{
-            "Текущая версия singbox-ui" = $version
-            "Актуальная версия singbox-ui" = ""
-            "Текущая версия ядра singbox" = ""
-            "Актуальная версия ядра singbox" = ""
-          }
-          return ($obj | ConvertTo-Json -Depth 2)
-        }
         $TAG_VERSION = "${{ github.ref_name }}" -replace '^v', ''
-        $json = Write-VersionJson $TAG_VERSION
-        Set-Content -Path ".version" -Value $json -Encoding UTF8
+        Set-Content -Path ".version" -Value $TAG_VERSION -NoNewline
         Write-Host "✅ Version set for build: $TAG_VERSION"
     
     - name: Check required files
