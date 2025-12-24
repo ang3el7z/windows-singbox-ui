@@ -366,17 +366,21 @@ class MainWindow(QMainWindow):
                 text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
                 self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif running_sub:
             self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif selected_sub:
             self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         else:
             from ui.styles import theme
             warning_color = theme.get_color('warning')
             self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px;")
+            self.page_home.lbl_profile.setCursor(Qt.PointingHandCursor)
             if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):
                 self.page_home.lbl_profile._original_mousePressEvent = self.page_home.lbl_profile.mousePressEvent
             
@@ -963,20 +967,24 @@ class MainWindow(QMainWindow):
                 text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
                 self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif running_sub:
             # Только запущенный профиль
             self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif selected_sub:
             # Только выбранный профиль
             self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         else:
             # Нет профиля
             from ui.styles import theme
             warning_color = theme.get_color('warning')
             self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px;")
+            self.page_home.lbl_profile.setCursor(Qt.PointingHandCursor)
             # Делаем кликабельным для перехода в профили
             # Сохраняем оригинальный mousePressEvent если он есть
             if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):
