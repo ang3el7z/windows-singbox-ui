@@ -9,7 +9,7 @@ from typing import Optional
 
 # ОБЯЗАТЕЛЬНО: регистрирует ресурсы Qt
 try:
-    import resources_rc  # noqa: F401
+    import scripts.resources_rc  # noqa: F401
 except ImportError:
     # В режиме разработки, если resources_rc.py еще не создан
     pass

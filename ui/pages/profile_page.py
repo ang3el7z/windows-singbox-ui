@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton, QLabel
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
-import qtawesome as qta
+from utils.icon_helper import icon
 from ui.pages.base_page import BasePage
 from ui.widgets import CardWidget
 from ui.styles import StyleSheet, theme
@@ -74,9 +74,9 @@ class ProfilePage(BasePage):
         # Кнопки управления (без отдельных подложек, просто кнопки)
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        self.btn_add_sub = QPushButton(qta.icon("mdi.plus"), tr("profile.add"))
-        self.btn_del_sub = QPushButton(qta.icon("mdi.delete"), tr("profile.delete"))
-        self.btn_rename_sub = QPushButton(qta.icon("mdi.rename-box"), tr("profile.rename"))
+        self.btn_add_sub = QPushButton(icon("mdi.plus").icon(), tr("profile.add"))
+        self.btn_del_sub = QPushButton(icon("mdi.delete").icon(), tr("profile.delete"))
+        self.btn_rename_sub = QPushButton(icon("mdi.rename-box").icon(), tr("profile.rename"))
         
         # Стиль кнопок без подложек, просто с фоном и границей
         button_style = f"""

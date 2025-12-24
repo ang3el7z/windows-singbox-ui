@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
 import requests
 from PyQt5.QtWidgets import (
@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QPushButton,
     QProgressBar,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +28,7 @@ from PyQt5.QtGui import QFont
 from app.application import create_application
 from config.paths import ROOT
 from ui.styles import StyleSheet, theme
+from ui.widgets import CardWidget
 from utils.i18n import tr, set_language
 from managers.settings import SettingsManager
 
@@ -84,25 +86,57 @@ class UpdateThread(QThread):
         self.status_signal.emit(msg)
     
     def _fetch_remote_version(self) -> Optional[str]:
-        """Читает .version из ветки main."""
-        url = f"https://raw.githubusercontent.com/{self.repo_owner}/{self.repo_name}/{self.branch}/.version"
+        """Получает версию последнего релиза через GitHub API."""
+        api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest"
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(api_url, timeout=10)
             response.raise_for_status()
-            version = response.text.strip()
+            release_data = response.json()
+            tag_name = release_data.get("tag_name", "")
+            # Убираем префикс 'v' если есть
+            version = tag_name.lstrip("v") if tag_name else None
             return version or None
         except Exception as exc:  # noqa: BLE001
             # Логируем, но не показываем пользователю, это не критично
             return None
     
     def _download_latest_archive(self, dest: Path):
-        """Скачивает архив ветки main."""
-        url = f"https://github.com/{self.repo_owner}/{self.repo_name}/archive/refs/heads/{self.branch}.zip"
-        response = requests.get(url, stream=True, timeout=60)
+        """Скачивает архив последнего релиза."""
+        # Получаем информацию о последнем релизе
+        api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest"
+        self.status(tr("updater.connecting_to_server"))
+        
+        try:
+            response = requests.get(api_url, timeout=10)
+            response.raise_for_status()
+            release_data = response.json()
+        except Exception as exc:
+            raise RuntimeError(f"Failed to fetch release info: {exc}") from exc
+        
+        # Ищем архив в ассетах релиза
+        assets = release_data.get("assets", [])
+        archive_url = None
+        for asset in assets:
+            asset_name = asset.get("name", "").lower()
+            # Ищем архив вида windows-singbox-ui-v-*.zip
+            if asset_name.startswith("windows-singbox-ui-v-") and asset_name.endswith(".zip"):
+                archive_url = asset.get("browser_download_url")
+                break
+        
+        if not archive_url:
+            raise RuntimeError("Release archive not found in latest release")
+        
+        # Скачиваем архив
+        self.status(tr("updater.connecting_to_server"))
+        response = requests.get(archive_url, stream=True, timeout=60)
         response.raise_for_status()
         
         total_size = int(response.headers.get("content-length", 0))
         downloaded = 0
+        
+        if total_size:
+            size_mb = total_size / (1024 * 1024)
+            self.status(tr("updater.file_size", size_mb=f"{size_mb:.2f}"))
         
         with open(dest, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
@@ -113,6 +147,15 @@ class UpdateThread(QThread):
                 if total_size:
                     progress_pct = 10 + int((downloaded / total_size) * 30)
                     self.progress_signal.emit(min(progress_pct, 40))
+                    downloaded_mb = downloaded / (1024 * 1024)
+                    if total_size:
+                        total_mb = total_size / (1024 * 1024)
+                        self.status(tr("updater.downloaded_progress", 
+                                     downloaded_mb=f"{downloaded_mb:.2f}",
+                                     total_mb=f"{total_mb:.2f}",
+                                     progress_pct=progress_pct))
+        
+        self.status(tr("updater.download_complete"))
     
     def _extract_archive(self, zip_path: Path, extract_dir: Path):
         """Распаковывает скачанный архив."""
@@ -120,18 +163,21 @@ class UpdateThread(QThread):
             zip_ref.extractall(extract_dir)
     
     def _find_new_app_dir(self, extract_dir: Path) -> Path:
-        """Ищет папку с собранным приложением внутри архива."""
+        """Ищет папку с собранным приложением внутри архива.
+        
+        Архив из релиза содержит содержимое dist/SingBox-UI/, то есть:
+        - SingBox-UI.exe (в корне архива)
+        - data/ (с подпапками)
+        """
+        # Ищем SingBox-UI.exe в распакованном архиве
         candidates = sorted(extract_dir.rglob("SingBox-UI.exe"))
         if not candidates:
             raise FileNotFoundError("SingBox-UI.exe not found in downloaded archive")
         
-        # Отдаем приоритет сборке в dist/SingBox-UI, если она есть
-        def sort_key(path: Path):
-            parts_lower = [p.lower() for p in path.parts]
-            return ("dist" not in parts_lower, len(parts_lower))
-        
-        candidates.sort(key=sort_key)
-        return candidates[0].parent
+        # В релизном архиве SingBox-UI.exe должен быть в корне распакованной папки
+        # или в одной из подпапок. Возвращаем родительскую папку exe файла.
+        exe_path = candidates[0]
+        return exe_path.parent
     
     def _adjust_target_dir_if_needed(self):
         """Корректирует целевую папку, если updater запущен из data/."""
@@ -158,7 +204,7 @@ class UpdateThread(QThread):
         time.sleep(1)
     
     @staticmethod
-    def _is_skipped(rel_path: Path, protected: set[Path], handled_separately: set[Path]) -> bool:
+    def _is_skipped(rel_path: Path, protected: Set[Path], handled_separately: Set[Path]) -> bool:
         """Проверяет, нужно ли пропустить путь при копировании."""
         for protected_path in protected | handled_separately:
             if rel_path == protected_path or rel_path.is_relative_to(protected_path):
@@ -342,7 +388,11 @@ class UpdateThread(QThread):
             
             # Проверка версии
             self.status(tr("updater.progress_checking"))
+            if self.current_version:
+                self.status(tr("updater.current_version_label", version=self.current_version))
             self.target_version = self._fetch_remote_version()
+            if self.target_version:
+                self.status(tr("updater.available_version_label", version=self.target_version))
             self.progress_signal.emit(5)
             
             # Загрузка
@@ -356,6 +406,7 @@ class UpdateThread(QThread):
             extract_dir = temp_root / "extracted"
             extract_dir.mkdir(parents=True, exist_ok=True)
             self._extract_archive(zip_path, extract_dir)
+            self.status(tr("updater.extraction_complete"))
             self.progress_signal.emit(55)
             
             new_app_dir = self._find_new_app_dir(extract_dir)
@@ -365,16 +416,19 @@ class UpdateThread(QThread):
             # Остановка процессов
             self.status(tr("updater.progress_stopping"))
             self._stop_processes()
+            self.status(tr("updater.processes_stopped"))
             self.progress_signal.emit(65)
             
             # Установка обновления
             self.status(tr("updater.progress_installing"))
             items_updated = self._install_update(new_app_dir)
+            self.status(tr("updater.files_updated", count=items_updated))
             self.progress_signal.emit(85)
             
             # Очистка
             self.status(tr("updater.progress_cleaning"))
             self._clean_temp(temp_root)
+            self.status(tr("updater.temp_files_cleaned"))
             self.progress_signal.emit(90)
             
             # Запуск приложения
@@ -397,7 +451,8 @@ class UpdaterWindow(QMainWindow):
         self.update_thread: Optional[UpdateThread] = None
         
         self.setWindowTitle(tr("updater.title"))
-        self.setMinimumSize(640, 520)
+        # Фиксированный размер окна - нельзя изменять
+        self.setFixedSize(600, 300)
         self.setStyleSheet(
             f"""
             QMainWindow {{
@@ -413,21 +468,44 @@ class UpdaterWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        # Уменьшенные отступы для компактного окна
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
         
+        # Карточка для заголовка и окна логов (как в профиле)
+        card = CardWidget()
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(12)
+        
+        # Компактный заголовок
         title = QLabel(tr("updater.title"))
-        title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        title.setStyleSheet("background-color: transparent; border: none;")
-        layout.addWidget(title)
+        title.setFont(QFont("Segoe UI Semibold", 14, QFont.Bold))
+        title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
+        card_layout.addWidget(title)
         
-        # Статус текущего действия
-        self.status_label = QLabel(tr("updater.status_ready"))
-        self.status_label.setFont(QFont("Segoe UI", 12))
-        self.status_label.setStyleSheet(StyleSheet.label(variant="secondary"))
-        layout.addWidget(self.status_label)
+        # Окно логов - показывает что происходит
+        self.logs_text = QTextEdit()
+        self.logs_text.setReadOnly(True)
+        self.logs_text.setStyleSheet(
+            f"""
+            QTextEdit {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border: none;
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: 8px;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 9px;
+                selection-background-color: {theme.get_color('accent_light')};
+            }}
+            """
+        )
+        card_layout.addWidget(self.logs_text, 1)  # Растягивается на доступное пространство
         
-        # Прогресс-бар
+        layout.addWidget(card, 1)  # Карточка растягивается
+        
+        # Прогресс-бар - показывает общий прогресс скачивания и установки (без подложки)
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -435,17 +513,17 @@ class UpdaterWindow(QMainWindow):
             f"""
             QProgressBar {{
                 border: 1px solid {theme.get_color('border')};
-                border-radius: 8px;
+                border-radius: 6px;
                 text-align: center;
-                background-color: {theme.get_color('background_secondary')};
+                background-color: {theme.get_color('background_primary')};
                 color: {theme.get_color('text_primary')};
                 font-family: {theme.get_font('family')};
-                font-size: 11px;
+                font-size: 10px;
                 height: 24px;
             }}
             QProgressBar::chunk {{
                 background-color: {theme.get_color('accent')};
-                border-radius: 7px;
+                border-radius: 5px;
             }}
             """
         )
@@ -521,7 +599,9 @@ class UpdaterWindow(QMainWindow):
     
     def start_update(self):
         """Запускает процесс обновления."""
-        self.status_label.setText(tr("updater.status_ready"))
+        # Очищаем окно логов
+        self.logs_text.clear()
+        self.logs_text.append(tr("updater.status_ready"))
         self.progress_bar.setValue(0)
         
         self.update_thread = UpdateThread(ROOT)
@@ -531,8 +611,12 @@ class UpdaterWindow(QMainWindow):
         self.update_thread.start()
     
     def on_status(self, text: str):
-        """Обновляет текст текущего действия."""
-        self.status_label.setText(text)
+        """Обновляет текст текущего действия в окне логов."""
+        # Добавляем новую строку в окно логов
+        self.logs_text.append(text)
+        # Автоматически прокручиваем вниз
+        scrollbar = self.logs_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
         QApplication.processEvents()
     
     def on_progress(self, value: int):
@@ -554,7 +638,7 @@ class UpdaterWindow(QMainWindow):
         """Обработка завершения обновления."""
         if success:
             self.progress_bar.setValue(100)
-            self.status_label.setText(tr("updater.progress_complete"))
+            self.logs_text.append(tr("updater.progress_complete"))
             
             self.done_button.show()
             self.cancel_button.show()
@@ -564,7 +648,7 @@ class UpdaterWindow(QMainWindow):
             self.countdown_timer.start(1000)
             self.close_timer.start(5000)
         else:
-            self.status_label.setText(tr("updater.progress_error"))
+            self.logs_text.append(f"{tr('updater.progress_error')}: {message}")
             self.progress_bar.setValue(0)
             # При ошибке не закрываем окно автоматически
     

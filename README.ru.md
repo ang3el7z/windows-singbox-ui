@@ -59,6 +59,7 @@ SingBox-UI/
 ├── utils/                 # Утилиты
 │   ├── i18n.py           # Локализация
 │   ├── icon_manager.py   # Управление иконками
+│   ├── icon_helper.py   # Хелпер для иконок (встроенные шрифты)
 │   ├── logger.py         # Логирование
 │   ├── singbox.py        # Утилиты SingBox
 │   └── theme_manager.py  # Управление темами
@@ -101,9 +102,12 @@ SingBox-UI/
 │   └── tray_manager.py   # Менеджер системного трея
 ├── resources/            # Ресурсы
 │   ├── app.qrc          # Файл ресурсов Qt
-│   └── icons/           # Ресурсы иконок
-│       └── app.ico      # Иконка приложения
-├── resources_rc.py       # Скомпилированные ресурсы Qt (генерируется)
+│   ├── icons/           # Ресурсы иконок
+│   │   └── app.ico      # Иконка приложения
+│   └── fonts/           # Ресурсы шрифтов
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Шрифт Material Design Icons
+├── scripts/
+│   └── resources_rc.py  # Скомпилированные ресурсы Qt (генерируется)
 ├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
 │   ├── en.json           # Английский
@@ -227,7 +231,6 @@ python main/post_build.py
 - Python 3.8+
 - Windows 10/11
 - PyQt5
-- qtawesome
 - requests
 
 ## Лицензия

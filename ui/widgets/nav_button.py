@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import QPushButton, QWidget, QLabel, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-import qtawesome as qta
+from utils.icon_helper import icon
 from ui.styles import StyleSheet
 
 
@@ -25,7 +25,7 @@ class NavButton(QPushButton):
         # Иконка
         self.icon_label = QLabel()
         self.icon_label.setAlignment(Qt.AlignCenter)
-        self.icon_label.setPixmap(qta.icon(icon_name, color="#64748b").pixmap(36, 36))
+        self.icon_label.setPixmap(icon(icon_name, color="#64748b").pixmap(36, 36))
         self.icon_label.setStyleSheet("background-color: transparent; border: none;")
         
         # Текст
@@ -51,7 +51,7 @@ class NavButton(QPushButton):
         
         color = theme.get_color('accent') if checked else theme.get_color('text_secondary')
         self.icon_label.setPixmap(
-            qta.icon(self.icon_name, color=color).pixmap(36, 36)
+            icon(self.icon_name, color=color).pixmap(36, 36)
         )
         
         weight = theme.get_font('weight_semibold') if checked else theme.get_font('weight_medium')

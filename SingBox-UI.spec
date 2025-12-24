@@ -9,7 +9,7 @@ from PyInstaller.utils.hooks import collect_data_files
 block_cipher = None
 
 # Automatic QRC compilation before build (if resources_rc.py is missing)
-resources_rc_path = Path('resources_rc.py')
+resources_rc_path = Path('scripts/resources_rc.py')
 qrc_file = Path('resources/app.qrc')
 
 if not resources_rc_path.exists() and qrc_file.exists():
@@ -49,15 +49,9 @@ if locales_dir.exists():
         locales_data.append((str(locale_file), 'data/locales'))
         # print(f"Including locale: {locale_file}")  # Removed to avoid encoding issues in CI
 
-# Collect qtawesome fonts and data files
-# This ensures fonts are available in bundled data, not just temp directory
-# Critical for app restart - prevents errors when temp _MEI directory is deleted
-# The hook file (hooks/hook-qtawesome.py) handles proper collection of qtawesome files
-# We still collect here as a fallback, but the hook should handle it
-qtawesome_data = collect_data_files('qtawesome')
-
 # Combine all data files
-all_datas = locales_data + qtawesome_data
+# Note: Fonts are now embedded via Qt Resource System (QRC) - see resources/app.qrc
+all_datas = locales_data
 
 # Icon is NO LONGER added to datas - it's embedded via Qt Resource System (QRC)
 # Uses resources_rc.py, which is compiled from resources/app.qrc
@@ -66,10 +60,9 @@ a = Analysis(
     ['main/main.py'],
     pathex=[],
     binaries=binaries_list,
-    datas=all_datas,  # Includes locales and qtawesome fonts/data
+    datas=all_datas,  # Includes locales (fonts are in QRC)
     hiddenimports=[
-        'resources_rc',  # Critical: registers Qt resources (icon)
-        'qtawesome',
+        'scripts.resources_rc',  # Critical: registers Qt resources (icon and fonts)
         'requests',
         'winreg',
         'config',
@@ -110,7 +103,7 @@ a = Analysis(
         'ui.dialogs.info_dialog',
         'ui.dialogs.language_dialog',
     ],
-    hookspath=['hooks'],  # Use custom hooks for qtawesome
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
@@ -143,7 +136,7 @@ exe = EXE(
     a.binaries,  # Include all libraries in exe
     a.zipfiles,
     a.datas,  # Include locales in exe (they will be available via sys._MEIPASS)
-    # Icon is embedded via Qt Resource System (resources_rc.py), not needed in datas
+    # Icon and fonts are embedded via Qt Resource System (scripts/resources_rc.py), not needed in datas
     [],
     name='SingBox-UI',
     debug=False,

@@ -10,16 +10,16 @@
 
 **Что происходит:**
 ```
-resources/app.qrc  →  [pyrcc5]  →  resources_rc.py
+resources/app.qrc  →  [pyrcc5]  →  scripts/resources_rc.py
 ```
 
 **Когда:**
 - При сборке через PyInstaller (автоматически)
-- Вручную: `py -m PyQt5.pyrcc_main resources/app.qrc -o resources_rc.py`
+- Вручную: `py -m PyQt5.pyrcc_main resources/app.qrc -o scripts/resources_rc.py`
 - При изменении `app.qrc` (нужно перекомпилировать)
 
 **Результат:**
-- Создается Python модуль `resources_rc.py`
+- Создается Python модуль `scripts/resources_rc.py`
 - Иконка зашита в этот модуль как байтовые данные
 - Это делается **ОДИН РАЗ**, не при каждом запуске
 
@@ -30,7 +30,7 @@ resources/app.qrc  →  [pyrcc5]  →  resources_rc.py
 **Где происходит:**
 ```python
 # utils/icon_manager.py (строка 12)
-import resources_rc  # noqa: F401
+import scripts.resources_rc  # noqa: F401
 ```
 
 **Когда:**
@@ -71,10 +71,10 @@ set_window_icon(window)  # ✅ Работает всегда
 
 ```
 1. СБОРКА (один раз):
-   app.qrc → pyrcc5 → resources_rc.py
+   app.qrc → pyrcc5 → scripts/resources_rc.py
    
 2. ЗАПУСК ПРИЛОЖЕНИЯ (каждый раз, но автоматически):
-   import icon_manager → import resources_rc → регистрация ресурсов
+   import icon_manager → import scripts.resources_rc → регистрация ресурсов
    
 3. ИСПОЛЬЗОВАНИЕ (везде и всегда):
    QIcon(":/icons/app.ico") → ✅ Работает
@@ -126,9 +126,9 @@ if icon.isNull():
 
 **Если иконка не отображается, проверьте:**
 
-1. ✅ `resources_rc.py` существует и скомпилирован
-2. ✅ `resources_rc` в `hiddenimports` в `.spec` (уже есть)
-3. ✅ `import resources_rc` выполняется (уже есть в `icon_manager.py`)
+1. ✅ `scripts/resources_rc.py` существует и скомпилирован
+2. ✅ `scripts.resources_rc` в `hiddenimports` в `.spec` (уже есть)
+3. ✅ `import scripts.resources_rc` выполняется (уже есть в `icon_manager.py`)
 4. ✅ `IconManager` используется в приложении (уже используется)
 
 **Все это уже настроено в вашем проекте!** 🎉

@@ -1,7 +1,7 @@
 """Кастомный заголовок/статус-бар приложения в стиле темы."""
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
 from PyQt5.QtCore import Qt, QPoint
-import qtawesome as qta
+from utils.icon_helper import icon
 
 from ui.styles import StyleSheet, theme
 from utils.icon_manager import get_icon
@@ -81,8 +81,8 @@ class TitleBar(QWidget):
         )
 
         self.title_label.setStyleSheet(StyleSheet.label(variant="default", size="large"))
-        self.btn_minimize.setIcon(qta.icon("mdi.window-minimize", color=secondary))
-        self.btn_close.setIcon(qta.icon("mdi.close", color=text))
+        self.btn_minimize.setIcon(icon("mdi.window-minimize", color=secondary).icon())
+        self.btn_close.setIcon(icon("mdi.close", color=text).icon())
 
     def set_title(self, text: str):
         """Обновляет отображаемый заголовок."""

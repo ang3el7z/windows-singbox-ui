@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from main import MainWindow
 
 
+
+
 def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -> bool:
     """
     Перезапускает приложение (опционально от имени администратора).
@@ -125,6 +127,8 @@ def _shutdown_and_quit(main_window: 'MainWindow'):
     """Корректно завершает приложение перед перезапуском"""
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtCore import QTimer
+    
+    # Шрифты теперь вшиты в QRC, сброс не требуется
     
     # Закрываем окно, но НЕ закрываем local_server и mutex здесь
     # Они будут автоматически закрыты при выходе из процесса

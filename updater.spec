@@ -17,29 +17,22 @@ else:
     if icon_png.exists():
         icon_data.append((str(icon_png), 'icons'))
 
-# Collect qtawesome fonts and data files
-# This ensures fonts are available in bundled data, not just temp directory
-# Critical for app restart - prevents errors when temp _MEI directory is deleted
-# The hook file (hooks/hook-qtawesome.py) handles proper collection of qtawesome files
-# We still collect here as a fallback, but the hook should handle it
-qtawesome_data = collect_data_files('qtawesome')
-
 # Combine all data files
-all_datas = icon_data + qtawesome_data
+# Note: Fonts are now embedded via Qt Resource System (QRC) - see resources/app.qrc
+all_datas = icon_data
 
 a = Analysis(
     ['main/updater.py'],
     pathex=[],
     binaries=[],
-    datas=all_datas,  # Includes icon and qtawesome fonts/data
+    datas=all_datas,  # Includes icon (fonts are in QRC)
     hiddenimports=[
         'config',
         'config.paths',
         'requests',
         'zipfile',
-        'qtawesome',
     ],
-    hookspath=['hooks'],  # Use custom hooks for qtawesome
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],

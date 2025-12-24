@@ -108,7 +108,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QByteArray
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-import qtawesome as qta
+from utils.icon_helper import icon
 
 # Импорты новых UI компонентов
 from ui.widgets import CardWidget, NavButton, TitleBar
@@ -1844,7 +1844,7 @@ class MainWindow(QMainWindow):
         
         # Обновляем иконку
         if icon_label:
-            icon_label.setPixmap(qta.icon(icon_name, color=color).pixmap(36, 36))
+            icon_label.setPixmap(icon(icon_name, color=color).pixmap(36, 36))
         
         # Обновляем текст
         if text_label:
@@ -2009,6 +2009,7 @@ class MainWindow(QMainWindow):
         """Закрытие приложения при перезапуске"""
         from utils.logger import log_to_file
         log_to_file("[Restart] Закрываем старое приложение после подтверждения от нового процесса")
+        # Шрифты теперь вшиты в QRC, сброс не требуется
         # Освобождаем mutex только в самом конце
         release_global_mutex()
         QApplication.quit()
@@ -2041,6 +2042,7 @@ class MainWindow(QMainWindow):
         if self.local_server:
             self.local_server.close()
             QLocalServer.removeServer("SingBox-UI-Instance")
+        # Шрифты теперь вшиты в QRC, сброс не требуется
         release_global_mutex()
         QApplication.quit()
     

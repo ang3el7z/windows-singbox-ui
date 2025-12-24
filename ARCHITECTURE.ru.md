@@ -31,6 +31,7 @@ SingBox-UI/
 │   ├── __init__.py
 │   ├── i18n.py           # Система локализации
 │   ├── icon_manager.py   # Управление иконками
+│   ├── icon_helper.py   # Хелпер для иконок (встроенные шрифты)
 │   ├── logger.py         # Логирование
 │   ├── singbox.py        # Утилиты для работы с SingBox
 │   └── theme_manager.py  # Управление темами
@@ -103,9 +104,12 @@ SingBox-UI/
 │   └── config.json       # Конфиг
 ├── resources/            # Ресурсы
 │   ├── app.qrc          # Файл ресурсов Qt
-│   └── icons/           # Ресурсы иконок
-│       └── app.ico      # Иконка приложения
-├── resources_rc.py       # Скомпилированные ресурсы Qt (генерируется)
+│   ├── icons/           # Ресурсы иконок
+│   │   └── app.ico      # Иконка приложения
+│   └── fonts/           # Ресурсы шрифтов
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Шрифт Material Design Icons
+├── scripts/
+│   └── resources_rc.py  # Скомпилированные ресурсы Qt (генерируется)
 ├── SingBox-UI.spec       # Конфигурация PyInstaller для основного приложения
 ├── updater.spec          # Конфигурация PyInstaller для updater
 └── requirements.txt      # Зависимости
@@ -153,7 +157,7 @@ SingBox-UI/
   - Автоматически запускает post-build скрипт после успешной сборки
   
 - **build_qrc.py** - Скрипт компиляции QRC
-  - Компилирует файлы ресурсов Qt (.qrc) в Python модуль (resources_rc.py)
+  - Компилирует файлы ресурсов Qt (.qrc) в Python модуль (scripts/resources_rc.py)
   
 - **check_locales.py** - Скрипт проверки локализации
   - Проверяет файлы локализации на отсутствующие переводы
@@ -201,6 +205,12 @@ SingBox-UI/
   - Загрузка иконок из ресурсов Qt
   - Управление иконками приложения и окон
   - Использует Qt Resource System (QRC)
+  
+- **icon_helper.py** - Хелпер для работы с встроенными шрифтами иконок
+  - Заменяет зависимость qtawesome
+  - Загружает шрифт Material Design Icons из QRC
+  - Предоставляет функцию `icon()` для создания QIcon и QPixmap из символов шрифта
+  - Использует встроенный шрифт через Qt Resource System
   
 - **logger.py** - Система логирования
   - Запись логов в файлы
@@ -250,7 +260,8 @@ SingBox-UI/
 ### app/
 - **application.py** - Инициализация приложения
   - Функция `create_application()` - создание и настройка QApplication
-  - Функция `apply_dark_theme()` - применение темной темы
+  - Функция `apply_theme()` - применение темы к QApplication
+  - Функция `apply_dark_theme()` - устаревшая обертка для `apply_theme()` (оставлена для совместимости)
 
 ### workers/
 - **base_worker.py** - Базовый класс для фоновых потоков

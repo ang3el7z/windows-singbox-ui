@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
-import qtawesome as qta
+from utils.icon_helper import icon
 from ui.pages.base_page import BasePage
 from ui.widgets import CardWidget
 from ui.styles import StyleSheet
@@ -55,7 +55,7 @@ class HomePage(BasePage):
         version_row.addWidget(self.lbl_version)
         
         self.btn_version_warning = QPushButton()
-        self.btn_version_warning.setIcon(qta.icon("mdi.alert-circle", color="#ff6b6b"))
+        self.btn_version_warning.setIcon(icon("mdi.alert-circle", color="#ff6b6b").icon())
         self.btn_version_warning.setMinimumSize(24, 24)
         self.btn_version_warning.setMaximumSize(32, 32)
         self.btn_version_warning.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
@@ -76,7 +76,7 @@ class HomePage(BasePage):
         version_row.addWidget(self.btn_version_warning)
         
         self.btn_version_update = QPushButton()
-        self.btn_version_update.setIcon(qta.icon("mdi.download", color="#00f5d4"))
+        self.btn_version_update.setIcon(icon("mdi.download", color="#00f5d4").icon())
         self.btn_version_update.setMinimumSize(24, 24)
         self.btn_version_update.setMaximumSize(32, 32)
         self.btn_version_update.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)

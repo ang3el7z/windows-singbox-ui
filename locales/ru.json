@@ -161,7 +161,17 @@
     "items_updated": "Обновлено элементов: {count}",
     "countdown_close": "Окно закроется через {seconds} сек...",
     "error_title": "Ошибка обновления",
-    "error_message": "Ошибка при обновлении: {error}"
+    "error_message": "Ошибка при обновлении: {error}",
+    "connecting_to_server": "Подключение к серверу...",
+    "file_size": "Размер файла: {size_mb} MB",
+    "downloaded_progress": "Скачано: {downloaded_mb} MB / {total_mb} MB ({progress_pct}%)",
+    "download_complete": "Скачивание завершено",
+    "current_version_label": "Текущая версия: {version}",
+    "available_version_label": "Доступная версия: {version}",
+    "extraction_complete": "Распаковка завершена",
+    "processes_stopped": "Процессы остановлены",
+    "files_updated": "Обновлено файлов: {count}",
+    "temp_files_cleaned": "Временные файлы удалены"
   },
   "tray": {
     "show": "Открыть",

@@ -161,7 +161,17 @@
     "items_updated": "已更新 {count} 个项目",
     "countdown_close": "窗口将在 {seconds} 秒后关闭...",
     "error_title": "更新错误",
-    "error_message": "更新时出错：{error}"
+    "error_message": "更新时出错：{error}",
+    "connecting_to_server": "正在连接到服务器...",
+    "file_size": "文件大小：{size_mb} MB",
+    "downloaded_progress": "已下载：{downloaded_mb} MB / {total_mb} MB ({progress_pct}%)",
+    "download_complete": "下载完成",
+    "current_version_label": "当前版本：{version}",
+    "available_version_label": "可用版本：{version}",
+    "extraction_complete": "解压完成",
+    "processes_stopped": "进程已停止",
+    "files_updated": "已更新文件：{count}",
+    "temp_files_cleaned": "临时文件已清理"
   },
   "tray": {
     "show": "打开",

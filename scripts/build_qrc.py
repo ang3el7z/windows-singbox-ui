@@ -9,10 +9,10 @@ from pathlib import Path
 
 def compile_qrc():
     """
-    Компилирует resources/app.qrc в resources_rc.py
+    Компилирует resources/app.qrc в scripts/resources_rc.py
     """
     qrc_file = Path('resources/app.qrc')
-    output_file = Path('resources_rc.py')
+    output_file = Path('scripts/resources_rc.py')
     
     if not qrc_file.exists():
         print(f"❌ ERROR: QRC файл не найден: {qrc_file}", file=sys.stderr)
@@ -37,7 +37,7 @@ def compile_qrc():
                 check=True
             )
             if output_file.exists():
-                print(f"✓ QRC успешно скомпилирован: {output_file}")
+                print(f"[OK] QRC compiled: {output_file}")
                 return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue

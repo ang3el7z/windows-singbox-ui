@@ -9,6 +9,15 @@ from utils.icon_manager import set_application_icon
 from utils.theme_manager import set_theme, get_theme_manager
 from managers.settings import SettingsManager
 
+# Импортируем ресурсы (QRC) для доступа к шрифтам
+try:
+    import scripts.resources_rc  # noqa: F401
+except ImportError:
+    pass  # resources_rc может отсутствовать в режиме разработки
+
+# Инициализируем icon_helper для загрузки шрифта
+from utils.icon_helper import IconHelper
+
 
 def create_application() -> QApplication:
     """
@@ -19,6 +28,10 @@ def create_application() -> QApplication:
     """
     app = QApplication(sys.argv)
     app.setApplicationName("SingBox-UI")
+    
+    # Загружаем шрифт Material Design Icons из QRC
+    # Это нужно сделать до создания UI элементов
+    IconHelper._ensure_font_loaded()
     
     # Устанавливаем иконку приложения (важно для Windows - иконка в таскбаре)
     set_application_icon(app)

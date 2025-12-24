@@ -31,6 +31,7 @@ SingBox-UI/
 │   ├── __init__.py
 │   ├── i18n.py           # Localization system
 │   ├── icon_manager.py   # Icon management
+│   ├── icon_helper.py   # Icon helper (embedded fonts)
 │   ├── logger.py         # Logging
 │   ├── singbox.py        # SingBox utilities
 │   └── theme_manager.py  # Theme management
@@ -81,9 +82,12 @@ SingBox-UI/
 │   └── tray_manager.py   # System tray manager
 ├── resources/            # Resources
 │   ├── app.qrc          # Qt resource file
-│   └── icons/           # Icon resources
-│       └── app.ico      # Application icon
-├── resources_rc.py       # Compiled Qt resources (generated)
+│   ├── icons/           # Icon resources
+│   │   └── app.ico      # Application icon
+│   └── fonts/           # Font resources
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Material Design Icons font
+├── scripts/
+│   └── resources_rc.py  # Compiled Qt resources (generated)
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   ├── en.json           # English
@@ -154,7 +158,7 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - Automatically runs post-build script after successful builds
   
 - **build_qrc.py** - QRC compilation script
-  - Compiles Qt resource files (.qrc) to Python module (resources_rc.py)
+  - Compiles Qt resource files (.qrc) to Python module (scripts/resources_rc.py)
   
 - **check_locales.py** - Locale validation script
   - Validates locale files for missing translations
@@ -203,6 +207,12 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - Application and window icon management
   - Uses Qt Resource System (QRC)
   
+- **icon_helper.py** - Icon helper for embedded fonts
+  - Replaces qtawesome dependency
+  - Loads Material Design Icons font from QRC
+  - Provides `icon()` function for creating QIcon and QPixmap from font characters
+  - Uses embedded font via Qt Resource System
+  
 - **logger.py** - Logging system
   - Logging to files
   - Debug logs
@@ -246,7 +256,8 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
 ### app/
 - **application.py** - Application initialization
   - `create_application()` function - creates and configures QApplication
-  - `apply_dark_theme()` function - applies dark theme (deprecated, now uses theme system)
+  - `apply_theme()` function - applies theme to QApplication
+  - `apply_dark_theme()` function - deprecated wrapper for `apply_theme()` (kept for compatibility)
 
 ### workers/
 - **base_worker.py** - Base class for background threads

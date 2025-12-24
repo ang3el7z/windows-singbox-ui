@@ -161,7 +161,17 @@
     "items_updated": "{count} items updated",
     "countdown_close": "Window will close in {seconds} seconds...",
     "error_title": "Update Error",
-    "error_message": "Error during update: {error}"
+    "error_message": "Error during update: {error}",
+    "connecting_to_server": "Connecting to server...",
+    "file_size": "File size: {size_mb} MB",
+    "downloaded_progress": "Downloaded: {downloaded_mb} MB / {total_mb} MB ({progress_pct}%)",
+    "download_complete": "Download complete",
+    "current_version_label": "Current version: {version}",
+    "available_version_label": "Available version: {version}",
+    "extraction_complete": "Extraction complete",
+    "processes_stopped": "Processes stopped",
+    "files_updated": "Files updated: {count}",
+    "temp_files_cleaned": "Temporary files cleaned"
   },
   "tray": {
     "show": "Show",

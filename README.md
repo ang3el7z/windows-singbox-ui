@@ -59,6 +59,7 @@ SingBox-UI/
 ├── utils/                 # Utilities
 │   ├── i18n.py           # Localization
 │   ├── icon_manager.py   # Icon management
+│   ├── icon_helper.py   # Icon helper (embedded fonts)
 │   ├── logger.py         # Logging
 │   ├── singbox.py        # SingBox utilities
 │   └── theme_manager.py  # Theme management
@@ -101,9 +102,12 @@ SingBox-UI/
 │   └── tray_manager.py   # System tray manager
 ├── resources/            # Resources
 │   ├── app.qrc          # Qt resource file
-│   └── icons/           # Icon resources
-│       └── app.ico      # Application icon
-├── resources_rc.py       # Compiled Qt resources (generated)
+│   ├── icons/           # Icon resources
+│   │   └── app.ico      # Application icon
+│   └── fonts/           # Font resources
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Material Design Icons font
+├── scripts/
+│   └── resources_rc.py   # Compiled Qt resources (generated)
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
 │   ├── en.json           # English
@@ -227,7 +231,6 @@ On first launch, the application automatically creates:
 - Python 3.8+
 - Windows 10/11
 - PyQt5
-- qtawesome
 - requests
 
 ## License
