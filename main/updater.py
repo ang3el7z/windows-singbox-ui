@@ -27,6 +27,7 @@ from PyQt5.QtGui import QFont
 from app.application import create_application
 from config.paths import ROOT
 from ui.styles import StyleSheet, theme
+from utils.i18n import tr
 
 GITHUB_OWNER = "ang3el7z"
 GITHUB_REPO = "SingBox-UI"
@@ -399,7 +400,7 @@ class UpdaterWindow(QMainWindow):
         super().__init__()
         self.update_thread: Optional[UpdateThread] = None
         
-        self.setWindowTitle("SingBox-UI Updater")
+        self.setWindowTitle(tr("updater.title"))
         self.setMinimumSize(640, 520)
         self.setStyleSheet(
             f"""
@@ -419,7 +420,7 @@ class UpdaterWindow(QMainWindow):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
         
-        title = QLabel("SingBox-UI Updater")
+        title = QLabel(tr("updater.title"))
         title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
         title.setStyleSheet("background-color: transparent; border: none;")
         layout.addWidget(title)
@@ -429,7 +430,7 @@ class UpdaterWindow(QMainWindow):
         self.logs.setStyleSheet(StyleSheet.text_edit())
         layout.addWidget(self.logs, 1)
         
-        self.status = QLabel("Ready to update...")
+        self.status = QLabel(tr("updater.status_ready"))
         self.status.setFont(QFont("Segoe UI", 12))
         self.status.setStyleSheet(StyleSheet.label(variant="secondary"))
         layout.addWidget(self.status)
@@ -437,7 +438,7 @@ class UpdaterWindow(QMainWindow):
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(12)
         
-        self.done_button = QPushButton("Готово")
+        self.done_button = QPushButton(tr("updater.button_done"))
         self.done_button.setFont(QFont("Segoe UI", 11, QFont.Bold))
         self.done_button.setStyleSheet(
             f"""
@@ -459,7 +460,7 @@ class UpdaterWindow(QMainWindow):
         self.done_button.clicked.connect(self.close)
         self.done_button.hide()
         
-        self.cancel_button = QPushButton("Отмена")
+        self.cancel_button = QPushButton(tr("updater.button_cancel"))
         self.cancel_button.setFont(QFont("Segoe UI", 11))
         self.cancel_button.setStyleSheet(
             f"""

@@ -130,6 +130,16 @@
     "subscription_import_error_text": "Failed to import subscription: {error}",
     "restart_yes": "Restart"
   },
+  "language_dialog": {
+    "title": "Select Language",
+    "ok": "OK"
+  },
+  "updater": {
+    "title": "SingBox-UI Updater",
+    "status_ready": "Ready to update...",
+    "button_done": "Done",
+    "button_cancel": "Cancel"
+  },
   "tray": {
     "show": "Show",
     "quit": "Quit"

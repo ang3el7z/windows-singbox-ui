@@ -130,6 +130,16 @@
     "subscription_import_error_text": "Не удалось импортировать подписку: {error}",
     "restart_yes": "Перезапустить"
   },
+  "language_dialog": {
+    "title": "Выберите язык",
+    "ok": "ОК"
+  },
+  "updater": {
+    "title": "Обновление SingBox-UI",
+    "status_ready": "Готов к обновлению...",
+    "button_done": "Готово",
+    "button_cancel": "Отмена"
+  },
   "tray": {
     "show": "Открыть",
     "quit": "Закрыть"

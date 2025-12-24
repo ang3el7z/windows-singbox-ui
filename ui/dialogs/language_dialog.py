@@ -18,7 +18,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         Код выбранного языка
     """
     dialog = QDialog(parent)
-    dialog.setWindowTitle("Select Language / Выберите язык")
+    dialog.setWindowTitle(tr("language_dialog.title"))
     dialog.setMinimumWidth(400)
     dialog.setModal(True)
     from ui.styles.constants import COLORS, SIZES, FONTS
@@ -56,7 +56,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
     layout.setContentsMargins(24, 24, 24, 24)
     
     # Заголовок
-    title_label = QLabel("Select Language / Выберите язык")
+    title_label = QLabel(tr("language_dialog.title"))
     title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
     title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
     layout.addWidget(title_label)
@@ -77,7 +77,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         layout.addWidget(btn)
     
     # Кнопка OK
-    btn_ok = QPushButton("OK")
+    btn_ok = QPushButton(tr("language_dialog.ok"))
     btn_ok.setCursor(Qt.PointingHandCursor)
     btn_ok.setDefault(True)
     btn_ok.clicked.connect(dialog.accept)

@@ -130,6 +130,16 @@
     "subscription_import_error_text": "无法导入订阅：{error}",
     "restart_yes": "重启"
   },
+  "language_dialog": {
+    "title": "选择语言",
+    "ok": "确定"
+  },
+  "updater": {
+    "title": "SingBox-UI 更新器",
+    "status_ready": "准备更新...",
+    "button_done": "完成",
+    "button_cancel": "取消"
+  },
   "tray": {
     "show": "打开",
     "quit": "退出"

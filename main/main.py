@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from typing import Optional
 
 
 def get_version() -> str:
@@ -1100,6 +1101,22 @@ class MainWindow(QMainWindow):
             btn_download.setText(tr("download.download"))
     
     # Кнопка Start/Stop
+    def _apply_big_btn_wrapper_style(self, border_color: Optional[str] = None):
+        """Обновляет стиль подложки большой кнопки с учетом текущей темы"""
+        if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'btn_wrapper'):
+            return
+        from ui.styles import theme
+        bg_secondary = theme.get_color('background_secondary')
+        if border_color is None:
+            border_color = theme.get_color('accent_light')
+        self.page_home.btn_wrapper.setStyleSheet(f"""
+            QWidget {{
+                background-color: {bg_secondary};
+                border-radius: 50%;
+                border: 2px solid {border_color};
+            }}
+        """)
+
     def style_big_btn_running(self, running: bool, font_size: int = None):
         """Стиль большой кнопки с использованием цветов темы"""
         if not hasattr(self, 'page_home'):
@@ -1124,6 +1141,7 @@ class MainWindow(QMainWindow):
         # Получаем цвета из темы
         bg_secondary = theme.get_color('background_secondary')
         accent = theme.get_color('accent')
+        accent_hover = theme.get_color('accent_hover')
         warning = theme.get_color('warning')
         error = theme.get_color('error')
         text_disabled = theme.get_color('text_disabled')
@@ -1138,24 +1156,10 @@ class MainWindow(QMainWindow):
                 else:
                     # Красный для режима "Остановить"
                     border_color = error if 'rgba' in error else f"{error}80"
-                # Круглая форма (50% для круглой формы)
-                self.page_home.btn_wrapper.setStyleSheet(f"""
-                    QWidget {{
-                        background-color: {bg_secondary};
-                        border-radius: 50%;
-                        border: 2px solid {border_color};
-                    }}
-                """)
+                self._apply_big_btn_wrapper_style(border_color)
             else:
                 border_color = accent if 'rgba' in accent else f"{accent}80"
-                # Круглая форма (50% для круглой формы)
-                self.page_home.btn_wrapper.setStyleSheet(f"""
-                    QWidget {{
-                        background-color: {bg_secondary};
-                        border-radius: 50%;
-                        border: 2px solid {border_color};
-                    }}
-                """)
+                self._apply_big_btn_wrapper_style(border_color)
         
         if running:
             # Текст кнопки устанавливается в update_big_button_state, здесь только стиль
@@ -1186,8 +1190,8 @@ class MainWindow(QMainWindow):
                 self.page_home.big_btn.setStyleSheet(f"""
                     QPushButton {{
                         border-radius: 50%;
-                        background-color: {bg_secondary};
-                        color: {error};
+                        background-color: {error};
+                        color: {bg_secondary};
                         font-size: {font_size}px;
                         font-weight: 700;
                         font-family: 'Segoe UI', sans-serif;
@@ -1208,16 +1212,16 @@ class MainWindow(QMainWindow):
             self.page_home.big_btn.setStyleSheet(f"""
                 QPushButton {{
                     border-radius: 50%;
-                    background-color: {bg_secondary};
-                    color: {accent};
+                    background-color: {accent};
+                    color: {bg_secondary};
                     font-size: {font_size}px;
                     font-weight: 700;
                     font-family: 'Segoe UI', sans-serif;
                     border: 2px solid {accent};
                 }}
                 QPushButton:hover {{
-                    background-color: {theme.get_color('accent_light')};
-                    border: 2px solid {accent};
+                    background-color: {theme.get_color('accent_hover')};
+                    border: 2px solid {accent_hover};
                 }}
                 QPushButton:disabled {{
                     background-color: {bg_disabled};
@@ -1831,6 +1835,14 @@ class MainWindow(QMainWindow):
             self.page_home.setStyleSheet("")
             # Обновляем стили кнопки
             self.update_big_button_state()
+            # Обновляем подложку большой кнопки
+            self._apply_big_btn_wrapper_style()
+            # Обновляем свечение кнопки при смене темы
+            if hasattr(self.page_home, 'big_btn'):
+                from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+                effect = self.page_home.big_btn.graphicsEffect()
+                if isinstance(effect, QGraphicsDropShadowEffect):
+                    effect.setColor(QColor(theme.get_color('accent')))
         
         # Обновляем навигацию
         nav = self.findChild(QWidget, "nav")
