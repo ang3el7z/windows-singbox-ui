@@ -52,6 +52,8 @@ if locales_dir.exists():
 # Collect qtawesome fonts and data files
 # This ensures fonts are available in bundled data, not just temp directory
 # Critical for app restart - prevents errors when temp _MEI directory is deleted
+# The hook file (hooks/hook-qtawesome.py) handles proper collection of qtawesome files
+# We still collect here as a fallback, but the hook should handle it
 qtawesome_data = collect_data_files('qtawesome')
 
 # Combine all data files
@@ -108,7 +110,7 @@ a = Analysis(
         'ui.dialogs.info_dialog',
         'ui.dialogs.language_dialog',
     ],
-    hookspath=[],
+    hookspath=['hooks'],  # Use custom hooks for qtawesome
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
