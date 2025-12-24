@@ -1629,45 +1629,7 @@ class MainWindow(QMainWindow):
                         self.page_settings.cb_run_as_admin.setChecked(False)
                         self.settings.set("run_as_admin", False)
                         self.page_settings.cb_run_as_admin.blockSignals(False)
-        elif not enabled and is_admin():
-            # Если выключили галочку, но приложение запущено от админа
-            # Предлагаем перезапустить без прав админа
-            if show_restart_admin_dialog(
-                self,
-                tr("messages.restart_required_title"),
-                "Для применения настройки 'Запускать от имени администратора' требуется перезапустить приложение.\n\nПерезапустить сейчас?"
-            ):
-                # Перезапускаем без прав админа
-                try:
-                    if getattr(sys, 'frozen', False):
-                        exe_path = sys.executable
-                        params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
-                        work_dir = str(Path(exe_path).parent)
-                    else:
-                        exe_path = sys.executable
-                        script_path = Path(__file__).parent / "main.py"
-                        params = f'"{script_path}" ' + " ".join(f'"{arg}"' for arg in sys.argv[1:])
-                        work_dir = str(Path(__file__).parent.parent)
-                    
-                    # Запускаем новый процесс без прав админа
-                    result = ctypes.windll.shell32.ShellExecuteW(
-                        None, "open", exe_path, params, work_dir, 1
-                    )
-                    if result > 32:
-                        # Даем время новому процессу запуститься
-                        import time
-                        time.sleep(1)
-                        app = QApplication.instance()
-                        if app:
-                            # Даем время новому процессу запуститься
-                            for _ in range(10):
-                                app.processEvents()
-                                time.sleep(0.1)
-                            # Закрываем приложение полностью
-                            app.quit()
-                        return
-                except Exception as e:
-                    log_to_file(f"Ошибка перезапуска без прав админа: {e}")
+        # Если выключили галочку — не требуем перезапуска. Настройка вступит в силу при следующем старте.
         
         # Действия пользователя - в обычные логи
         if enabled:
