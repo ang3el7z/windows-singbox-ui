@@ -269,7 +269,7 @@ class StyleSheet:
         }}
         QComboBox::drop-down {{
             border: none;
-            width: 30px;
+            width: 0px;
         }}
         QComboBox::down-arrow {{
             image: none;

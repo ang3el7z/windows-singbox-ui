@@ -373,8 +373,10 @@ class MainWindow(QMainWindow):
             self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         else:
+            from ui.styles import theme
+            warning_color = theme.get_color('warning')
             self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.page_home.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
             if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):
                 self.page_home.lbl_profile._original_mousePressEvent = self.page_home.lbl_profile.mousePressEvent
             
@@ -420,8 +422,15 @@ class MainWindow(QMainWindow):
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.setText(tr("home.update_available", version=latest_version))
                         self.page_home.lbl_update_info.show()
+                        # Делаем текст кликабельным
+                        if not hasattr(self.page_home.lbl_update_info, '_click_handler_set'):
+                            def handle_update_click(event):
+                                if event.button() == Qt.LeftButton:
+                                    self.show_download_dialog()
+                            self.page_home.lbl_update_info.mousePressEvent = handle_update_click
+                            self.page_home.lbl_update_info._click_handler_set = True
                     if hasattr(self.page_home, 'btn_version_update'):
-                        self.page_home.btn_version_update.show()
+                        self.page_home.btn_version_update.hide()
                 else:
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.hide()
@@ -828,8 +837,15 @@ class MainWindow(QMainWindow):
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.setText(tr("home.update_available", version=self.cached_latest_version))
                         self.page_home.lbl_update_info.show()
+                        # Делаем текст кликабельным
+                        if not hasattr(self.page_home.lbl_update_info, '_click_handler_set'):
+                            def handle_update_click(event):
+                                if event.button() == Qt.LeftButton:
+                                    self.show_download_dialog()
+                            self.page_home.lbl_update_info.mousePressEvent = handle_update_click
+                            self.page_home.lbl_update_info._click_handler_set = True
                     if hasattr(self.page_home, 'btn_version_update'):
-                        self.page_home.btn_version_update.show()
+                        self.page_home.btn_version_update.hide()
                 else:
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.hide()
@@ -957,8 +973,10 @@ class MainWindow(QMainWindow):
             self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
         else:
             # Нет профиля
+            from ui.styles import theme
+            warning_color = theme.get_color('warning')
             self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.page_home.lbl_profile.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
+            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px; cursor: pointer;")
             # Делаем кликабельным для перехода в профили
             # Сохраняем оригинальный mousePressEvent если он есть
             if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):

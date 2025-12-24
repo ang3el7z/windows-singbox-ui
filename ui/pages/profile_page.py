@@ -43,6 +43,8 @@ class ProfilePage(BasePage):
         
         # Список подписок (без обводки, внутри карточки)
         self.sub_list = QListWidget()
+        self.sub_list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.sub_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.sub_list.currentRowChanged.connect(self.main_window.on_sub_changed)
         # Убираем обводку у списка, оставляем только фон
         self.sub_list.setStyleSheet(f"""

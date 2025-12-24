@@ -25,6 +25,10 @@ class LogsWindow(QDialog):
         self.main_window = main_window
         self.current_mode = "logs"  # "logs" или "debug"
         
+        # Флаг для автоскролла
+        self.autoscroll_enabled = True
+        self.user_has_scrolled = False
+        
         self.setWindowTitle(tr("settings.logs"))
         self.setMinimumSize(600, 500)
         self.resize(800, 600)
@@ -42,6 +46,14 @@ class LogsWindow(QDialog):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self._update_logs)
         self.update_timer.start(500)  # Обновление каждые 500мс
+        
+        # Таймер для возврата автоскролла через 30 секунд
+        self.autoscroll_reset_timer = QTimer(self)
+        self.autoscroll_reset_timer.timeout.connect(self._re_enable_autoscroll)
+        self.autoscroll_reset_timer.setSingleShot(True)
+        
+        # Подключаем обработчик скролла
+        self.logs_text.verticalScrollBar().valueChanged.connect(self._on_scroll)
         
         # Загружаем логи при открытии
         self._update_logs()
@@ -196,12 +208,61 @@ class LogsWindow(QDialog):
                 self.logs_text.setPlainText("Debug mode is disabled. Click on the version 6 times to enable debug mode.")
                 self.logs_text.setStyleSheet(StyleSheet.text_edit())
         
-        # Прокручиваем вниз
+        # Проверяем позицию скролла и прокручиваем вниз если нужно
         scrollbar = self.logs_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        max_value = scrollbar.maximum()
+        current_value = scrollbar.value()
+        is_at_bottom = current_value >= max_value - 5
+        
+        # Если пользователь внизу, включаем автоскролл (на случай если он был выключен таймером)
+        if is_at_bottom:
+            self.autoscroll_enabled = True
+            self.user_has_scrolled = False
+            self.autoscroll_reset_timer.stop()
+        
+        # Прокручиваем вниз только если автоскролл включен
+        if self.autoscroll_enabled:
+            scrollbar.setValue(max_value)
+    
+    def _on_scroll(self, value):
+        """Обработка скролла пользователем"""
+        scrollbar = self.logs_text.verticalScrollBar()
+        max_value = scrollbar.maximum()
+        
+        # Определяем, находится ли пользователь внизу (с небольшим допуском в 5 пикселей)
+        is_at_bottom = value >= max_value - 5
+        
+        if is_at_bottom:
+            # Если пользователь прокрутил до самого низа, включаем автоскролл
+            self.autoscroll_enabled = True
+            self.user_has_scrolled = False
+            self.autoscroll_reset_timer.stop()
+        else:
+            # Если пользователь прокрутил вверх, выключаем автоскролл
+            if not self.user_has_scrolled:
+                self.user_has_scrolled = True
+                self.autoscroll_enabled = False
+            
+            # Сбрасываем и перезапускаем таймер на 30 секунд
+            self.autoscroll_reset_timer.stop()
+            self.autoscroll_reset_timer.start(30000)  # 30 секунд
+    
+    def _re_enable_autoscroll(self):
+        """Перевключает автоскролл после истечения таймера"""
+        scrollbar = self.logs_text.verticalScrollBar()
+        max_value = scrollbar.maximum()
+        current_value = scrollbar.value()
+        
+        # Проверяем, находится ли пользователь внизу
+        is_at_bottom = current_value >= max_value - 5
+        
+        if is_at_bottom:
+            self.autoscroll_enabled = True
+            self.user_has_scrolled = False
     
     def closeEvent(self, event):
         """Обработка закрытия окна"""
         self.update_timer.stop()
+        self.autoscroll_reset_timer.stop()
         super().closeEvent(event)
 

@@ -103,6 +103,7 @@ class HomePage(BasePage):
         self.lbl_update_info = QLabel()
         self.lbl_update_info.setFont(QFont("Segoe UI", 11))
         self.lbl_update_info.setStyleSheet(StyleSheet.label(variant="warning"))
+        self.lbl_update_info.setCursor(Qt.PointingHandCursor)
         self.lbl_update_info.hide()
         version_layout.addWidget(self.lbl_update_info)
         

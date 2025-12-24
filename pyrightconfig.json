@@ -1,0 +1,62 @@
+{
+    "include": [
+        "**/*.py"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/node_modules",
+        "**/.venv",
+        "**/build",
+        "**/dist",
+        "**/.git"
+    ],
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.8",
+    "pythonPlatform": "All",
+    "typeCheckingMode": "basic",
+    "executionEnvironments": [
+        {
+            "root": ".",
+            "pythonVersion": "3.8",
+            "pythonPlatform": "All",
+            "extraPaths": []
+        }
+    ],
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportUnusedImport": false,
+    "reportUnusedClass": false,
+    "reportUnusedFunction": false,
+    "reportUnusedVariable": false,
+    "reportDuplicateImport": false,
+    "reportOptionalSubscript": false,
+    "reportOptionalMemberAccess": false,
+    "reportOptionalCall": false,
+    "reportOptionalIterable": false,
+    "reportOptionalContextManager": false,
+    "reportOptionalOperand": false,
+    "reportGeneralTypeIssues": false,
+    "reportAttributeAccessIssue": false,
+    "reportArgumentType": false,
+    "reportAssignmentType": false,
+    "reportIncompatibleMethodOverride": false,
+    "reportIncompatibleVariableOverride": false,
+    "reportInconsistentConstructor": false,
+    "reportInvalidStringEscapeSequence": false,
+    "reportInvalidTypeVarUse": false,
+    "reportMissingParameterType": false,
+    "reportMissingTypeArgument": false,
+    "reportUnknownArgumentType": false,
+    "reportUnknownLambdaType": false,
+    "reportUnknownMemberType": false,
+    "reportUnknownParameterType": false,
+    "reportUnknownVariableType": false,
+    "reportUnnecessaryIsInstance": false,
+    "reportUnnecessaryCast": false,
+    "reportUnnecessaryComparison": false,
+    "reportUnnecessaryContains": false,
+    "reportUnusedCoroutine": false,
+    "reportWildcardImportFromLibrary": false
+}
+
