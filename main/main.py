@@ -1134,12 +1134,12 @@ class MainWindow(QMainWindow):
             if hasattr(self.page_home, 'big_btn'):
                 btn_size = self.page_home.big_btn.width()
                 if btn_size == 0:
-                    btn_size = 200  # Дефолтный размер
-                # Вычисляем размер шрифта на основе размера кнопки, затем уменьшаем на 2 пункта
+                    btn_size = 210  # Дефолтный размер
+                # Вычисляем размер шрифта на основе размера кнопки, затем уменьшаем на 3 пункта
                 font_size = max(18, min(32, int(btn_size / 7)))
-                font_size = font_size - 2  # Уменьшаем размер текста на 2 пункта
+                font_size = font_size - 3  # Уменьшаем размер текста на 3 пункта
             else:
-                font_size = 26  # Дефолтный размер (28 - 2)
+                font_size = 25  # Дефолтный размер (28 - 4)
         
         # Проверяем, нужно ли показать "Сменить" (оранжевый цвет)
         is_change_mode = (running and 
