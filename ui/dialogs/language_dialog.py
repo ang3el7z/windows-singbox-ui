@@ -1,6 +1,6 @@
 """Диалог выбора языка"""
 from typing import Optional
-from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QPushButton, QLabel
+from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
@@ -21,33 +21,21 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
     dialog.setWindowTitle(tr("language_dialog.title"))
     dialog.setMinimumWidth(400)
     dialog.setModal(True)
-    from ui.styles.constants import COLORS, SIZES, FONTS
-    dialog.setStyleSheet(f"""
-        QDialog {{
-            background-color: {COLORS['background_primary']};
-            border-radius: {SIZES['border_radius_medium']}px;
-        }}
-        QLabel {{
-            color: {COLORS['text_primary']};
-            background-color: transparent;
-            border: none;
-        }}
+    
+    # Стили диалога через дизайн-систему
+    dialog.setStyleSheet(StyleSheet.dialog() + f"""
         QPushButton {{
-            border-radius: {SIZES['border_radius_medium']}px;
-            padding: {SIZES['padding_medium']}px {SIZES['padding_large']}px;
-            font-size: {FONTS['size_medium']}px;
-            font-weight: {FONTS['weight_semibold']};
-            border: 2px solid {COLORS['accent']};
+            border: 2px solid {theme.get_color('accent')};
             background-color: transparent;
-            color: {COLORS['accent']};
+            color: {theme.get_color('accent')};
             margin: 4px;
         }}
         QPushButton:hover {{
-            background-color: {COLORS['accent_light']};
+            background-color: {theme.get_color('accent_light')};
         }}
         QPushButton:default {{
-            background-color: {COLORS['accent']};
-            color: {COLORS['background_primary']};
+            background-color: {theme.get_color('accent')};
+            color: {theme.get_color('background_primary')};
         }}
     """)
     
@@ -76,12 +64,16 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         btn.clicked.connect(lambda checked, l=lang_code: select_language(l))
         layout.addWidget(btn)
     
-    # Кнопка OK
+    # Кнопка OK (справа)
+    btn_layout = QHBoxLayout()
+    btn_layout.addStretch()  # Растяжка слева
     btn_ok = QPushButton(tr("language_dialog.ok"))
     btn_ok.setCursor(Qt.PointingHandCursor)
     btn_ok.setDefault(True)
+    btn_ok.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
     btn_ok.clicked.connect(dialog.accept)
-    layout.addWidget(btn_ok)
+    btn_layout.addWidget(btn_ok)
+    layout.addLayout(btn_layout)
     
     if dialog.exec_() == QDialog.Accepted:
         return selected_language[0]

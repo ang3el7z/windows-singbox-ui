@@ -102,6 +102,7 @@ a = Analysis(
         'ui.dialogs.confirm_dialog',
         'ui.dialogs.info_dialog',
         'ui.dialogs.language_dialog',
+        'ui.dialogs.input_dialog',
     ],
     hookspath=[],
     hooksconfig={},

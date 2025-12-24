@@ -5,8 +5,8 @@
 import sys
 from urllib.parse import urlparse, unquote
 from typing import TYPE_CHECKING
-from PyQt5.QtWidgets import QMessageBox
 from utils.i18n import tr
+from ui.dialogs.info_dialog import show_info_dialog
 
 if TYPE_CHECKING:
     from main import MainWindow
@@ -116,7 +116,7 @@ class DeepLinkHandler:
         existing_urls = [s.get("url", "").strip() for s in self.main_window.subs.data.get("subscriptions", [])]
         if url in existing_urls:
             self.main_window.log(tr("messages.subscription_already_exists"))
-            QMessageBox.information(
+            show_info_dialog(
                 self.main_window,
                 tr("messages.subscription_exists_title"),
                 tr("messages.subscription_exists_text")
@@ -130,10 +130,11 @@ class DeepLinkHandler:
             self.main_window.log(tr("profile.added", name=name))
             
             # Показываем уведомление
-            QMessageBox.information(
+            show_info_dialog(
                 self.main_window,
                 tr("messages.subscription_imported_title"),
-                tr("messages.subscription_imported_text", name=name)
+                tr("messages.subscription_imported_text", name=name),
+                success=True
             )
             
             # Переключаемся на страницу профилей
@@ -142,7 +143,7 @@ class DeepLinkHandler:
             from utils.logger import log_to_file
             log_to_file(f"[Deep Link] Error importing subscription: {e}")
             self.main_window.log(tr("messages.subscription_import_error", error=str(e)))
-            QMessageBox.warning(
+            show_info_dialog(
                 self.main_window,
                 tr("messages.subscription_import_error_title"),
                 tr("messages.subscription_import_error_text", error=str(e))

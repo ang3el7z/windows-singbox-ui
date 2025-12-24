@@ -33,12 +33,8 @@ class LogsWindow(QDialog):
         self.setMinimumSize(600, 500)
         self.resize(800, 600)
         
-        # Устанавливаем стиль окна
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {theme.get_color('background_primary')};
-            }}
-        """)
+        # Устанавливаем стиль окна через дизайн-систему
+        self.setStyleSheet(StyleSheet.dialog())
         
         self._build_ui()
         
@@ -72,6 +68,7 @@ class LogsWindow(QDialog):
         self.btn_logs.setCheckable(True)
         self.btn_logs.setChecked(True)
         self.btn_logs.clicked.connect(lambda: self._switch_mode("logs"))
+        # Используем такой же стиль, как у кнопки логов в настройках
         self.btn_logs.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.get_color('background_tertiary')};
@@ -89,9 +86,9 @@ class LogsWindow(QDialog):
                 border-color: {theme.get_color('border_hover')};
             }}
             QPushButton:checked {{
-                background-color: {theme.get_color('accent')};
-                color: #ffffff;
-                border-color: {theme.get_color('accent')};
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border-color: {theme.get_color('border')};
             }}
         """)
         buttons_row.addWidget(self.btn_logs, 1)

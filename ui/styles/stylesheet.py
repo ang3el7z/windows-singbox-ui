@@ -339,6 +339,102 @@ class StyleSheet:
         """
     
     @staticmethod
+    def progress_bar() -> str:
+        """Генерирует стиль прогресс-бара"""
+        return f"""
+        QProgressBar {{
+            border: 1px solid {theme.get_color('border')};
+            border-radius: {theme.get_size('border_radius_medium')}px;
+            text-align: center;
+            background-color: {theme.get_color('background_secondary')};
+            color: {theme.get_color('text_primary')};
+            font-family: {theme.get_font('family')};
+            font-size: {theme.get_font('size_small')}px;
+            height: 24px;
+        }}
+        QProgressBar::chunk {{
+            background-color: {theme.get_color('accent')};
+            border-radius: {theme.get_size('border_radius_small')}px;
+        }}
+        """
+    
+    @staticmethod
+    def dialog() -> str:
+        """Генерирует стиль диалогового окна"""
+        return f"""
+        QDialog {{
+            background-color: {theme.get_color('background_primary')};
+            border-radius: {theme.get_size('border_radius_medium')}px;
+        }}
+        QLabel {{
+            color: {theme.get_color('text_primary')};
+            background-color: transparent;
+            border: none;
+        }}
+        QPushButton {{
+            border-radius: {theme.get_size('border_radius_medium')}px;
+            padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+            font-size: {theme.get_font('size_medium')}px;
+            font-weight: {theme.get_font('weight_semibold')};
+            font-family: {theme.get_font('family')};
+            border: none;
+        }}
+        """
+    
+    @staticmethod
+    def dialog_button(
+        variant: str = "default",
+        is_primary: bool = False
+    ) -> str:
+        """
+        Генерирует стиль кнопки диалога
+        
+        Args:
+            variant: Вариант кнопки (default, cancel, confirm, warning, success)
+            is_primary: Является ли кнопка основной (для confirm/warning/success)
+        """
+        if variant == "cancel":
+            return f"""
+            QPushButton {{
+                background-color: rgba(255,255,255,0.05);
+                color: {theme.get_color('text_secondary')};
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255,255,255,0.1);
+            }}
+            """
+        elif variant == "warning":
+            return f"""
+            QPushButton {{
+                background-color: {theme.get_color('error')};
+                color: #ffffff;
+            }}
+            QPushButton:hover {{
+                background-color: #ff8787;
+            }}
+            """
+        elif variant == "success":
+            return f"""
+            QPushButton {{
+                background-color: {theme.get_color('success')};
+                color: #020617;
+            }}
+            QPushButton:hover {{
+                background-color: #5fffe3;
+            }}
+            """
+        else:  # confirm или default
+            return f"""
+            QPushButton {{
+                background-color: {theme.get_color('accent')};
+                color: #020617;
+            }}
+            QPushButton:hover {{
+                background-color: #5fffe3;
+            }}
+            """
+    
+    @staticmethod
     def global_styles() -> str:
         """Генерирует глобальные стили приложения"""
         return f"""

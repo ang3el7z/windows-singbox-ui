@@ -102,7 +102,7 @@ def cleanup_single_instance(server_name: str, local_server: QLocalServer | None)
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
-    QSpinBox, QCheckBox, QInputDialog, QMessageBox, QDialog, QProgressBar,
+    QSpinBox, QCheckBox, QDialog, QProgressBar,
     QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox, QSizePolicy
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QByteArray
@@ -114,6 +114,9 @@ from utils.icon_helper import icon
 from ui.widgets import CardWidget, NavButton, TitleBar
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
+from ui.dialogs.info_dialog import show_info_dialog
+from ui.dialogs.confirm_dialog import show_confirm_dialog
+from ui.dialogs.input_dialog import show_input_dialog
 
 # Импорты из архитектуры проекта
 from config.paths import (
@@ -554,52 +557,10 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("profile.add_subscription"))
         dialog.setMinimumWidth(420)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #0b0f1a;
-            }
-            QLabel {
-                color: #e5e9ff;
-                font-size: 14px;
-                font-weight: 500;
-                background-color: transparent;
-                border: none;
-                padding: 0px;
-            }
-            QLineEdit {
-                background-color: #1a1f2e;
-                color: #e5e9ff;
-                border: 1px solid rgba(0,245,212,0.2);
-                border-radius: 12px;
-                padding: 12px 16px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border: 1px solid #00f5d4;
-                background-color: #1f2937;
-            }
-            QPushButton {
-                border-radius: 12px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-                border: none;
-            }
-            QPushButton#btnAdd {
-                background-color: #00f5d4;
-                color: #020617;
-            }
-            QPushButton#btnAdd:hover {
-                background-color: #5fffe3;
-            }
-            QPushButton#btnCancel {
-                background-color: rgba(255,255,255,0.05);
-                color: #9ca3af;
-            }
-            QPushButton#btnCancel:hover {
-                background-color: rgba(255,255,255,0.1);
-            }
-        """)
+        dialog.setModal(True)
+        
+        # Стили диалога через дизайн-систему
+        dialog.setStyleSheet(StyleSheet.dialog() + StyleSheet.input())
         
         layout = QVBoxLayout(dialog)
         layout.setSpacing(20)
@@ -608,41 +569,48 @@ class MainWindow(QMainWindow):
         # Заголовок
         title_label = QLabel(tr("profile.add_subscription"))
         title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-        title_label.setStyleSheet("color: #ffffff; margin-bottom: 8px;")
+        title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
         layout.addWidget(title_label)
         
         # Название
         name_label = QLabel(tr("profile.name"))
-        name_label.setStyleSheet("margin-top: 8px;")
+        name_label.setStyleSheet(StyleSheet.label(variant="default", size="medium") + "margin-top: 8px;")
         layout.addWidget(name_label)
         
         name_input = QLineEdit()
         name_input.setPlaceholderText(tr("profile.name"))
+        name_input.setStyleSheet(StyleSheet.input())
         layout.addWidget(name_input)
         
         # URL
         url_label = QLabel(tr("profile.url"))
-        url_label.setStyleSheet("margin-top: 8px;")
+        url_label.setStyleSheet(StyleSheet.label(variant="default", size="medium") + "margin-top: 8px;")
         layout.addWidget(url_label)
         
         url_input = QLineEdit()
         url_input.setPlaceholderText("https://...")
+        url_input.setStyleSheet(StyleSheet.input())
         layout.addWidget(url_input)
         
         # Кнопки
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
         
+        # Кнопка отмены слева
         btn_cancel = QPushButton(tr("download.cancel"))
-        btn_cancel.setObjectName("btnCancel")
         btn_cancel.setCursor(Qt.PointingHandCursor)
+        btn_cancel.setStyleSheet(StyleSheet.dialog_button(variant="cancel"))
         btn_cancel.clicked.connect(dialog.reject)
         btn_layout.addWidget(btn_cancel)
         
+        # Растяжка между кнопками
+        btn_layout.addStretch()
+        
+        # Кнопка добавления справа
         btn_add = QPushButton(tr("profile.add"))
-        btn_add.setObjectName("btnAdd")
         btn_add.setCursor(Qt.PointingHandCursor)
         btn_add.setDefault(True)
+        btn_add.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
         
         def on_add_clicked():
             name = name_input.text().strip()
@@ -660,7 +628,7 @@ class MainWindow(QMainWindow):
                 self.log(tr("profile.added", name=name))
                 dialog.accept()
             else:
-                QMessageBox.warning(dialog, tr("profile.add_subscription"), tr("profile.fill_all_fields"))
+                show_info_dialog(dialog, tr("profile.add_subscription"), tr("profile.fill_all_fields"))
         
         btn_add.clicked.connect(on_add_clicked)
         btn_layout.addWidget(btn_add)
@@ -723,7 +691,7 @@ class MainWindow(QMainWindow):
             return
         
         # Диалог для ввода нового имени
-        new_name, ok = QInputDialog.getText(
+        new_name, ok = show_input_dialog(
             self,
             tr("profile.rename_subscription"),
             tr("profile.rename_confirm", name=sub['name']),
@@ -762,60 +730,21 @@ class MainWindow(QMainWindow):
             ok = self.subs.download_config(row)
             if ok:
                 self.log(tr("profile.test_success"))
-                # Показываем успешное сообщение более заметно
-                msg = QMessageBox(self)
-                msg.setWindowTitle(tr("profile.test"))
-                msg.setText(tr("profile.test_success"))
-                msg.setInformativeText(f"Subscription '{sub_name}' works correctly. Config downloaded successfully.")
-                msg.setIcon(QMessageBox.Information)
-                msg.setStyleSheet("""
-                    QMessageBox {
-                        background-color: #0b0f1a;
-                    }
-                    QLabel {
-                        color: #e5e9ff;
-                    }
-                    QPushButton {
-                        background-color: #1a1f2e;
-                        color: #00f5d4;
-                        border: 2px solid #00f5d4;
-                        border-radius: 8px;
-                        padding: 8px 16px;
-                        min-width: 80px;
-                    }
-                    QPushButton:hover {
-                        background-color: rgba(0,245,212,0.1);
-                    }
-                """)
-                msg.exec_()
+                # Показываем успешное сообщение
+                show_info_dialog(
+                    self,
+                    tr("profile.test"),
+                    f"{tr('profile.test_success')}\n\nSubscription '{sub_name}' works correctly. Config downloaded successfully.",
+                    success=True
+                )
             else:
                 self.log(tr("profile.test_error"))
-                # Показываем ошибку более заметно
-                msg = QMessageBox(self)
-                msg.setWindowTitle(tr("profile.test"))
-                msg.setText(tr("profile.test_error"))
-                msg.setInformativeText(f"Failed to download config from subscription '{sub_name}'. Please check the URL.")
-                msg.setIcon(QMessageBox.Warning)
-                msg.setStyleSheet("""
-                    QMessageBox {
-                        background-color: #0b0f1a;
-                    }
-                    QLabel {
-                        color: #e5e9ff;
-                    }
-                    QPushButton {
-                        background-color: #1a1f2e;
-                        color: #00f5d4;
-                        border: 2px solid #00f5d4;
-                        border-radius: 8px;
-                        padding: 8px 16px;
-                        min-width: 80px;
-                    }
-                    QPushButton:hover {
-                        background-color: rgba(0,245,212,0.1);
-                    }
-                """)
-                msg.exec_()
+                # Показываем ошибку
+                show_info_dialog(
+                    self,
+                    tr("profile.test"),
+                    f"{tr('profile.test_error')}\n\nFailed to download config from subscription '{sub_name}'. Please check the URL."
+                )
         finally:
             pass
     
@@ -917,7 +846,7 @@ class MainWindow(QMainWindow):
         updater_exe = DATA_DIR / "updater.exe"
         
         if not updater_exe.exists():
-            QMessageBox.warning(self, tr("app.update_error_title"), f"updater.exe not found at {updater_exe}")
+            show_info_dialog(self, tr("app.update_error_title"), f"updater.exe not found at {updater_exe}")
             return
         
         log_to_file(f"[App Update] Starting updater.exe (target={self.cached_app_latest_version or 'latest main'})")
@@ -937,7 +866,7 @@ class MainWindow(QMainWindow):
             QApplication.quit()
         except Exception as e:
             log_to_file(f"[App Update] Error starting updater: {e}")
-            QMessageBox.warning(self, tr("app.update_error_title"), f"Error starting updater: {e}")
+            show_info_dialog(self, tr("app.update_error_title"), f"Error starting updater: {e}")
     
     def update_profile_info(self):
         """Обновление информации о профиле"""
@@ -1043,56 +972,54 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("download.title"))
         dialog.setMinimumWidth(400)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #0b0f1a;
-            }
-            QLabel {
-                color: #e5e9ff;
-            }
-            QPushButton {
-                background-color: #00f5d4;
-                color: #020617;
-                border-radius: 8px;
-                padding: 10px 20px;
-                font-weight: 600;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #5fffe3;
-            }
-            QPushButton:disabled {
-                background-color: #475569;
-                color: #94a3b8;
-            }
-        """)
+        dialog.setModal(True)
+        
+        # Стили диалога через дизайн-систему
+        dialog.setStyleSheet(StyleSheet.dialog() + StyleSheet.progress_bar())
         
         layout = QVBoxLayout(dialog)
         layout.setSpacing(16)
         layout.setContentsMargins(24, 24, 24, 24)
         
+        # Заголовок
         title = QLabel(tr("download.not_installed"))
-        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        title.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
+        title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
         layout.addWidget(title)
         
+        # Описание
         info = QLabel(tr("download.description"))
         info.setWordWrap(True)
+        info.setStyleSheet(StyleSheet.label(variant="secondary", size="medium"))
         layout.addWidget(info)
         
+        # Прогресс-бар
         self.download_progress = QProgressBar()
         self.download_progress.setRange(0, 100)
         self.download_progress.setValue(0)
         self.download_progress.hide()
+        self.download_progress.setStyleSheet(StyleSheet.progress_bar())
         layout.addWidget(self.download_progress)
         
+        # Кнопки
         btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
+        btn_layout.setSpacing(12)
         
+        # Кнопка отмены слева
         btn_cancel = QPushButton(tr("download.cancel"))
+        btn_cancel.setCursor(Qt.PointingHandCursor)
+        btn_cancel.setStyleSheet(StyleSheet.dialog_button(variant="cancel"))
         btn_cancel.clicked.connect(dialog.reject)
         btn_layout.addWidget(btn_cancel)
         
+        # Растяжка между кнопками
+        btn_layout.addStretch()
+        
+        # Кнопка загрузки справа
         btn_download = QPushButton(tr("download.download"))
+        btn_download.setCursor(Qt.PointingHandCursor)
+        btn_download.setDefault(True)
+        btn_download.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
         btn_download.clicked.connect(lambda: self.start_download(dialog, btn_download))
         btn_layout.addWidget(btn_download)
         
@@ -1119,11 +1046,11 @@ class MainWindow(QMainWindow):
         """Завершение загрузки"""
         self.download_progress.hide()
         if success:
-            QMessageBox.information(dialog, tr("download.success"), message)
+            show_info_dialog(dialog, tr("download.success"), message, success=True)
             dialog.accept()
             self.update_version_info()
         else:
-            QMessageBox.warning(dialog, tr("download.error"), message)
+            show_info_dialog(dialog, tr("download.error"), message)
             btn_download.setEnabled(True)
             btn_download.setText(tr("download.download"))
     
@@ -1481,8 +1408,7 @@ class MainWindow(QMainWindow):
         
         # На 5-м клике показываем сообщение
         if self.version_click_count == 5:
-            from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.information(
+            show_info_dialog(
                 self,
                 "Debug Mode",
                 "Нажмите ещё один раз, чтобы активировать режим разработчика"
@@ -1500,8 +1426,7 @@ class MainWindow(QMainWindow):
             
             if new_debug:
                 log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
-                from PyQt5.QtWidgets import QMessageBox
-                QMessageBox.information(
+                show_info_dialog(
                     self,
                     "Debug Mode",
                     "Режим разработчика активирован"
@@ -2407,7 +2332,7 @@ if __name__ == "__main__":
         log_to_file(error_msg)
         # Показываем сообщение об ошибке пользователю
         try:
-            QMessageBox.critical(
+            show_info_dialog(
                 None,
                 "Ошибка запуска",
                 f"Произошла критическая ошибка при запуске приложения:\n\n{str(e)}\n\nПроверьте файл логов: {LOG_FILE}"
