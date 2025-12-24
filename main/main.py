@@ -53,6 +53,40 @@ def get_version() -> str:
 
 __version__ = get_version()  # Версия приложения
 
+# Глобальный mutex для единственного экземпляра (охватывает admin / non-admin)
+GLOBAL_MUTEX_HANDLE = None
+
+
+def create_global_mutex():
+    """
+    Создает глобальный mutex, доступный между сессиями (Global\\).
+    Возвращает (handle, already_exists: bool)
+    """
+    global GLOBAL_MUTEX_HANDLE
+    if sys.platform != "win32":
+        return None, False
+    try:
+        kernel32 = ctypes.windll.kernel32
+        mutex_name = "Global\\SingBox-UI-Instance"
+        handle = kernel32.CreateMutexW(None, False, mutex_name)
+        last_error = kernel32.GetLastError()
+        GLOBAL_MUTEX_HANDLE = handle
+        already_exists = last_error == 183  # ERROR_ALREADY_EXISTS
+        return handle, already_exists
+    except Exception:
+        return None, False
+
+
+def release_global_mutex():
+    """Закрывает дескриптор глобального mutex"""
+    global GLOBAL_MUTEX_HANDLE
+    if GLOBAL_MUTEX_HANDLE:
+        try:
+            ctypes.windll.kernel32.CloseHandle(GLOBAL_MUTEX_HANDLE)
+        except Exception:
+            pass
+        GLOBAL_MUTEX_HANDLE = None
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
@@ -114,8 +148,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "local_server"):
             self.local_server = None
         self._pending_args = []
-        if self.local_server:
-            self.local_server.newConnection.connect(self._handle_new_instance)
+        # Подключение newConnection настраивается в main при передаче сервера
         
         # Проверяем, выбран ли язык (первый запуск)
         language = self.settings.get("language", "")
@@ -945,6 +978,10 @@ class MainWindow(QMainWindow):
             ):
                 if restart_as_admin():
                     # Закрываем приложение полностью, даже если включен трей режим
+                    release_global_mutex()
+                    if self.local_server:
+                        self.local_server.close()
+                        QLocalServer.removeServer("SingBox-UI-Instance")
                     QApplication.instance().quit()
                 else:
                     self.log(tr("messages.admin_restart_failed"))
@@ -1243,6 +1280,10 @@ class MainWindow(QMainWindow):
             ):
                 if restart_as_admin():
                     # Закрываем приложение полностью, даже если включен трей режим
+                    release_global_mutex()
+                    if self.local_server:
+                        self.local_server.close()
+                        QLocalServer.removeServer("SingBox-UI-Instance")
                     QApplication.instance().quit()
                     return
                 else:
@@ -1307,6 +1348,10 @@ class MainWindow(QMainWindow):
             ):
                 if restart_as_admin():
                     # Закрываем приложение полностью, даже если включен трей режим
+                    release_global_mutex()
+                    if self.local_server:
+                        self.local_server.close()
+                        QLocalServer.removeServer("SingBox-UI-Instance")
                     QApplication.instance().quit()
                     return
                 else:
@@ -1570,6 +1615,10 @@ class MainWindow(QMainWindow):
             ):
                 if restart_as_admin():
                     # Закрываем приложение полностью, даже если включен трей режим
+                    release_global_mutex()
+                    if self.local_server:
+                        self.local_server.close()
+                        QLocalServer.removeServer("SingBox-UI-Instance")
                     QApplication.instance().quit()
                     return
                 else:
@@ -2025,6 +2074,7 @@ class MainWindow(QMainWindow):
         if self.local_server:
             self.local_server.close()
             QLocalServer.removeServer("SingBox-UI-Instance")
+        release_global_mutex()
         QApplication.quit()
     
     # Логи (делегируются в LogUIManager)
@@ -2105,6 +2155,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'local_server') and self.local_server:
             self.local_server.close()
             QLocalServer.removeServer("SingBox-UI-Instance")
+        release_global_mutex()
         event.accept()
 
 
@@ -2156,6 +2207,9 @@ if __name__ == "__main__":
         except Exception:
             pass
     
+        # Глобальный mutex для одного экземпляра (общий для admin/non-admin)
+        mutex_handle, mutex_exists = create_global_mutex()
+        
         # Проверка единственного экземпляра приложения через локальный сервер
         skip_single_instance = False
         if "--ignore-single-instance" in sys.argv:
@@ -2166,15 +2220,33 @@ if __name__ == "__main__":
         local_server = None
         
         if not allow_multiple and not skip_single_instance:
+            # Если глобальный mutex уже существует, пытаемся передать аргументы и выйти
+            if mutex_exists:
+                socket = QLocalSocket()
+                socket.connectToServer(server_name)
+                if socket.waitForConnected(500):
+                    args = sys.argv[1:] if len(sys.argv) > 1 else []
+                    if args:
+                        data = '\n'.join(args).encode('utf-8')
+                        socket.write(data)
+                        socket.waitForBytesWritten(1000)
+                        socket.flush()
+                    socket.disconnectFromServer()
+                    socket.close()
+                    log_to_file("[Startup] Другой экземпляр уже запущен (mutex), передаем аргументы и выходим")
+                    sys.exit(0)
+                else:
+                    # Экземпляр в другой сессии (admin/non-admin). Просто выходим.
+                    log_to_file("[Startup] Глобальный mutex существует, экземпляр в другой сессии. Выходим.")
+                    sys.exit(0)
+
+            # Если mutex новый — создаем локальный сервер
             socket = QLocalSocket()
             socket.connectToServer(server_name)
             
-            # Ждем подключения (таймаут 500мс для надежности)
             if socket.waitForConnected(500):
-                # Другой экземпляр уже запущен - отправляем ему аргументы и выходим
                 args = sys.argv[1:] if len(sys.argv) > 1 else []
                 if args:
-                    # Отправляем аргументы через сокет
                     data = '\n'.join(args).encode('utf-8')
                     socket.write(data)
                     socket.waitForBytesWritten(1000)
@@ -2184,16 +2256,12 @@ if __name__ == "__main__":
                 log_to_file("[Startup] Другой экземпляр уже запущен, передаем аргументы и выходим")
                 sys.exit(0)
             else:
-                # Не удалось подключиться - значит это первый экземпляр
-                # Удаляем старый сервер если он существует (на случай зависшего процесса)
                 QLocalServer.removeServer(server_name)
                 
-                # Создаем локальный сервер для этого экземпляра
                 local_server = QLocalServer()
                 if not local_server.listen(server_name):
                     error = local_server.errorString()
                     log_to_file(f"[Startup Warning] Не удалось запустить локальный сервер: {error}")
-                    # Продолжаем работу даже если сервер не запустился
                     local_server = None
                 else:
                     log_to_file("[Startup] Локальный сервер запущен успешно")
@@ -2237,6 +2305,10 @@ if __name__ == "__main__":
             if run_as_admin_setting and not is_admin():
                 log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
                 if restart_as_admin():
+                    release_global_mutex()
+                    if local_server:
+                        local_server.close()
+                        QLocalServer.removeServer(server_name)
                     sys.exit(0)
                 else:
                     log_to_file("[Startup] Не удалось перезапустить от имени администратора")
