@@ -1135,9 +1135,11 @@ class MainWindow(QMainWindow):
                 btn_size = self.page_home.big_btn.width()
                 if btn_size == 0:
                     btn_size = 200  # Дефолтный размер
+                # Вычисляем размер шрифта на основе размера кнопки, затем уменьшаем на 2 пункта
                 font_size = max(18, min(32, int(btn_size / 7)))
+                font_size = font_size - 2  # Уменьшаем размер текста на 2 пункта
             else:
-                font_size = 28  # Дефолтный размер
+                font_size = 26  # Дефолтный размер (28 - 2)
         
         # Проверяем, нужно ли показать "Сменить" (оранжевый цвет)
         is_change_mode = (running and 
@@ -1934,16 +1936,26 @@ class MainWindow(QMainWindow):
             # Ждем данные от нового экземпляра
             if socket.waitForReadyRead(1000):
                 data = socket.readAll().data()
-                socket.disconnectFromServer()
-                socket.close()
-                socket.deleteLater()
                 
                 # Проверяем команду перезапуска
                 if data == b"__RESTART__":
-                    log_to_file("[Restart] Получена команда перезапуска, закрываем приложение")
-                    # Закрываем приложение для перезапуска
-                    QTimer.singleShot(100, QApplication.quit)
+                    log_to_file("[Restart] Получена команда перезапуска, ожидаем подтверждения от нового процесса")
+                    # Отправляем подтверждение новому процессу, что мы готовы закрыться
+                    socket.write(b"__RESTART_ACK__")
+                    socket.waitForBytesWritten(1000)
+                    socket.flush()
+                    socket.disconnectFromServer()
+                    socket.close()
+                    socket.deleteLater()
+                    
+                    # Даем время новому процессу захватить mutex, затем закрываемся
+                    QTimer.singleShot(500, lambda: self._restart_shutdown())
                     return
+                
+                # Обычные данные
+                socket.disconnectFromServer()
+                socket.close()
+                socket.deleteLater()
                 
                 # Обычные аргументы (deep link)
                 try:
@@ -1966,6 +1978,14 @@ class MainWindow(QMainWindow):
                 socket.close()
                 socket.deleteLater()
                 self._restore_window()
+    
+    def _restart_shutdown(self):
+        """Закрытие приложения при перезапуске"""
+        from utils.logger import log_to_file
+        log_to_file("[Restart] Закрываем старое приложение после подтверждения от нового процесса")
+        # Освобождаем mutex только в самом конце
+        release_global_mutex()
+        QApplication.quit()
     
     def _restore_window(self):
         """Восстановление окна из свернутого состояния"""
@@ -2156,25 +2176,52 @@ if __name__ == "__main__":
                         socket.write(b"__RESTART__")
                         socket.waitForBytesWritten(1000)
                         socket.flush()
+                        
+                        # Ждем подтверждения от старого процесса
+                        if socket.waitForReadyRead(2000):
+                            ack = socket.readAll().data()
+                            if ack == b"__RESTART_ACK__":
+                                log_to_file("[Restart] Получено подтверждение от старого процесса")
+                        
                         socket.disconnectFromServer()
                         socket.close()
                         log_to_file("[Restart] Команда перезапуска отправлена старому процессу")
                     else:
                         log_to_file("[Restart] Не удалось подключиться к старому процессу, продолжаем...")
                     
-                    # Освобождаем наш временный mutex и ждем
+                    # Освобождаем наш временный mutex
                     release_global_mutex()
                     # Ждем, пока старый процесс закроется и освободит ресурсы
-                    time.sleep(2.0)
-                    # Создаем новый mutex
-                    mutex_handle, mutex_exists = create_global_mutex()
-                    if mutex_exists:
-                        # Старый процесс еще не закрылся, продолжаем ждать
-                        log_to_file("[Restart] Старый процесс еще не закрылся, ждем еще...")
+                    # Старый процесс держит mutex до последнего момента
+                    mutex_captured = False
+                    for attempt in range(30):  # Максимум 3 секунды
+                        time.sleep(0.1)
+                        mutex_handle_new, mutex_exists_new = create_global_mutex()
+                        if not mutex_exists_new:
+                            # Старый процесс освободил mutex, мы его захватили
+                            mutex_handle = mutex_handle_new
+                            mutex_exists = False
+                            mutex_captured = True
+                            log_to_file(f"[Restart] Mutex захвачен после {attempt + 1} попыток")
+                            break
+                        # Освобождаем временный mutex для следующей проверки
                         release_global_mutex()
-                        time.sleep(1.0)
+                    
+                    if not mutex_captured:
+                        # Если не удалось захватить mutex, создаем свой
+                        log_to_file("[Restart] Не удалось захватить mutex старого процесса, создаем новый")
                         mutex_handle, mutex_exists = create_global_mutex()
+                        mutex_captured = True
+                    
+                    # Если мы перезапускаемся и захватили mutex, переходим к созданию local_server
+                    # Пропускаем все проверки на существующий экземпляр
+                    if mutex_captured:
+                        log_to_file("[Restart] Mutex захвачен, продолжаем запуск нового процесса")
+                        # Устанавливаем mutex_exists в False, чтобы пропустить проверки ниже
+                        mutex_exists = False
+                        # Переходим к созданию local_server (код ниже)
                 
+                # Обычный запуск (не перезапуск) - проверяем на существующий экземпляр
                 if mutex_exists and not is_restart:
                     # Обычный запуск - передаем аргументы и выходим
                     socket = QLocalSocket()
@@ -2204,32 +2251,35 @@ if __name__ == "__main__":
                         cleanup_single_instance(server_name, None)
                         sys.exit(0)
 
-            # Если mutex новый — создаем локальный сервер
-            socket = QLocalSocket()
-            socket.connectToServer(server_name)
-            
-            if socket.waitForConnected(500):
-                args = sys.argv[1:] if len(sys.argv) > 1 else []
-                if args:
-                    data = '\n'.join(args).encode('utf-8')
-                    socket.write(data)
-                    socket.waitForBytesWritten(1000)
-                    socket.flush()
-                socket.disconnectFromServer()
-                socket.close()
-                log_to_file("[Startup] Другой экземпляр уже запущен, передаем аргументы и выходим")
-                cleanup_single_instance(server_name, None)
-                sys.exit(0)
-            else:
-                QLocalServer.removeServer(server_name)
+            # Если mutex новый или мы перезапускаемся — создаем локальный сервер
+            # При перезапуске пропускаем проверку на существующий сервер, т.к. старый процесс уже закрывается
+            if not is_restart:
+                socket = QLocalSocket()
+                socket.connectToServer(server_name)
                 
-                local_server = QLocalServer()
-                if not local_server.listen(server_name):
-                    error = local_server.errorString()
-                    log_to_file(f"[Startup Warning] Не удалось запустить локальный сервер: {error}")
-                    local_server = None
-                else:
-                    log_to_file("[Startup] Локальный сервер запущен успешно")
+                if socket.waitForConnected(500):
+                    args = sys.argv[1:] if len(sys.argv) > 1 else []
+                    if args:
+                        data = '\n'.join(args).encode('utf-8')
+                        socket.write(data)
+                        socket.waitForBytesWritten(1000)
+                        socket.flush()
+                    socket.disconnectFromServer()
+                    socket.close()
+                    log_to_file("[Startup] Другой экземпляр уже запущен, передаем аргументы и выходим")
+                    cleanup_single_instance(server_name, None)
+                    sys.exit(0)
+            
+            # Удаляем старый сервер если есть (при перезапуске он должен быть удален старым процессом, но на всякий случай)
+            QLocalServer.removeServer(server_name)
+            
+            local_server = QLocalServer()
+            if not local_server.listen(server_name):
+                error = local_server.errorString()
+                log_to_file(f"[Startup Warning] Не удалось запустить локальный сервер: {error}")
+                local_server = None
+            else:
+                log_to_file("[Startup] Локальный сервер запущен успешно")
         
         # Проверяем доступность системного трея
         # НЕ закрываем приложение если трей недоступен - просто не используем его
