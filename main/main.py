@@ -110,7 +110,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 import qtawesome as qta
 
 # Импорты новых UI компонентов
-from ui.widgets import CardWidget, NavButton
+from ui.widgets import CardWidget, NavButton, TitleBar
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
 
@@ -145,6 +145,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         # Сначала создаем папки
         ensure_dirs()
+        
+        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         
         # Инициализируем менеджеры
         self.settings = SettingsManager()
@@ -201,6 +204,10 @@ class MainWindow(QMainWindow):
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
+
+        # Собственный статус-бар в стиле приложения
+        self.title_bar = TitleBar(self)
+        root.addWidget(self.title_bar)
 
         # Стек страниц
         self.stack = QStackedWidget()
@@ -888,12 +895,12 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr("app.update_error_title"), f"updater.exe not found at {updater_exe}")
             return
         
-        log_to_file(f"[App Update] Starting updater.exe with version: {self.cached_app_latest_version}")
+        log_to_file(f"[App Update] Starting updater.exe (target={self.cached_app_latest_version or 'latest main'})")
         
-        # Запускаем updater.exe с версией
+        # Запускаем updater.exe (updater сам узнает последнюю версию из main)
         try:
             subprocess.Popen(
-                [str(updater_exe), self.cached_app_latest_version],
+                [str(updater_exe)],
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             
@@ -1717,6 +1724,8 @@ class MainWindow(QMainWindow):
         """Обновление всех текстов в интерфейсе после смены языка"""
         # Обновляем заголовок окна
         self.setWindowTitle(tr("app.title"))
+        if hasattr(self, "title_bar"):
+            self.title_bar.set_title(tr("app.title"))
         
         # Обновляем кнопки навигации
         if hasattr(self, 'btn_nav_profile'):
@@ -1830,6 +1839,8 @@ class MainWindow(QMainWindow):
         
         # Обновляем статус администратора (чтобы цвет текста обновился при смене темы)
         self.update_admin_status_label()
+        if hasattr(self, "title_bar"):
+            self.title_bar.apply_theme()
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
         """Обновляет текст и иконку кнопки навигации"""

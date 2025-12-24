@@ -1,452 +1,483 @@
-"""Updater для автоматического обновления SingBox-UI"""
+"""GUI updater for SingBox-UI aligned with current app structure."""
+
+import json
 import sys
 import time
 import shutil
 import subprocess
 import tempfile
 import zipfile
-import requests
 from pathlib import Path
+from typing import Optional
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLabel, QPushButton
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+import requests
+from PyQt5.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 
-# Определяем корневую папку приложения
-if getattr(sys, 'frozen', False):
-    exe_path = Path(sys.executable)
-    if exe_path.parent.name == '_internal':
-        ROOT = exe_path.parent.parent
-    else:
-        ROOT = exe_path.parent
-else:
-    ROOT = Path(__file__).resolve().parent.parent
+from app.application import create_application
+from config.paths import ROOT
+from ui.styles import StyleSheet, theme
+
+GITHUB_OWNER = "ang3el7z"
+GITHUB_REPO = "SingBox-UI"
+GITHUB_BRANCH = "main"
+
+
+def read_version_from_dir(base: Path) -> Optional[str]:
+    """Читает версию приложения из папки установки."""
+    data_version = base / "data" / ".version"
+    if data_version.exists():
+        try:
+            version = data_version.read_text(encoding="utf-8").strip()
+            if version:
+                return version
+        except Exception:
+            pass
+    
+    root_version = base / ".version"
+    if root_version.exists():
+        try:
+            version = root_version.read_text(encoding="utf-8").strip()
+            if version:
+                return version
+        except Exception:
+            pass
+    return None
 
 
 class UpdateThread(QThread):
-    """Поток для выполнения обновления"""
+    """Поток, выполняющий обновление."""
+    
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal(bool, str)
     
-    def __init__(self, version, app_dir, repo_owner="ang3el7z", repo_name="windows-singbox-ui"):
+    def __init__(
+        self,
+        app_dir: Path,
+        repo_owner: str = GITHUB_OWNER,
+        repo_name: str = GITHUB_REPO,
+        branch: str = GITHUB_BRANCH,
+    ):
         super().__init__()
-        self.version = version
         self.app_dir = Path(app_dir)
         self.repo_owner = repo_owner
         self.repo_name = repo_name
+        self.branch = branch
+        self.current_version = read_version_from_dir(self.app_dir)
+        self.target_version: Optional[str] = None
     
     def log(self, msg: str):
-        """Отправляет сообщение в лог"""
+        """Отправляет сообщение в UI лог."""
         self.log_signal.emit(msg)
     
-    def run(self):
-        """Выполняет обновление"""
+    def _fetch_remote_version(self) -> Optional[str]:
+        """Читает .version из ветки main."""
+        url = f"https://raw.githubusercontent.com/{self.repo_owner}/{self.repo_name}/{self.branch}/.version"
         try:
-            self.log("=" * 60)
-            self.log(f"SingBox-UI Updater v{self.version}")
-            self.log("=" * 60)
-            self.log("")
-            
-            # Шаг 1: Получаем информацию о релизе
-            self.log("[1/6] Getting release information...")
-            self.progress_signal.emit(5)
-            api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest"
-            response = requests.get(api_url, timeout=10)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
-            release_data = response.json()
-            
-            # Ищем архив с обновлением
-            download_url = None
-            archive_name = None
-            for asset in release_data.get("assets", []):
-                if asset["name"].endswith(".zip") and "windows-singbox-ui" in asset["name"].lower():
-                    download_url = asset["browser_download_url"]
-                    archive_name = asset["name"]
-                    break
-            
-            if not download_url:
-                self.finished_signal.emit(False, "Update archive not found")
-                return
-            
-            self.log(f"Found archive: {archive_name}")
-            self.progress_signal.emit(10)
-            
-            # Шаг 2: Скачиваем архив
-            self.log("[2/6] Downloading update...")
-            temp_dir = Path(tempfile.gettempdir()) / "singbox-ui-update"
-            temp_dir.mkdir(exist_ok=True)
-            zip_path = temp_dir / archive_name
-            
-            try:
-                response = requests.get(download_url, stream=True, timeout=60)
-                response.raise_for_status()
-                total_size = int(response.headers.get('content-length', 0))
-                downloaded = 0
-                last_logged = 0
-                log_interval = 5 * 1024 * 1024  # Логируем каждые 5 МБ
-                
-                self.log(f"Total size: {total_size / 1024 / 1024:.1f} MB")
-                
-                with open(zip_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            
-                            # Обновляем прогресс
-                            if total_size > 0:
-                                progress_pct = 10 + int((downloaded / total_size) * 40)
-                                self.progress_signal.emit(progress_pct)
-                            
-                            # Логируем только каждые 5 МБ
-                            if downloaded - last_logged >= log_interval:
-                                self.log(f"Downloaded: {downloaded / 1024 / 1024:.1f} MB / {total_size / 1024 / 1024:.1f} MB")
-                                last_logged = downloaded
-                
-                # Финальное сообщение
-                self.log(f"Download complete: {downloaded / 1024 / 1024:.1f} MB")
-                self.progress_signal.emit(50)
-            except requests.exceptions.RequestException as e:
-                self.log(f"Download error: {e}")
-                raise Exception(f"Failed to download update: {e}")
-            
-            # Шаг 3: Распаковываем архив
-            self.log("[3/6] Extracting archive...")
-            extract_dir = temp_dir / "extracted"
-            extract_dir.mkdir(exist_ok=True)
-            
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-            
-            self.log(f"Archive extracted to: {extract_dir}")
-            self.progress_signal.emit(60)
-            
-            # Шаг 4: Закрываем основное приложение
-            self.log("[4/6] Stopping SingBox-UI application...")
-            self.progress_signal.emit(65)
-            
-            # Закрываем SingBox-UI.exe
-            try:
-                subprocess.run(
-                    ["taskkill", "/F", "/IM", "SingBox-UI.exe"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5
-                )
-                self.log("SingBox-UI.exe stopped")
-            except Exception as e:
-                self.log(f"Warning: Could not stop SingBox-UI.exe: {e}")
-            
-            # Закрываем sing-box.exe
-            try:
-                subprocess.run(
-                    ["taskkill", "/F", "/IM", "sing-box.exe"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5
-                )
-                self.log("sing-box.exe stopped")
-            except Exception as e:
-                self.log(f"Warning: Could not stop sing-box.exe: {e}")
-            
-            time.sleep(1)
-            self.progress_signal.emit(70)
-            
-            # Шаг 5: Устанавливаем обновление
-            self.log("[5/6] Installing update...")
-            self.progress_signal.emit(75)
-            
-            # Находим папку SingBox-UI в распакованных файлах
-            # Важно: ищем в системной temp папке, не в папке приложения
-            new_app_dir = None
-            for item in extract_dir.iterdir():
-                if item.is_dir() and item.name == "SingBox-UI":
-                    new_app_dir = item
-                    break
-            
-            if not new_app_dir:
-                new_app_dir = extract_dir
-            
-            # Проверяем, что мы не копируем в папку updater.exe
+            version = response.text.strip()
+            return version or None
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Warning: could not fetch remote version: {exc}")
+            return None
+    
+    def _download_latest_archive(self, dest: Path):
+        """Скачивает архив ветки main."""
+        url = f"https://github.com/{self.repo_owner}/{self.repo_name}/archive/refs/heads/{self.branch}.zip"
+        response = requests.get(url, stream=True, timeout=60)
+        response.raise_for_status()
+        
+        total_size = int(response.headers.get("content-length", 0))
+        downloaded = 0
+        
+        with open(dest, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total_size:
+                    progress_pct = 10 + int((downloaded / total_size) * 30)
+                    self.progress_signal.emit(min(progress_pct, 45))
+        
+        size_mb = downloaded / 1024 / 1024
+        self.log(f"Download complete: {size_mb:.1f} MB")
+    
+    def _extract_archive(self, zip_path: Path, extract_dir: Path):
+        """Распаковывает скачанный архив."""
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
+    
+    def _find_new_app_dir(self, extract_dir: Path) -> Path:
+        """Ищет папку с собранным приложением внутри архива."""
+        candidates = sorted(extract_dir.rglob("SingBox-UI.exe"))
+        if not candidates:
+            raise FileNotFoundError("SingBox-UI.exe not found in downloaded archive")
+        
+        # Отдаем приоритет сборке в dist/SingBox-UI, если она есть
+        def sort_key(path: Path):
+            parts_lower = [p.lower() for p in path.parts]
+            return ("dist" not in parts_lower, len(parts_lower))
+        
+        candidates.sort(key=sort_key)
+        return candidates[0].parent
+    
+    def _adjust_target_dir_if_needed(self):
+        """Корректирует целевую папку, если updater запущен из data/."""
+        try:
             updater_dir = Path(sys.executable).parent
-            if str(self.app_dir).startswith(str(updater_dir)) and updater_dir.name == "data":
-                # Если app_dir находится внутри папки с updater, используем родительскую папку
+            if self.app_dir.resolve().is_relative_to(updater_dir) and updater_dir.name == "data":
                 self.app_dir = updater_dir.parent
                 self.log(f"Adjusted app directory to: {self.app_dir}")
+        except Exception:
+            pass
+    
+    def _stop_processes(self):
+        """Останавливает процессы приложения и ядра sing-box."""
+        for process in ("SingBox-UI.exe", "sing-box.exe"):
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", process],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                )
+                self.log(f"Stopped {process}")
+            except Exception as exc:  # noqa: BLE001
+                self.log(f"Warning: could not stop {process}: {exc}")
+        time.sleep(1)
+    
+    @staticmethod
+    def _is_skipped(rel_path: Path, protected: set[Path], handled_separately: set[Path]) -> bool:
+        """Проверяет, нужно ли пропустить путь при копировании."""
+        for protected_path in protected | handled_separately:
+            if rel_path == protected_path or rel_path.is_relative_to(protected_path):
+                return True
+        return False
+    
+    def _copy_general_files(self, new_app_dir: Path) -> int:
+        """Копирует все файлы, кроме защищенных и обрабатываемых отдельно."""
+        protected_paths = {
+            Path("data/.subscriptions"),
+            Path("data/.settings"),
+            Path("data/config.json"),
+            Path("data/core/sing-box.exe"),
+            Path("data/logs"),
+        }
+        handled_separately = {
+            Path("data/locales"),
+            Path("data/themes"),
+            Path("data/updater.exe"),
+        }
+        
+        items_copied = 0
+        for src in new_app_dir.rglob("*"):
+            if src.is_dir():
+                continue
+            rel_path = src.relative_to(new_app_dir)
+            if self._is_skipped(rel_path, protected_paths, handled_separately):
+                continue
             
+            dest = self.app_dir / rel_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                if dest.exists():
+                    dest.unlink()
+                shutil.copy2(src, dest)
+                items_copied += 1
+            except Exception as exc:  # noqa: BLE001
+                self.log(f"Error updating {rel_path}: {exc}")
+        return items_copied
+    
+    def _copy_locales(self, new_app_dir: Path) -> int:
+        """Обновляет локали в data/locales."""
+        locales_src = new_app_dir / "data" / "locales"
+        if not locales_src.exists():
+            return 0
+        
+        locales_dest = self.app_dir / "data" / "locales"
+        locales_dest.mkdir(parents=True, exist_ok=True)
+        
+        items_copied = 0
+        for locale_file in locales_src.glob("*.json"):
+            dest = locales_dest / locale_file.name
+            shutil.copy2(locale_file, dest)
+            items_copied += 1
+            self.log(f"Updated locale: {locale_file.name}")
+        return items_copied
+    
+    def _copy_themes(self, new_app_dir: Path) -> int:
+        """Обновляет темы в data/themes (не удаляя пользовательские)."""
+        themes_src = new_app_dir / "data" / "themes"
+        if not themes_src.exists():
+            return 0
+        
+        themes_dest = self.app_dir / "data" / "themes"
+        themes_dest.mkdir(parents=True, exist_ok=True)
+        
+        items_copied = 0
+        for theme_file in themes_src.glob("*.json"):
+            dest = themes_dest / theme_file.name
+            shutil.copy2(theme_file, dest)
+            items_copied += 1
+            self.log(f"Updated theme: {theme_file.name}")
+        return items_copied
+    
+    def _merge_settings(self, new_app_dir: Path):
+        """Объединяет файл .settings, сохраняя пользовательские значения."""
+        new_settings = new_app_dir / "data" / ".settings"
+        app_settings = self.app_dir / "data" / ".settings"
+        if not new_settings.exists():
+            return
+        
+        try:
+            existing_settings = {}
+            if app_settings.exists():
+                try:
+                    existing_settings = json.loads(app_settings.read_text(encoding="utf-8"))
+                except Exception:
+                    existing_settings = {}
+            
+            new_settings_data = json.loads(new_settings.read_text(encoding="utf-8"))
+            merged = {**new_settings_data, **existing_settings}
+            
+            app_settings.parent.mkdir(parents=True, exist_ok=True)
+            app_settings.write_text(
+                json.dumps(merged, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            self.log("Updated .settings (merged with existing settings)")
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Warning: could not merge .settings: {exc}")
+            try:
+                if app_settings.exists():
+                    app_settings.unlink()
+                shutil.copy2(new_settings, app_settings)
+            except Exception as copy_exc:  # noqa: BLE001
+                self.log(f"Error copying .settings: {copy_exc}")
+    
+    def _update_updater_exe(self, new_app_dir: Path) -> int:
+        """Обновляет data/updater.exe, если это не текущий исполняемый файл."""
+        new_updater = new_app_dir / "data" / "updater.exe"
+        if not new_updater.exists():
+            return 0
+        
+        app_data_dir = self.app_dir / "data"
+        app_data_dir.mkdir(parents=True, exist_ok=True)
+        app_updater = app_data_dir / "updater.exe"
+        
+        try:
+            if app_updater.resolve() == Path(sys.executable).resolve():
+                return 0
+        except Exception:
+            pass
+        
+        try:
+            if app_updater.exists():
+                app_updater.unlink()
+            shutil.copy2(new_updater, app_updater)
+            self.log("Updated updater.exe in data/")
+            return 1
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Warning: could not update updater.exe: {exc}")
+            return 0
+    
+    def _install_update(self, new_app_dir: Path) -> int:
+        """Устанавливает обновление."""
+        items_copied = self._copy_general_files(new_app_dir)
+        items_copied += self._copy_locales(new_app_dir)
+        items_copied += self._copy_themes(new_app_dir)
+        items_copied += self._update_updater_exe(new_app_dir)
+        self._merge_settings(new_app_dir)
+        return items_copied
+    
+    def _clean_temp(self, temp_root: Path):
+        """Удаляет временные файлы."""
+        try:
+            shutil.rmtree(temp_root, ignore_errors=True)
+            self.log("Temporary files cleaned")
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Warning: could not clean temp files: {exc}")
+    
+    def _start_application(self):
+        """Запускает обновленное приложение."""
+        new_exe = self.app_dir / "SingBox-UI.exe"
+        if not new_exe.exists():
+            raise FileNotFoundError(f"SingBox-UI.exe not found at {new_exe}")
+        
+        try:
+            self.log(f"Starting application: {new_exe}")
+            proc = subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
+            time.sleep(0.5)
+            if proc.poll() is None:
+                self.log("Application started successfully!")
+                self.log(f"Process ID: {proc.pid}")
+            else:
+                self.log(f"Warning: application exited immediately with code {proc.returncode}")
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(f"Failed to start application: {exc}") from exc
+    
+    def run(self):
+        """Основной цикл обновления."""
+        temp_root = Path(tempfile.mkdtemp(prefix="singbox-ui-update-"))
+        try:
+            self.log("=" * 60)
+            self.log("SingBox-UI Updater")
+            self.log("=" * 60)
+            if self.current_version:
+                self.log(f"Current version: {self.current_version}")
+            self.log(f"Repository: {self.repo_owner}/{self.repo_name}@{self.branch}")
+            self.progress_signal.emit(5)
+            
+            self.target_version = self._fetch_remote_version()
+            if self.target_version:
+                self.log(f"Latest version in branch: {self.target_version}")
+            else:
+                self.log("Latest version could not be determined (will continue)")
+            
+            self.log("[1/6] Downloading latest build...")
+            zip_path = temp_root / "singbox-ui-latest.zip"
+            self._download_latest_archive(zip_path)
+            self.progress_signal.emit(45)
+            
+            self.log("[2/6] Extracting archive...")
+            extract_dir = temp_root / "extracted"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            self._extract_archive(zip_path, extract_dir)
+            self.progress_signal.emit(55)
+            
+            new_app_dir = self._find_new_app_dir(extract_dir)
+            self._adjust_target_dir_if_needed()
             self.log(f"Source directory: {new_app_dir}")
             self.log(f"Target directory: {self.app_dir}")
+            self.progress_signal.emit(60)
             
-            # Файлы и папки, которые НЕ нужно обновлять (сохраняем пользовательские данные)
-            protected_paths = [
-                ".subscriptions",
-                "core/sing-box.exe",  # Не трогаем ядро
-                "logs",  # Не трогаем логи
-            ]
+            self.log("[3/6] Stopping running processes...")
+            self._stop_processes()
+            self.progress_signal.emit(65)
             
-            def is_protected(dest_path: Path) -> bool:
-                """Проверяет, защищен ли путь"""
-                dest_str = str(dest_path)
-                # Проверяем только пути внутри data/
-                if "data" in dest_str:
-                    for protected in protected_paths:
-                        if protected in dest_str:
-                            return True
-                return False
-            
-            # Копируем файлы, пропуская защищенные
-            items_copied = 0
-            for item in new_app_dir.iterdir():
-                # Пропускаем updater.exe в корне (мы уже запущены)
-                if item.name == "updater.exe" and item.is_file():
-                    continue
-                
-                dest = self.app_dir / item.name
-                
-                # Проверяем защиту для корневых элементов
-                if is_protected(dest):
-                    self.log(f"Skipping protected: {item.name}")
-                    continue
-                
-                try:
-                    if item.is_dir():
-                        # Для папок используем merge (не удаляем существующие)
-                        if dest.exists():
-                            # Копируем содержимое, но не удаляем существующее и пропускаем защищенные
-                            for subitem in item.rglob("*"):
-                                if subitem.is_file():
-                                    rel_path = subitem.relative_to(item)
-                                    dest_subitem = dest / rel_path
-                                    
-                                    # Проверяем защиту для каждого файла
-                                    if is_protected(dest_subitem):
-                                        continue
-                                    
-                                    dest_subitem.parent.mkdir(parents=True, exist_ok=True)
-                                    shutil.copy2(subitem, dest_subitem)
-                                    items_copied += 1
-                        else:
-                            shutil.copytree(item, dest, dirs_exist_ok=True)
-                            items_copied += 1
-                        self.log(f"Updated directory: {item.name}")
-                    else:
-                        # Для файлов просто копируем
-                        if dest.exists():
-                            dest.unlink()
-                        shutil.copy2(item, dest)
-                        items_copied += 1
-                        self.log(f"Updated file: {item.name}")
-                except Exception as e:
-                    self.log(f"Error updating {item.name}: {e}")
-            
-            # Обновляем updater.exe в data (если есть)
-            new_updater = new_app_dir / "data" / "updater.exe"
-            if new_updater.exists():
-                app_data_dir = self.app_dir / "data"
-                app_data_dir.mkdir(parents=True, exist_ok=True)
-                app_updater = app_data_dir / "updater.exe"
-                if app_updater.resolve() != Path(sys.executable).resolve():
-                    if app_updater.exists():
-                        app_updater.unlink()
-                    shutil.copy2(new_updater, app_updater)
-                    self.log("Updated updater.exe in data/")
-            
-            # Обновляем локали в data/locales (merge, не удаляем пользовательские)
-            new_locales = new_app_dir / "data" / "locales"
-            if new_locales.exists():
-                app_data_locales = self.app_dir / "data" / "locales"
-                app_data_locales.mkdir(parents=True, exist_ok=True)
-                # Копируем только стандартные локали, не трогаем пользовательские
-                for locale_file in new_locales.glob("*.json"):
-                    dest_locale = app_data_locales / locale_file.name
-                    shutil.copy2(locale_file, dest_locale)
-                    self.log(f"Updated locale: {locale_file.name}")
-            
-            # Обновляем .settings с merge (добавляем новые ключи, сохраняем существующие)
-            new_settings = new_app_dir / "data" / ".settings"
-            app_settings = self.app_dir / "data" / ".settings"
-            if new_settings.exists():
-                try:
-                    import json
-                    # Читаем существующие настройки
-                    existing_settings = {}
-                    if app_settings.exists():
-                        try:
-                            with open(app_settings, 'r', encoding='utf-8') as f:
-                                existing_settings = json.load(f)
-                        except Exception:
-                            pass
-                    
-                    # Читаем новые настройки
-                    with open(new_settings, 'r', encoding='utf-8') as f:
-                        new_settings_data = json.load(f)
-                    
-                    # Объединяем: существующие имеют приоритет (не трогаем), новые ключи добавляются
-                    merged_settings = {**new_settings_data, **existing_settings}
-                    # Это означает: сначала берем новые, потом существующие перезаписывают их
-                    # Таким образом существующие настройки сохраняются, а новые ключи добавляются
-                    
-                    # Сохраняем объединенные настройки
-                    app_settings.parent.mkdir(parents=True, exist_ok=True)
-                    with open(app_settings, 'w', encoding='utf-8') as f:
-                        json.dump(merged_settings, f, indent=2, ensure_ascii=False)
-                    
-                    self.log("Updated .settings (merged with existing settings)")
-                except Exception as e:
-                    self.log(f"Warning: Could not merge .settings: {e}")
-                    # Если не удалось merge, просто копируем новый файл
-                    if app_settings.exists():
-                        app_settings.unlink()
-                    shutil.copy2(new_settings, app_settings)
-                    self.log("Copied new .settings file")
-            
-            self.log(f"Update installed: {items_copied} items updated")
+            self.log("[4/6] Installing update...")
+            items_updated = self._install_update(new_app_dir)
+            self.log(f"Update installed: {items_updated} items updated")
             self.progress_signal.emit(90)
             
-            # Шаг 6: Очистка и запуск
-            self.log("[6/6] Cleaning up and starting application...")
+            self.log("[5/6] Cleaning up temporary files...")
+            self._clean_temp(temp_root)
             self.progress_signal.emit(95)
             
-            # Удаляем временные файлы (из системной temp папки, не из папки приложения)
-            try:
-                temp_update_dir = Path(tempfile.gettempdir()) / "singbox-ui-update"
-                if temp_update_dir.exists():
-                    shutil.rmtree(temp_update_dir, ignore_errors=True)
-                    self.log("Temporary files cleaned")
-            except Exception as e:
-                self.log(f"Warning: Could not clean temp files: {e}")
-            
-            # Запускаем обновленное приложение
-            new_exe = self.app_dir / "SingBox-UI.exe"
-            if new_exe.exists():
-                try:
-                    self.log(f"Starting application: {new_exe}")
-                    proc = subprocess.Popen([str(new_exe)], cwd=str(self.app_dir))
-                    # Даем немного времени на запуск
-                    time.sleep(0.5)
-                    # Проверяем, что процесс запустился
-                    if proc.poll() is None:
-                        self.log("Application started successfully!")
-                        self.log(f"Process ID: {proc.pid}")
-                    else:
-                        self.log(f"Warning: Application exited immediately with code {proc.returncode}")
-                    self.progress_signal.emit(100)
-                    self.finished_signal.emit(True, "Update completed successfully")
-                except Exception as e:
-                    self.log(f"Error starting application: {e}")
-                    import traceback
-                    self.log(traceback.format_exc())
-                    self.finished_signal.emit(False, f"Failed to start application: {e}")
-            else:
-                self.log(f"ERROR: SingBox-UI.exe not found at {new_exe}")
-                self.finished_signal.emit(False, f"SingBox-UI.exe not found at {new_exe}")
-        
-        except Exception as e:
+            self.log("[6/6] Starting updated application...")
+            self._start_application()
+            self.progress_signal.emit(100)
+            self.finished_signal.emit(True, "Update completed successfully")
+        except Exception as exc:  # noqa: BLE001
             import traceback
-            error_msg = f"Error during update: {e}\n{traceback.format_exc()}"
+            
+            error_msg = f"Error during update: {exc}\n{traceback.format_exc()}"
             self.log(error_msg)
-            self.finished_signal.emit(False, str(e))
+            self.finished_signal.emit(False, str(exc))
+        finally:
+            if temp_root.exists():
+                self._clean_temp(temp_root)
 
 
 class UpdaterWindow(QMainWindow):
-    """Окно updater с GUI в стиле приложения"""
+    """GUI окно updater с актуальной темой приложения."""
     
-    def __init__(self, version=None):
+    def __init__(self):
         super().__init__()
-        self.version = version
-        self.update_thread = None
+        self.update_thread: Optional[UpdateThread] = None
         
         self.setWindowTitle("SingBox-UI Updater")
-        self.setMinimumSize(600, 500)
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #0b0f1a;
-            }
-            QWidget {
-                background-color: #0b0f1a;
-                color: #e5e9ff;
-            }
-        """)
+        self.setMinimumSize(640, 520)
+        self.setStyleSheet(
+            f"""
+            QMainWindow {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+                color: {theme.get_color('text_primary')};
+            }}
+            """
+        )
         
-        # Центральный виджет
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
         
-        # Заголовок
         title = QLabel("SingBox-UI Updater")
         title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        title.setStyleSheet("color: #ffffff; background-color: transparent; border: none; padding: 0px;")
+        title.setStyleSheet("background-color: transparent; border: none;")
         layout.addWidget(title)
         
-        # Логи
         self.logs = QTextEdit()
         self.logs.setReadOnly(True)
-        self.logs.setStyleSheet("""
-            QTextEdit {
-                background-color: rgba(0,245,212,0.05);
-                color: #e5e9ff;
-                border-radius: 16px;
-                padding: 16px;
-                border: none;
-                font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 11px;
-            }
-        """)
+        self.logs.setStyleSheet(StyleSheet.text_edit())
         layout.addWidget(self.logs, 1)
         
-        # Статус
         self.status = QLabel("Ready to update...")
         self.status.setFont(QFont("Segoe UI", 12))
-        self.status.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        self.status.setStyleSheet(StyleSheet.label(variant="secondary"))
         layout.addWidget(self.status)
         
-        # Кнопки (скрыты до завершения)
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(12)
         
         self.done_button = QPushButton("Готово")
         self.done_button.setFont(QFont("Segoe UI", 11, QFont.Bold))
-        self.done_button.setStyleSheet("""
-            QPushButton {
-                background-color: #00f5d4;
-                color: #0b0f1a;
+        self.done_button.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: {theme.get_color('accent')};
+                color: {theme.get_color('background_primary')};
                 border: none;
                 border-radius: 8px;
                 padding: 10px 24px;
-                min-width: 100px;
-            }
-            QPushButton:hover {
-                background-color: #00d4b8;
-            }
-            QPushButton:pressed {
-                background-color: #00b8a0;
-            }
-        """)
+                min-width: 110px;
+                font-family: {theme.get_font('family')};
+                font-weight: {theme.get_font('weight_semibold')};
+            }}
+            QPushButton:hover {{
+                background-color: {theme.get_color('accent_hover')};
+            }}
+            """
+        )
         self.done_button.clicked.connect(self.close)
         self.done_button.hide()
         
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.setFont(QFont("Segoe UI", 11))
-        self.cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(255,255,255,0.1);
-                color: #e5e9ff;
-                border: 1px solid rgba(255,255,255,0.2);
+        self.cancel_button.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: {theme.get_color('background_secondary')};
+                color: {theme.get_color('text_primary')};
+                border: 1px solid {theme.get_color('border')};
                 border-radius: 8px;
                 padding: 10px 24px;
-                min-width: 100px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255,255,255,0.15);
-            }
-            QPushButton:pressed {
-                background-color: rgba(255,255,255,0.2);
-            }
-        """)
+                min-width: 110px;
+                font-family: {theme.get_font('family')};
+            }}
+            QPushButton:hover {{
+                background-color: {theme.get_color('accent_light')};
+                border-color: {theme.get_color('border_hover')};
+            }}
+            """
+        )
         self.cancel_button.clicked.connect(self.close)
         self.cancel_button.hide()
         
@@ -455,13 +486,13 @@ class UpdaterWindow(QMainWindow):
         self.button_layout.addWidget(self.cancel_button)
         layout.addLayout(self.button_layout)
         
-        # Таймер для авто-закрытия
         self.close_timer = QTimer()
         self.close_timer.timeout.connect(self.close)
         self.close_timer.setSingleShot(True)
+        
         self.countdown_label = QLabel("")
         self.countdown_label.setFont(QFont("Segoe UI", 10))
-        self.countdown_label.setStyleSheet("color: #9ca3af; background-color: transparent; border: none; padding: 0px;")
+        self.countdown_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         self.countdown_label.hide()
         layout.addWidget(self.countdown_label)
         
@@ -469,73 +500,42 @@ class UpdaterWindow(QMainWindow):
         self.countdown_timer = QTimer()
         self.countdown_timer.timeout.connect(self.update_countdown)
         
-        # Запускаем обновление
         QTimer.singleShot(500, self.start_update)
     
     def log(self, msg: str):
-        """Добавляет сообщение в лог"""
+        """Добавляет сообщение в лог и прокручивает вниз."""
         self.logs.append(msg)
-        # Прокручиваем вниз
         scrollbar = self.logs.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
         QApplication.processEvents()
     
     def start_update(self):
-        """Запускает процесс обновления"""
-        try:
-            from config.paths import ROOT
-        except ImportError:
-            # Если config.paths недоступен, определяем ROOT вручную
-            if getattr(sys, 'frozen', False):
-                exe_path = Path(sys.executable)
-                if exe_path.parent.name == '_internal':
-                    ROOT = exe_path.parent.parent
-                else:
-                    ROOT = exe_path.parent
-            else:
-                ROOT = Path(__file__).resolve().parent
+        """Запускает процесс обновления."""
+        self.log("Starting update to latest main build...")
+        self.status.setText("Updating to latest main build...")
         
-        if not self.version:
-            # Если версия не передана, определяем сами
-            try:
-                import requests
-                api_url = "https://api.github.com/repos/ang3el7z/windows-singbox-ui/releases/latest"
-                response = requests.get(api_url, timeout=10)
-                response.raise_for_status()
-                release_data = response.json()
-                tag_name = release_data.get("tag_name", "")
-                self.version = tag_name.lstrip('v') if tag_name.startswith('v') else tag_name
-            except Exception as e:
-                self.log(f"ERROR: Could not determine version: {e}")
-                self.status.setText("Error: Could not determine version")
-                return
-        
-        self.log(f"Starting update to version {self.version}...")
-        self.status.setText(f"Updating to version {self.version}...")
-        
-        # Создаем поток обновления
-        self.update_thread = UpdateThread(self.version, ROOT)
+        self.update_thread = UpdateThread(ROOT)
         self.update_thread.log_signal.connect(self.log)
         self.update_thread.progress_signal.connect(self.on_progress)
         self.update_thread.finished_signal.connect(self.on_finished)
         self.update_thread.start()
     
     def on_progress(self, value: int):
-        """Обновляет прогресс"""
+        """Обновляет текст статуса по прогрессу."""
         self.status.setText(f"Progress: {value}%")
     
     def update_countdown(self):
-        """Обновляет таймер обратного отсчета"""
+        """Обработчик обратного отсчета закрытия окна."""
         self.countdown_seconds -= 1
         if self.countdown_seconds > 0:
-            self.countdown_label.setText(f"Окно закроется автоматически через {self.countdown_seconds} сек...")
+            self.countdown_label.setText(f"Окно закроется через {self.countdown_seconds} сек...")
         else:
             self.countdown_timer.stop()
             self.countdown_label.hide()
             self.close()
     
     def on_finished(self, success: bool, message: str):
-        """Обработка завершения обновления"""
+        """Обработка завершения обновления."""
         if success:
             self.log("")
             self.log("=" * 60)
@@ -545,16 +545,15 @@ class UpdaterWindow(QMainWindow):
             self.log("Status: OK")
             self.status.setText("Status: OK - Update completed successfully!")
             
-            # Показываем кнопки и таймер
             self.done_button.show()
             self.cancel_button.show()
             self.countdown_label.show()
             self.countdown_seconds = 5
-            self.countdown_label.setText(f"Окно закроется автоматически через {self.countdown_seconds} сек...")
-            
-            # Запускаем таймеры
-            self.countdown_timer.start(1000)  # Обновляем каждую секунду
-            self.close_timer.start(5000)  # Закрываем через 5 секунд
+            self.countdown_label.setText(
+                f"Окно закроется через {self.countdown_seconds} сек..."
+            )
+            self.countdown_timer.start(1000)
+            self.close_timer.start(5000)
         else:
             self.log("")
             self.log("=" * 60)
@@ -562,22 +561,16 @@ class UpdaterWindow(QMainWindow):
             self.log("")
             self.log("Status: ERROR - Window will NOT close automatically")
             self.status.setText("Status: ERROR - Window will NOT close automatically")
-            self.log("Please check the errors above and close this window manually.")
-            # При ошибке кнопки не показываем, окно остается открытым
-
+    
 
 def main():
-    """Основная функция"""
-    app = QApplication(sys.argv)
-    
-    # Получаем версию из аргументов или None
-    version = sys.argv[1] if len(sys.argv) > 1 else None
-    
-    window = UpdaterWindow(version)
+    """Точка входа в updater."""
+    app = create_application()
+    window = UpdaterWindow()
     window.show()
-    
     sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
     main()
+
