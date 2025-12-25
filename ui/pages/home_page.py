@@ -38,10 +38,10 @@ class HomePage(BasePage):
         version_layout.setContentsMargins(20, 18, 20, 18)
         version_layout.setSpacing(10)
         
-        version_title = QLabel(tr("home.version"))
-        version_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
-        version_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
-        version_layout.addWidget(version_title)
+        self.version_title = QLabel(tr("home.version"))
+        self.version_title.setFont(QFont("Segoe UI Semibold", 13, QFont.Bold))
+        self.version_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
+        version_layout.addWidget(self.version_title)
         
         version_row = QHBoxLayout()
         version_row.setSpacing(10)

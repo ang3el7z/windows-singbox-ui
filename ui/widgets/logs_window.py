@@ -96,11 +96,21 @@ class LogsWindow(QDialog):
         self.btn_debug_logs = QPushButton("Debug Logs")
         self.btn_debug_logs.setCheckable(True)
         self.btn_debug_logs.clicked.connect(lambda: self._switch_mode("debug"))
+        # Создаем rgba для error
+        error_color = theme.get_color('error')
+        error_hex = error_color.lstrip('#')
+        error_r = int(error_hex[0:2], 16)
+        error_g = int(error_hex[2:4], 16)
+        error_b = int(error_hex[4:6], 16)
+        error_border = f"rgba({error_r}, {error_g}, {error_b}, 0.3)"
+        error_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
+        error_border_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.5)"
+        
         self.btn_debug_logs.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.get_color('background_tertiary')};
-                color: {theme.get_color('error')};
-                border: 1px solid rgba(255, 107, 107, 0.3);
+                color: {error_color};
+                border: 1px solid {error_border};
                 border-radius: {theme.get_size('border_radius_medium')}px;
                 padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
                 font-size: {theme.get_font('size_medium')}px;
@@ -109,13 +119,13 @@ class LogsWindow(QDialog):
                 min-height: 40px;
             }}
             QPushButton:hover {{
-                background-color: rgba(255, 107, 107, 0.1);
-                border-color: rgba(255, 107, 107, 0.5);
+                background-color: {error_hover};
+                border-color: {error_border_hover};
             }}
             QPushButton:checked {{
-                background-color: {theme.get_color('error')};
-                color: #ffffff;
-                border-color: {theme.get_color('error')};
+                background-color: {error_color};
+                color: {theme.get_color('text_primary')};
+                border-color: {error_color};
             }}
         """)
         # Кнопка дебаг логов видна только если isDebug=True
@@ -140,10 +150,10 @@ class LogsWindow(QDialog):
         
         layout.addWidget(logs_card, 1)
         
-        # Кнопка закрытия
-        close_btn = QPushButton("Закрыть")
-        close_btn.clicked.connect(self.accept)
-        close_btn.setStyleSheet(f"""
+        # Кнопка закрытия (сохраняем ссылку)
+        self.close_btn = QPushButton("Закрыть")
+        self.close_btn.clicked.connect(self.accept)
+        self.close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.get_color('background_tertiary')};
                 color: {theme.get_color('text_primary')};
@@ -160,7 +170,7 @@ class LogsWindow(QDialog):
                 border-color: {theme.get_color('border_hover')};
             }}
         """)
-        layout.addWidget(close_btn)
+        layout.addWidget(self.close_btn)
     
     def _switch_mode(self, mode: str):
         """Переключение режима отображения логов"""
@@ -188,13 +198,22 @@ class LogsWindow(QDialog):
             if is_debug and hasattr(self.main_window, 'page_settings'):
                 debug_logs_content = self.main_window.page_settings.debug_logs.toPlainText()
                 self.logs_text.setPlainText(debug_logs_content)
+                # Создаем rgba для error
+                error_color = theme.get_color('error')
+                error_hex = error_color.lstrip('#')
+                error_r = int(error_hex[0:2], 16)
+                error_g = int(error_hex[2:4], 16)
+                error_b = int(error_hex[4:6], 16)
+                error_bg = f"rgba({error_r}, {error_g}, {error_b}, 0.05)"
+                error_border = f"rgba({error_r}, {error_g}, {error_b}, 0.2)"
+                
                 self.logs_text.setStyleSheet(f"""
                     QTextEdit {{
-                        background-color: rgba(255, 107, 107, 0.05);
-                        color: {theme.get_color('error')};
+                        background-color: {error_bg};
+                        color: {error_color};
                         border-radius: {theme.get_size('border_radius_large')}px;
                         padding: {theme.get_size('padding_large')}px;
-                        border: 2px solid rgba(255, 107, 107, 0.2);
+                        border: 2px solid {error_border};
                         font-family: 'Consolas', 'Courier New', monospace;
                         font-size: 10px;
                         outline: none;
@@ -256,6 +275,121 @@ class LogsWindow(QDialog):
         if is_at_bottom:
             self.autoscroll_enabled = True
             self.user_has_scrolled = False
+    
+    def apply_theme(self):
+        """Обновляет стили окна при смене темы"""
+        # Обновляем стиль окна
+        self.setStyleSheet(StyleSheet.dialog())
+        
+        # Обновляем кнопки
+        self.btn_logs.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border: 1px solid {theme.get_color('border')};
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                font-size: {theme.get_font('size_medium')}px;
+                font-weight: {theme.get_font('weight_medium')};
+                font-family: {theme.get_font('family')};
+                min-height: 40px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.get_color('accent_light')};
+                border-color: {theme.get_color('border_hover')};
+            }}
+            QPushButton:checked {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border-color: {theme.get_color('border')};
+            }}
+        """)
+        
+        # Обновляем кнопку debug
+        error_color = theme.get_color('error')
+        error_hex = error_color.lstrip('#')
+        error_r = int(error_hex[0:2], 16)
+        error_g = int(error_hex[2:4], 16)
+        error_b = int(error_hex[4:6], 16)
+        error_border = f"rgba({error_r}, {error_g}, {error_b}, 0.3)"
+        error_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
+        error_border_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.5)"
+        
+        self.btn_debug_logs.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {error_color};
+                border: 1px solid {error_border};
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                font-size: {theme.get_font('size_medium')}px;
+                font-weight: {theme.get_font('weight_medium')};
+                font-family: {theme.get_font('family')};
+                min-height: 40px;
+            }}
+            QPushButton:hover {{
+                background-color: {error_hover};
+                border-color: {error_border_hover};
+            }}
+            QPushButton:checked {{
+                background-color: {error_color};
+                color: {theme.get_color('text_primary')};
+                border-color: {error_color};
+            }}
+        """)
+        
+        # Обновляем кнопку закрытия
+        if hasattr(self, 'close_btn'):
+            self.close_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.get_color('background_tertiary')};
+                    color: {theme.get_color('text_primary')};
+                    border: 1px solid {theme.get_color('border')};
+                    border-radius: {theme.get_size('border_radius_medium')}px;
+                    padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                    font-size: {theme.get_font('size_medium')}px;
+                    font-weight: {theme.get_font('weight_medium')};
+                    font-family: {theme.get_font('family')};
+                    min-height: 40px;
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.get_color('accent_light')};
+                    border-color: {theme.get_color('border_hover')};
+                }}
+            """)
+        
+        # Обновляем текстовое поле
+        if self.current_mode == "debug":
+            error_color = theme.get_color('error')
+            error_hex = error_color.lstrip('#')
+            error_r = int(error_hex[0:2], 16)
+            error_g = int(error_hex[2:4], 16)
+            error_b = int(error_hex[4:6], 16)
+            error_bg = f"rgba({error_r}, {error_g}, {error_b}, 0.05)"
+            error_border = f"rgba({error_r}, {error_g}, {error_b}, 0.2)"
+            self.logs_text.setStyleSheet(f"""
+                QTextEdit {{
+                    background-color: {error_bg};
+                    color: {error_color};
+                    border-radius: {theme.get_size('border_radius_large')}px;
+                    padding: {theme.get_size('padding_large')}px;
+                    border: 2px solid {error_border};
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    font-size: 10px;
+                    outline: none;
+                }}
+            """)
+        else:
+            self.logs_text.setStyleSheet(StyleSheet.text_edit())
+        
+        # Обновляем карточку
+        cards = self.findChildren(CardWidget)
+        for card in cards:
+            if hasattr(card, 'apply_theme'):
+                card.apply_theme()
+        
+        self.update()
+        self.repaint()
     
     def closeEvent(self, event):
         """Обработка закрытия окна"""

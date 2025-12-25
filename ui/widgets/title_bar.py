@@ -90,6 +90,14 @@ class TitleBar(QWidget):
         self.title_label.setStyleSheet(StyleSheet.label(variant="default", size="large"))
         self.btn_minimize.setIcon(icon("mdi.window-minimize", color=secondary).icon())
         self.btn_close.setIcon(icon("mdi.close", color=text).icon())
+        
+        # Обновляем иконку приложения в title bar
+        app_icon = get_icon()
+        if app_icon and not app_icon.isNull():
+            self.icon_label.setPixmap(app_icon.pixmap(20, 20))
+        
+        # Принудительно обновляем весь title bar
+        self.update()
 
     def set_title(self, text: str):
         """Обновляет отображаемый заголовок."""

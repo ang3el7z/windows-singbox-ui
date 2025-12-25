@@ -208,6 +208,13 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
+        # Устанавливаем фон центрального виджета
+        from ui.styles import theme
+        central.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+        """)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -1681,7 +1688,13 @@ class MainWindow(QMainWindow):
         """Обновление всех стилей UI при смене темы"""
         from ui.styles import theme
         
-        # Обновляем title bar
+        # Обновляем QApplication palette для фона окна (делаем это первым)
+        app = QApplication.instance()
+        if app:
+            from app.application import apply_theme as apply_app_theme
+            apply_app_theme(app)
+        
+        # Обновляем title bar (включая текст и иконку)
         if hasattr(self, "title_bar"):
             self.title_bar.apply_theme()
         
@@ -1731,14 +1744,47 @@ class MainWindow(QMainWindow):
         # Обновляем главное окно
         self.setStyleSheet(StyleSheet.global_styles())
         
+        # Обновляем центральный виджет (фон окна)
+        central = self.centralWidget()
+        if central:
+            central.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {theme.get_color('background_primary')};
+                }}
+            """)
+            central.update()
+        
+        # Обновляем tray manager (иконка трея)
+        if hasattr(self, 'tray_manager'):
+            self._refresh_tray_manager()
+        
+        # Обновляем LogsWindow если оно открыто
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, '_logs_window'):
+            if self.page_settings._logs_window is not None:
+                if hasattr(self.page_settings._logs_window, 'apply_theme'):
+                    self.page_settings._logs_window.apply_theme()
+        
         # Принудительно обновляем все виджеты для перерисовки
         self.update()
+        self.repaint()
         if hasattr(self, 'page_home'):
             self.page_home.update()
+            self.page_home.repaint()
         if hasattr(self, 'page_profile'):
             self.page_profile.update()
+            self.page_profile.repaint()
         if hasattr(self, 'page_settings'):
             self.page_settings.update()
+            self.page_settings.repaint()
+    
+    def _refresh_tray_manager(self):
+        """Обновляет tray manager при смене темы"""
+        if not hasattr(self, 'tray_manager') or not self.tray_manager.tray_icon:
+            return
+        
+        # Иконка трея не зависит от темы (она статичная), но обновляем tooltip
+        from utils.i18n import tr
+        self.tray_manager.tray_icon.setToolTip(tr("app.title"))
     
     def _refresh_home_page_styles(self):
         """Обновление стилей главной страницы"""
@@ -1793,6 +1839,10 @@ class MainWindow(QMainWindow):
         if hasattr(self.page_home, 'profile_title'):
             self.page_home.profile_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
         
+        # Заголовок версии (version_title)
+        if hasattr(self.page_home, 'version_title'):
+            self.page_home.version_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
+        
         # Обновляем все заголовки карточек (version_title и другие) по их стилю
         # Ищем все QLabel с жирным шрифтом размером >= 13 как заголовки карточек
         processed_labels = set()
@@ -1844,6 +1894,14 @@ class MainWindow(QMainWindow):
             # Определяем состояние кнопки
             running = self.proc and self.proc.poll() is None
             self.style_big_btn_running(running)
+            
+            # Обновляем подложку кнопки (btn_wrapper) если она есть
+            # Проверяем оба варианта названия
+            if hasattr(self.page_home, 'btn_wrapper'):
+                self._apply_big_btn_wrapper_style()
+            elif hasattr(self.page_home, 'btn_container'):
+                # btn_container прозрачный, но обновляем на всякий случай
+                self.page_home.btn_container.setStyleSheet("background-color: transparent; border: none;")
         
         # Принудительно обновляем всю страницу для перерисовки
         self.page_home.update()

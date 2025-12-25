@@ -403,13 +403,18 @@ class StyleSheet:
             is_primary: Является ли кнопка основной (для confirm/warning/success)
         """
         if variant == "cancel":
+            # Используем background_tertiary с небольшой прозрачностью или accent_light
+            # Для темных тем - белый с прозрачностью, для светлых - темный с прозрачностью
+            # Используем accent_light для совместимости с темами
+            cancel_bg = theme.get_color('accent_light')
+            cancel_bg_hover = theme.get_color('accent_light_hover')
             return f"""
             QPushButton {{
-                background-color: rgba(255,255,255,0.05);
+                background-color: {cancel_bg};
                 color: {theme.get_color('text_secondary')};
             }}
             QPushButton:hover {{
-                background-color: rgba(255,255,255,0.1);
+                background-color: {cancel_bg_hover};
             }}
             """
         elif variant == "warning":

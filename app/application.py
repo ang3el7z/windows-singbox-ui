@@ -76,7 +76,10 @@ def apply_theme(app: QApplication) -> None:
     palette.setColor(QPalette.ButtonText, text)
     palette.setColor(QPalette.BrightText, QColor(theme.get_color('error')))
     palette.setColor(QPalette.Highlight, accent)
-    palette.setColor(QPalette.HighlightedText, QColor("#000000"))
+    # Используем цвет текста из темы для выделенного текста
+    # Для темной темы - темный фон, для светлой - светлый
+    bg_primary = QColor(theme.get_color('background_primary'))
+    palette.setColor(QPalette.HighlightedText, bg_primary)
     app.setPalette(palette)
     
     # Используем новую систему стилей
