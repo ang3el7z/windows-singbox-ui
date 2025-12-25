@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
-from ui.widgets import CardWidget
+from ui.widgets import CardWidget, TitleBar
 from utils.i18n import tr
 
 
@@ -28,6 +28,9 @@ class LogsWindow(QDialog):
         # Флаг для автоскролла
         self.autoscroll_enabled = True
         self.user_has_scrolled = False
+        
+        # Фреймлесс-режим, чтобы убрать системный статус-бар
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         
         self.setWindowTitle(tr("settings.logs"))
         self.setMinimumSize(600, 500)
@@ -57,8 +60,18 @@ class LogsWindow(QDialog):
     def _build_ui(self):
         """Построение UI окна"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Собственный статус-бар в стиле приложения (без текста)
+        self.title_bar = TitleBar(self)
+        self.title_bar.set_title("")  # Пустой текст
+        layout.addWidget(self.title_bar)
+        
+        # Внутренний layout для содержимого
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(16)
         
         # Кнопки переключения режима
         buttons_row = QHBoxLayout()
@@ -133,7 +146,11 @@ class LogsWindow(QDialog):
         self.btn_debug_logs.setVisible(is_debug)
         buttons_row.addWidget(self.btn_debug_logs, 1)
         
-        layout.addLayout(buttons_row)
+        # Скрываем кнопку "Логи" когда она одна (debug_logs скрыта)
+        # Показываем когда есть две кнопки
+        self.btn_logs.setVisible(is_debug)
+        
+        content_layout.addLayout(buttons_row)
         
         # Область для логов
         logs_card = CardWidget()
@@ -148,7 +165,7 @@ class LogsWindow(QDialog):
         self.logs_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         logs_layout.addWidget(self.logs_text)
         
-        layout.addWidget(logs_card, 1)
+        content_layout.addWidget(logs_card, 1)
         
         # Кнопка закрытия (сохраняем ссылку)
         self.close_btn = QPushButton("Закрыть")
@@ -170,7 +187,12 @@ class LogsWindow(QDialog):
                 border-color: {theme.get_color('border_hover')};
             }}
         """)
-        layout.addWidget(self.close_btn)
+        content_layout.addWidget(self.close_btn)
+        
+        # Добавляем content_layout в основной layout
+        content_widget = QWidget()
+        content_widget.setLayout(content_layout)
+        layout.addWidget(content_widget, 1)
     
     def _switch_mode(self, mode: str):
         """Переключение режима отображения логов"""
@@ -186,6 +208,10 @@ class LogsWindow(QDialog):
         
         # Обновляем видимость кнопки дебаг логов
         self.btn_debug_logs.setVisible(is_debug)
+        
+        # Скрываем кнопку "Логи" когда она одна (debug_logs скрыта)
+        # Показываем когда есть две кнопки
+        self.btn_logs.setVisible(is_debug)
         
         if self.current_mode == "logs":
             # Загружаем обычные логи

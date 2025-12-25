@@ -22,13 +22,13 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt5.QtGui import QFont
 
 from app.application import create_application
 from config.paths import ROOT
 from ui.styles import StyleSheet, theme
-from ui.widgets import CardWidget
+from ui.widgets import CardWidget, TitleBar
 from utils.i18n import tr, set_language
 from managers.settings import SettingsManager
 
@@ -450,7 +450,10 @@ class UpdaterWindow(QMainWindow):
         super().__init__()
         self.update_thread: Optional[UpdateThread] = None
         
-        self.setWindowTitle(tr("updater.title"))
+        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        
+        self.setWindowTitle("Updater")
         # Фиксированный размер окна - нельзя изменять
         self.setFixedSize(600, 300)
         self.setStyleSheet(
@@ -468,21 +471,25 @@ class UpdaterWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        # Уменьшенные отступы для компактного окна
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        # Карточка для заголовка и окна логов (как в профиле)
+        # Собственный статус-бар в стиле приложения
+        self.title_bar = TitleBar(self)
+        self.title_bar.set_title("Updater")
+        layout.addWidget(self.title_bar)
+        
+        # Внутренний layout для содержимого
+        content_layout = QVBoxLayout()
+        # Уменьшенные отступы для компактного окна
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.setSpacing(8)
+        
+        # Карточка для окна логов (заголовок теперь в TitleBar)
         card = CardWidget()
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(16, 14, 16, 14)
         card_layout.setSpacing(12)
-        
-        # Компактный заголовок
-        title = QLabel(tr("updater.title"))
-        title.setFont(QFont("Segoe UI Semibold", 14, QFont.Bold))
-        title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
-        card_layout.addWidget(title)
         
         # Окно логов - показывает что происходит
         self.logs_text = QTextEdit()
@@ -503,7 +510,7 @@ class UpdaterWindow(QMainWindow):
         )
         card_layout.addWidget(self.logs_text, 1)  # Растягивается на доступное пространство
         
-        layout.addWidget(card, 1)  # Карточка растягивается
+        content_layout.addWidget(card, 1)  # Карточка растягивается
         
         # Прогресс-бар - показывает общий прогресс скачивания и установки (без подложки)
         self.progress_bar = QProgressBar()
@@ -527,7 +534,7 @@ class UpdaterWindow(QMainWindow):
             }}
             """
         )
-        layout.addWidget(self.progress_bar)
+        content_layout.addWidget(self.progress_bar)
         
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(12)
@@ -579,7 +586,7 @@ class UpdaterWindow(QMainWindow):
         self.button_layout.addStretch()
         self.button_layout.addWidget(self.done_button)
         self.button_layout.addWidget(self.cancel_button)
-        layout.addLayout(self.button_layout)
+        content_layout.addLayout(self.button_layout)
         
         self.close_timer = QTimer()
         self.close_timer.timeout.connect(self.close)
@@ -589,7 +596,12 @@ class UpdaterWindow(QMainWindow):
         self.countdown_label.setFont(QFont("Segoe UI", 10))
         self.countdown_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         self.countdown_label.hide()
-        layout.addWidget(self.countdown_label)
+        content_layout.addWidget(self.countdown_label)
+        
+        # Добавляем content_layout в основной layout
+        content_widget = QWidget()
+        content_widget.setLayout(content_layout)
+        layout.addWidget(content_widget, 1)
         
         self.countdown_seconds = 5
         self.countdown_timer = QTimer()

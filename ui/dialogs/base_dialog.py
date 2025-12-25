@@ -1,10 +1,11 @@
 """Базовый класс для диалогов"""
 from enum import Enum
 from typing import Optional, Tuple, Callable
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
+from ui.widgets import TitleBar
 from utils.i18n import tr
 
 
@@ -43,6 +44,8 @@ def create_dialog(
         Созданный диалог
     """
     dialog = QDialog(parent)
+    # Фреймлесс-режим, чтобы убрать системный статус-бар
+    dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.Window | Qt.Dialog)
     dialog.setWindowTitle(title)
     dialog.setMinimumWidth(min_width)
     dialog.setModal(True)
@@ -51,21 +54,31 @@ def create_dialog(
     dialog.setStyleSheet(StyleSheet.dialog())
     
     layout = QVBoxLayout(dialog)
-    layout.setSpacing(20)
-    layout.setContentsMargins(24, 24, 24, 24)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
+    
+    # Собственный статус-бар в стиле приложения
+    title_bar = TitleBar(dialog)
+    title_bar.set_title(title)  # Устанавливаем title в TitleBar
+    layout.addWidget(title_bar)
+    
+    # Внутренний layout для содержимого
+    content_layout = QVBoxLayout()
+    content_layout.setSpacing(20)
+    content_layout.setContentsMargins(24, 24, 24, 24)
     
     # Заголовок
     title_label = QLabel(title)
     title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
     title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
-    layout.addWidget(title_label)
+    content_layout.addWidget(title_label)
     
     # Сообщение
     message_label = QLabel(message)
     message_label.setWordWrap(True)
     message_label.setFont(QFont("Segoe UI", 13))
     message_label.setStyleSheet(StyleSheet.label(variant="secondary") + "margin-bottom: 8px;")
-    layout.addWidget(message_label)
+    content_layout.addWidget(message_label)
     
     # Кнопки
     btn_layout = QHBoxLayout()
@@ -108,7 +121,12 @@ def create_dialog(
         btn_layout.addStretch()
         btn_layout.addWidget(btn_ok)
     
-    layout.addLayout(btn_layout)
+    content_layout.addLayout(btn_layout)
+    
+    # Добавляем content_layout в основной layout
+    content_widget = QWidget()
+    content_widget.setLayout(content_layout)
+    layout.addWidget(content_widget, 1)
     
     return dialog
 

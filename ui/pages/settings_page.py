@@ -68,18 +68,21 @@ class SettingsPage(BasePage):
         self.lbl_settings_title.setFixedHeight(28)
         settings_layout.addWidget(self.lbl_settings_title)
         
-        # Интервал автообновления (в одну линию, как язык и тема)
-        interval_row = QHBoxLayout()
-        interval_row.setSpacing(12)
+        # Интервал автообновления (текст сверху, кнопки снизу)
+        interval_container = QVBoxLayout()
+        interval_container.setSpacing(8)
         
         self.interval_label = QLabel(tr("settings.auto_update_interval"))
         self.interval_label.setFont(QFont("Segoe UI", 13))
         self.interval_label.setStyleSheet(StyleSheet.label(variant="secondary"))
-        interval_row.addWidget(self.interval_label)
+        interval_container.addWidget(self.interval_label)
         
-        # Чекбоксы для выбора интервала (в одну линию)
+        # Кнопки для выбора интервала (в одну линию под текстом)
+        interval_buttons_row = QHBoxLayout()
+        interval_buttons_row.setSpacing(12)
+        
         self.interval_buttons = {}
-        interval_values = [30, 60, 90, 120]
+        interval_values = [30, 60, 90, 120, 180]  # Добавлен интервал 180 после 120
         current_interval = self.main_window.settings.get("auto_update_minutes", 90)
         
         for value in interval_values:
@@ -92,10 +95,11 @@ class SettingsPage(BasePage):
             radio.toggled.connect(make_handler(value))
             radio.setStyleSheet(StyleSheet.checkbox())
             self.interval_buttons[value] = radio
-            interval_row.addWidget(radio)
+            interval_buttons_row.addWidget(radio)
         
-        interval_row.addStretch()
-        settings_layout.addLayout(interval_row)
+        interval_buttons_row.addStretch()
+        interval_container.addLayout(interval_buttons_row)
+        settings_layout.addLayout(interval_container)
         
         # Чекбоксы настроек
         self.cb_autostart = QCheckBox(tr("settings.autostart"))

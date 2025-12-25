@@ -118,6 +118,7 @@ from ui.tray_manager import TrayManager
 from ui.dialogs.info_dialog import show_info_dialog
 from ui.dialogs.confirm_dialog import show_confirm_dialog
 from ui.dialogs.input_dialog import show_input_dialog
+from ui.dialogs.add_subscription_dialog import show_add_subscription_dialog
 
 # Импорты из архитектуры проекта
 from config.paths import (
@@ -200,8 +201,8 @@ class MainWindow(QMainWindow):
         self.version_click_count = 0  # Счетчик кликов по версии для дебаг меню
 
         self.setWindowTitle(tr("app.title"))
-        self.setMinimumSize(500, 780)
-        self.setMaximumSize(500, 780)
+        self.setMinimumSize(420, 780)
+        self.setMaximumSize(420, 780)
 
         # Устанавливаем иконку окна через IconManager
         set_window_icon(self)
@@ -566,92 +567,18 @@ class MainWindow(QMainWindow):
 
     def on_add_sub(self):
         """Добавление подписки"""
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr("profile.add_subscription"))
-        dialog.setMinimumWidth(420)
-        dialog.setModal(True)
-        
-        # Стили диалога через дизайн-систему
-        dialog.setStyleSheet(StyleSheet.dialog() + StyleSheet.input())
-        
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(20)
-        layout.setContentsMargins(24, 24, 24, 24)
-        
-        # Заголовок
-        title_label = QLabel(tr("profile.add_subscription"))
-        title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-        title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
-        layout.addWidget(title_label)
-        
-        # Название
-        name_label = QLabel(tr("profile.name"))
-        name_label.setStyleSheet(StyleSheet.label(variant="default", size="medium") + "margin-top: 8px;")
-        layout.addWidget(name_label)
-        
-        name_input = QLineEdit()
-        name_input.setPlaceholderText(tr("profile.name"))
-        name_input.setStyleSheet(StyleSheet.input())
-        layout.addWidget(name_input)
-        
-        # URL
-        url_label = QLabel(tr("profile.url"))
-        url_label.setStyleSheet(StyleSheet.label(variant="default", size="medium") + "margin-top: 8px;")
-        layout.addWidget(url_label)
-        
-        url_input = QLineEdit()
-        url_input.setPlaceholderText("https://...")
-        url_input.setStyleSheet(StyleSheet.input())
-        layout.addWidget(url_input)
-        
-        # Кнопки
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(12)
-        
-        # Кнопка отмены слева
-        btn_cancel = QPushButton(tr("download.cancel"))
-        btn_cancel.setCursor(Qt.PointingHandCursor)
-        btn_cancel.setStyleSheet(StyleSheet.dialog_button(variant="cancel"))
-        btn_cancel.clicked.connect(dialog.reject)
-        btn_layout.addWidget(btn_cancel)
-        
-        # Растяжка между кнопками
-        btn_layout.addStretch()
-        
-        # Кнопка добавления справа
-        btn_add = QPushButton(tr("profile.add"))
-        btn_add.setCursor(Qt.PointingHandCursor)
-        btn_add.setDefault(True)
-        btn_add.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
-        
-        def on_add_clicked():
-            name = name_input.text().strip()
-            url = url_input.text().strip()
-            if name and url:
-                # Сохраняем текущий выбранный профиль
-                saved_index = self.current_sub_index
-                self.subs.add(name, url)
-                self.refresh_subscriptions_ui()
-                # Восстанавливаем выбор профиля
-                if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
-                    if saved_index >= 0 and saved_index < self.page_profile.sub_list.count():
-                        self.page_profile.sub_list.setCurrentRow(saved_index)
-                    self.current_sub_index = saved_index
-                self.log(tr("profile.added", name=name))
-                dialog.accept()
-            else:
-                show_info_dialog(dialog, tr("profile.add_subscription"), tr("profile.fill_all_fields"))
-        
-        btn_add.clicked.connect(on_add_clicked)
-        btn_layout.addWidget(btn_add)
-        
-        layout.addLayout(btn_layout)
-        
-        # Фокус на первое поле
-        name_input.setFocus()
-        
-        if dialog.exec_() == QDialog.Accepted:
-            pass  # Уже обработано в on_add_clicked
+        name, url, ok = show_add_subscription_dialog(self)
+        if ok and name and url:
+            # Сохраняем текущий выбранный профиль
+            saved_index = self.current_sub_index
+            self.subs.add(name, url)
+            self.refresh_subscriptions_ui()
+            # Восстанавливаем выбор профиля
+            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
+                if saved_index >= 0 and saved_index < self.page_profile.sub_list.count():
+                    self.page_profile.sub_list.setCurrentRow(saved_index)
+                self.current_sub_index = saved_index
+            self.log(tr("profile.added", name=name))
 
     def on_del_sub(self):
         """Удаление подписки"""
@@ -986,6 +913,8 @@ class MainWindow(QMainWindow):
     def show_download_dialog(self):
         """Диалог загрузки SingBox"""
         dialog = QDialog(self)
+        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
+        dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.Window | Qt.Dialog)
         dialog.setWindowTitle(tr("download.title"))
         dialog.setMinimumWidth(400)
         dialog.setModal(True)
@@ -994,20 +923,30 @@ class MainWindow(QMainWindow):
         dialog.setStyleSheet(StyleSheet.dialog() + StyleSheet.progress_bar())
         
         layout = QVBoxLayout(dialog)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Собственный статус-бар в стиле приложения
+        title_bar = TitleBar(dialog)
+        title_bar.set_title(tr("download.title"))
+        layout.addWidget(title_bar)
+        
+        # Внутренний layout для содержимого
+        content_layout = QVBoxLayout()
+        content_layout.setSpacing(16)
+        content_layout.setContentsMargins(24, 24, 24, 24)
         
         # Заголовок
         title = QLabel(tr("download.not_installed"))
         title.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
         title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
-        layout.addWidget(title)
+        content_layout.addWidget(title)
         
         # Описание
         info = QLabel(tr("download.description"))
         info.setWordWrap(True)
         info.setStyleSheet(StyleSheet.label(variant="secondary", size="medium"))
-        layout.addWidget(info)
+        content_layout.addWidget(info)
         
         # Прогресс-бар
         self.download_progress = QProgressBar()
@@ -1015,7 +954,7 @@ class MainWindow(QMainWindow):
         self.download_progress.setValue(0)
         self.download_progress.hide()
         self.download_progress.setStyleSheet(StyleSheet.progress_bar())
-        layout.addWidget(self.download_progress)
+        content_layout.addWidget(self.download_progress)
         
         # Кнопки
         btn_layout = QHBoxLayout()
@@ -1039,7 +978,12 @@ class MainWindow(QMainWindow):
         btn_download.clicked.connect(lambda: self.start_download(dialog, btn_download))
         btn_layout.addWidget(btn_download)
         
-        layout.addLayout(btn_layout)
+        content_layout.addLayout(btn_layout)
+        
+        # Добавляем content_layout в основной layout
+        content_widget = QWidget()
+        content_widget.setLayout(content_layout)
+        layout.addWidget(content_widget, 1)
         
         dialog.exec_()
     

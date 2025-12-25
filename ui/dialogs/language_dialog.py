@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushBut
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
+from ui.widgets import TitleBar
 from utils.i18n import get_available_languages, get_language_name, tr
 
 
@@ -18,6 +19,8 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         Код выбранного языка
     """
     dialog = QDialog(parent)
+    # Фреймлесс-режим, чтобы убрать системный статус-бар
+    dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.Window | Qt.Dialog)
     dialog.setWindowTitle(tr("language_dialog.title"))
     dialog.setMinimumWidth(400)
     dialog.setModal(True)
@@ -40,14 +43,24 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
     """)
     
     layout = QVBoxLayout(dialog)
-    layout.setSpacing(20)
-    layout.setContentsMargins(24, 24, 24, 24)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
+    
+    # Собственный статус-бар в стиле приложения
+    title_bar = TitleBar(dialog)
+    title_bar.set_title(tr("language_dialog.title"))  # Устанавливаем title в TitleBar
+    layout.addWidget(title_bar)
+    
+    # Внутренний layout для содержимого
+    content_layout = QVBoxLayout()
+    content_layout.setSpacing(20)
+    content_layout.setContentsMargins(24, 24, 24, 24)
     
     # Заголовок
     title_label = QLabel(tr("language_dialog.title"))
     title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
     title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
-    layout.addWidget(title_label)
+    content_layout.addWidget(title_label)
     
     # Список языков
     available_languages = get_available_languages()
@@ -62,7 +75,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         btn = QPushButton(lang_name)
         btn.setCursor(Qt.PointingHandCursor)
         btn.clicked.connect(lambda checked, l=lang_code: select_language(l))
-        layout.addWidget(btn)
+        content_layout.addWidget(btn)
     
     # Кнопка OK (справа)
     btn_layout = QHBoxLayout()
@@ -73,7 +86,12 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
     btn_ok.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
     btn_ok.clicked.connect(dialog.accept)
     btn_layout.addWidget(btn_ok)
-    layout.addLayout(btn_layout)
+    content_layout.addLayout(btn_layout)
+    
+    # Добавляем content_layout в основной layout
+    content_widget = QWidget()
+    content_widget.setLayout(content_layout)
+    layout.addWidget(content_widget, 1)
     
     if dialog.exec_() == QDialog.Accepted:
         return selected_language[0]
