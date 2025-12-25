@@ -55,20 +55,28 @@ class HomePage(BasePage):
         version_row.addWidget(self.lbl_version)
         
         self.btn_version_warning = QPushButton()
-        self.btn_version_warning.setIcon(icon("mdi.alert-circle", color="#ff6b6b").icon())
+        from ui.styles import theme
+        error_color = theme.get_color('error')
+        self.btn_version_warning.setIcon(icon("mdi.alert-circle", color=error_color).icon())
         self.btn_version_warning.setMinimumSize(24, 24)
         self.btn_version_warning.setMaximumSize(32, 32)
         self.btn_version_warning.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.btn_version_warning.setStyleSheet("""
-            QPushButton {
+        # Используем error цвет с прозрачностью для hover (можно улучшить, добавив error_light в темы)
+        error_hex = error_color.lstrip('#')
+        error_r = int(error_hex[0:2], 16)
+        error_g = int(error_hex[2:4], 16)
+        error_b = int(error_hex[4:6], 16)
+        error_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.15)"
+        self.btn_version_warning.setStyleSheet(f"""
+            QPushButton {{
                 background-color: transparent;
                 border: none;
                 border-radius: 50%;
                 padding: 4px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 107, 107, 0.15);
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {error_hover};
+            }}
         """)
         self.btn_version_warning.setCursor(Qt.PointingHandCursor)
         self.btn_version_warning.clicked.connect(self.main_window.show_download_dialog)
@@ -76,20 +84,23 @@ class HomePage(BasePage):
         version_row.addWidget(self.btn_version_warning)
         
         self.btn_version_update = QPushButton()
-        self.btn_version_update.setIcon(icon("mdi.download", color="#00f5d4").icon())
+        from ui.styles import theme
+        accent_color = theme.get_color('accent')
+        self.btn_version_update.setIcon(icon("mdi.download", color=accent_color).icon())
         self.btn_version_update.setMinimumSize(24, 24)
         self.btn_version_update.setMaximumSize(32, 32)
         self.btn_version_update.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.btn_version_update.setStyleSheet("""
-            QPushButton {
+        accent_light = theme.get_color('accent_light')
+        self.btn_version_update.setStyleSheet(f"""
+            QPushButton {{
                 background-color: transparent;
                 border: none;
                 border-radius: 50%;
                 padding: 4px;
-            }
-            QPushButton:hover {
-                background-color: rgba(0, 245, 212, 0.15);
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {accent_light};
+            }}
         """)
         self.btn_version_update.setCursor(Qt.PointingHandCursor)
         self.btn_version_update.clicked.connect(self.main_window.show_download_dialog)

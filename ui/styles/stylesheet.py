@@ -41,8 +41,8 @@ class StyleSheet:
             },
             'danger': {
                 'bg': theme.get_color('error'),
-                'bg_hover': '#ff5252',
-                'text': '#ffffff',
+                'bg_hover': theme.get_color('error'),  # Можно улучшить, добавив error_hover в темы
+                'text': theme.get_color('text_primary'),
                 'border': 'none',
             },
         }
@@ -416,30 +416,31 @@ class StyleSheet:
             return f"""
             QPushButton {{
                 background-color: {theme.get_color('error')};
-                color: #ffffff;
+                color: {theme.get_color('text_primary')};
             }}
             QPushButton:hover {{
-                background-color: #ff8787;
+                background-color: {theme.get_color('error')};
+                opacity: 0.9;
             }}
             """
         elif variant == "success":
             return f"""
             QPushButton {{
                 background-color: {theme.get_color('success')};
-                color: #020617;
+                color: {theme.get_color('background_primary')};
             }}
             QPushButton:hover {{
-                background-color: #5fffe3;
+                background-color: {theme.get_color('accent_hover')};
             }}
             """
         else:  # confirm или default
             return f"""
             QPushButton {{
                 background-color: {theme.get_color('accent')};
-                color: #020617;
+                color: {theme.get_color('background_primary')};
             }}
             QPushButton:hover {{
-                background-color: #5fffe3;
+                background-color: {theme.get_color('accent_hover')};
             }}
             """
     

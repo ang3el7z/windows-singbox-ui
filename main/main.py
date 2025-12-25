@@ -90,7 +90,7 @@ def release_global_mutex():
         GLOBAL_MUTEX_HANDLE = None
 
 
-def cleanup_single_instance(server_name: str, local_server: QLocalServer | None):
+def cleanup_single_instance(server_name: str, local_server: 'QLocalServer | None'):
     """Освобождает локальный сервер и глобальный mutex"""
     try:
         if local_server:
@@ -164,15 +164,6 @@ class MainWindow(QMainWindow):
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
         
-        # Таймер для блокировки комбобокса темы после выбора
-        self._theme_lock_timer = QTimer(self)
-        self._theme_lock_timer.setSingleShot(True)
-        self._theme_lock_timer.timeout.connect(self._unlock_theme_combo)
-        
-        # Таймер для блокировки комбобокса языка после выбора
-        self._language_lock_timer = QTimer(self)
-        self._language_lock_timer.setSingleShot(True)
-        self._language_lock_timer.timeout.connect(self._unlock_language_combo)
         
         # Локальный сервер будет установлен из main() после создания окна
         if not hasattr(self, "local_server"):
@@ -372,22 +363,26 @@ class MainWindow(QMainWindow):
         running_sub = data.get('running_sub')
         selected_sub = data.get('selected_sub')
         
+        from ui.styles import theme
+        accent_color = theme.get_color('accent')
+        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px; padding-left: 4px;"
+        
         if running_sub and selected_sub:
             if self.running_sub_index == self.current_sub_index:
                 self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setStyleSheet(profile_style)
             else:
                 text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
-                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setStyleSheet(profile_style)
                 self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif running_sub:
             self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setStyleSheet(profile_style)
             self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif selected_sub:
             self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setStyleSheet(profile_style)
             self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         else:
             from ui.styles import theme
@@ -424,9 +419,11 @@ class MainWindow(QMainWindow):
         """Обработка проверенных версий sing-box"""
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_version'):
             return
+        from ui.styles import theme
         if current_version:
             self.page_home.lbl_version.setText(tr("home.installed", version=current_version))
-            self.page_home.lbl_version.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px;")
+            accent_color = theme.get_color('accent')
+            self.page_home.lbl_version.setStyleSheet(f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;")
             if hasattr(self.page_home, 'btn_version_warning'):
                 self.page_home.btn_version_warning.hide()
             
@@ -897,26 +894,30 @@ class MainWindow(QMainWindow):
                     selected_sub = self.subs.get(self.current_sub_index)
         
         # Формируем текст
+        from ui.styles import theme
+        accent_color = theme.get_color('accent')
+        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px; padding-left: 4px;"
+        
         if running_sub and selected_sub:
             if self.running_sub_index == self.current_sub_index:
                 # Профили совпадают
                 self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setStyleSheet(profile_style)
             else:
                 # Профили разные - добавляем отступ для второй строки
                 text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
-                self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+                self.page_home.lbl_profile.setStyleSheet(profile_style)
                 self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif running_sub:
             # Только запущенный профиль
             self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setStyleSheet(profile_style)
             self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         elif selected_sub:
             # Только выбранный профиль
             self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet("color: #00f5d4; background-color: transparent; border: none; padding: 0px; padding-left: 4px;")
+            self.page_home.lbl_profile.setStyleSheet(profile_style)
             self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
         else:
             # Нет профиля
@@ -1637,11 +1638,6 @@ class MainWindow(QMainWindow):
             if lang_code:
                 old_language = self.settings.get("language", "en")
                 if lang_code != old_language:
-                    # Блокируем комбобокс языка на 5 секунд
-                    self._lock_language_combo()
-                    self._language_lock_timer.stop()  # Останавливаем предыдущий таймер если был
-                    self._language_lock_timer.start(5000)  # 5 секунд
-                    
                     self.settings.set("language", lang_code)
                     set_language(lang_code)
                     self.log(tr("settings.language_changed", language=get_language_name(lang_code)))
@@ -1659,66 +1655,6 @@ class MainWindow(QMainWindow):
                             if theme_info["id"] == current_theme_id:
                                 self.page_settings.combo_theme.setCurrentIndex(self.page_settings.combo_theme.count() - 1)
     
-    def _lock_theme_combo(self):
-        """Блокирует комбобокс темы с визуальной индикацией загрузки"""
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_theme'):
-            combo = self.page_settings.combo_theme
-            combo.setEnabled(False)
-            combo.setProperty("loading", "true")
-            combo.style().unpolish(combo)
-            combo.style().polish(combo)
-            # Сохраняем текущий текст для отображения
-            current_text = combo.currentText()
-            loading_text = tr("settings.loading")
-            combo.setItemText(combo.currentIndex(), f"{current_text} ({loading_text})")
-    
-    def _unlock_theme_combo(self):
-        """Разблокирует комбобокс темы и убирает индикацию загрузки"""
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_theme'):
-            combo = self.page_settings.combo_theme
-            combo.setEnabled(True)
-            combo.setProperty("loading", "false")
-            combo.style().unpolish(combo)
-            combo.style().polish(combo)
-            # Восстанавливаем оригинальный текст (убираем "Загрузка...")
-            current_index = combo.currentIndex()
-            theme_id = combo.itemData(current_index)
-            if theme_id:
-                from utils.theme_manager import get_theme_name
-                from utils.i18n import get_translator
-                current_language = get_translator().language
-                theme_name = get_theme_name(theme_id, current_language)
-                combo.setItemText(current_index, theme_name)
-    
-    def _lock_language_combo(self):
-        """Блокирует комбобокс языка с визуальной индикацией загрузки"""
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_language'):
-            combo = self.page_settings.combo_language
-            combo.setEnabled(False)
-            combo.setProperty("loading", "true")
-            combo.style().unpolish(combo)
-            combo.style().polish(combo)
-            # Сохраняем текущий текст для отображения
-            current_text = combo.currentText()
-            loading_text = tr("settings.loading")
-            combo.setItemText(combo.currentIndex(), f"{current_text} ({loading_text})")
-    
-    def _unlock_language_combo(self):
-        """Разблокирует комбобокс языка и убирает индикацию загрузки"""
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_language'):
-            combo = self.page_settings.combo_language
-            combo.setEnabled(True)
-            combo.setProperty("loading", "false")
-            combo.style().unpolish(combo)
-            combo.style().polish(combo)
-            # Восстанавливаем оригинальный текст (убираем "Загрузка...")
-            current_index = combo.currentIndex()
-            lang_code = combo.itemData(current_index)
-            if lang_code:
-                from utils.i18n import get_language_name
-                lang_name = get_language_name(lang_code)
-                combo.setItemText(current_index, lang_name)
-    
     def on_theme_changed(self, index: int):
         """Обработка изменения темы"""
         if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'combo_theme'):
@@ -1728,11 +1664,6 @@ class MainWindow(QMainWindow):
             if theme_id:
                 old_theme = self.settings.get("theme", "dark")
                 if theme_id != old_theme:
-                    # Блокируем комбобокс темы на 5 секунд
-                    self._lock_theme_combo()
-                    self._theme_lock_timer.stop()  # Останавливаем предыдущий таймер если был
-                    self._theme_lock_timer.start(5000)  # 5 секунд
-                    
                     self.settings.set("theme", theme_id)
                     from utils.theme_manager import set_theme, get_theme_name
                     from utils.i18n import get_translator
@@ -1742,14 +1673,411 @@ class MainWindow(QMainWindow):
                     theme_name = get_theme_name(theme_id, current_language)
                     self.log(tr("settings.theme_changed", theme=theme_name))
                     
-                    # Быстрый перезапуск для гарантированного применения темы
-                    if not restart_application(self, run_as_admin=False):
-                        # Если перезапуск не удался, разблокируем комбобокс
-                        self._unlock_theme_combo()
-                        self._theme_lock_timer.stop()
+                    # Обновляем все стили UI при смене темы
+                    self.refresh_ui_styles()
 
 
-    # Полное точечное обновление UI заменено на быстрый перезапуск приложения при смене темы.
+    def refresh_ui_styles(self):
+        """Обновление всех стилей UI при смене темы"""
+        from ui.styles import theme
+        
+        # Обновляем title bar
+        if hasattr(self, "title_bar"):
+            self.title_bar.apply_theme()
+        
+        # Обновляем навигационные кнопки
+        if hasattr(self, 'btn_nav_profile'):
+            self._update_nav_button(self.btn_nav_profile, 
+                                   tr("nav.profile"), 
+                                   "mdi.account")
+        if hasattr(self, 'btn_nav_home'):
+            self._update_nav_button(self.btn_nav_home, 
+                                   tr("nav.home"), 
+                                   "mdi.home")
+        if hasattr(self, 'btn_nav_settings'):
+            self._update_nav_button(self.btn_nav_settings, 
+                                   tr("nav.settings"), 
+                                   "mdi.cog")
+        
+        # Обновляем навигацию
+        nav = self.findChild(QWidget, 'nav')
+        if nav:
+            nav.setStyleSheet(StyleSheet.navigation())
+        
+        # Обновляем version container
+        if hasattr(self, 'version_container'):
+            self.version_container.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {theme.get_color('background_primary')};
+                    border: none;
+                }}
+            """)
+        
+        # Обновляем страницы через их методы обновления стилей
+        if hasattr(self, 'page_home'):
+            self._refresh_home_page_styles()
+        if hasattr(self, 'page_profile'):
+            self._refresh_profile_page_styles()
+        if hasattr(self, 'page_settings'):
+            self._refresh_settings_page_styles()
+        
+        # Обновляем информацию о профиле, версии, кнопках (они используют стили)
+        self.update_profile_info()
+        self.update_version_info()
+        self.update_app_version_display()
+        self.update_big_button_state()
+        self.update_admin_status_label()
+        
+        # Обновляем главное окно
+        self.setStyleSheet(StyleSheet.global_styles())
+        
+        # Принудительно обновляем все виджеты для перерисовки
+        self.update()
+        if hasattr(self, 'page_home'):
+            self.page_home.update()
+        if hasattr(self, 'page_profile'):
+            self.page_profile.update()
+        if hasattr(self, 'page_settings'):
+            self.page_settings.update()
+    
+    def _refresh_home_page_styles(self):
+        """Обновление стилей главной страницы"""
+        if not hasattr(self, 'page_home'):
+            return
+        from ui.styles import theme
+        from utils.icon_helper import icon
+        
+        # Обновляем кнопки версии
+        if hasattr(self.page_home, 'btn_version_warning'):
+            error_color = theme.get_color('error')
+            self.page_home.btn_version_warning.setIcon(icon("mdi.alert-circle", color=error_color).icon())
+            error_hex = error_color.lstrip('#')
+            error_r = int(error_hex[0:2], 16)
+            error_g = int(error_hex[2:4], 16)
+            error_b = int(error_hex[4:6], 16)
+            error_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.15)"
+            self.page_home.btn_version_warning.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: none;
+                    border-radius: 50%;
+                    padding: 4px;
+                }}
+                QPushButton:hover {{
+                    background-color: {error_hover};
+                }}
+            """)
+        
+        if hasattr(self.page_home, 'btn_version_update'):
+            accent_color = theme.get_color('accent')
+            self.page_home.btn_version_update.setIcon(icon("mdi.download", color=accent_color).icon())
+            accent_light = theme.get_color('accent_light')
+            self.page_home.btn_version_update.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: none;
+                    border-radius: 50%;
+                    padding: 4px;
+                }}
+                QPushButton:hover {{
+                    background-color: {accent_light};
+                }}
+            """)
+        
+        # Обновляем заголовки
+        from ui.styles import StyleSheet
+        from PyQt5.QtWidgets import QLabel
+        
+        # Находим все элементы на странице и обновляем их
+        # Заголовок профиля
+        if hasattr(self.page_home, 'profile_title'):
+            self.page_home.profile_title.setStyleSheet(StyleSheet.label(variant="default", size="large"))
+        
+        # Обновляем все заголовки карточек (version_title и другие) по их стилю
+        # Ищем все QLabel с жирным шрифтом размером >= 13 как заголовки карточек
+        processed_labels = set()
+        if hasattr(self.page_home, 'lbl_version'):
+            processed_labels.add(self.page_home.lbl_version)
+        if hasattr(self.page_home, 'lbl_profile'):
+            processed_labels.add(self.page_home.lbl_profile)
+        if hasattr(self.page_home, 'lbl_admin_status'):
+            processed_labels.add(self.page_home.lbl_admin_status)
+        if hasattr(self.page_home, 'lbl_update_info'):
+            processed_labels.add(self.page_home.lbl_update_info)
+        
+        for label in self.page_home.findChildren(QLabel):
+            if label in processed_labels:
+                continue
+            # Обновляем заголовки карточек (жирный шрифт размером >= 13)
+            font = label.font()
+            if font.bold() and font.pointSize() >= 13:
+                label.setStyleSheet(StyleSheet.label(variant="default", size="large"))
+                label.update()
+        
+        # Лейбл версии (базовый стиль, подробнее обновится в update_version_info)
+        if hasattr(self.page_home, 'lbl_version'):
+            # Базовый стиль будет переопределен в update_version_info
+            pass
+        
+        # Лейбл профиля (базовый стиль, подробнее обновится в update_profile_info)
+        if hasattr(self.page_home, 'lbl_profile'):
+            # Базовый стиль будет переопределен в update_profile_info
+            pass
+        
+        # Лейбл обновления
+        if hasattr(self.page_home, 'lbl_update_info'):
+            self.page_home.lbl_update_info.setStyleSheet(StyleSheet.label(variant="warning"))
+        
+        # Обновляем фон страницы
+        self.page_home.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+        """)
+        
+        # Обновляем все карточки на странице
+        self._refresh_cards_on_page(self.page_home)
+        
+        # Обновляем большую кнопку (big_btn) - стиль обновится через style_big_btn_running
+        # которое вызывается в update_big_button_state, но вызываем здесь для надежности
+        if hasattr(self.page_home, 'big_btn'):
+            # Определяем состояние кнопки
+            running = self.proc and self.proc.poll() is None
+            self.style_big_btn_running(running)
+        
+        # Принудительно обновляем всю страницу для перерисовки
+        self.page_home.update()
+        self.page_home.repaint()
+    
+    def _refresh_profile_page_styles(self):
+        """Обновление стилей страницы профилей"""
+        if not hasattr(self, 'page_profile'):
+            return
+        from ui.styles import theme
+        from ui.styles import StyleSheet
+        
+        # Обновляем фон страницы
+        self.page_profile.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+        """)
+        
+        # Обновляем заголовок
+        if hasattr(self.page_profile, 'lbl_profile_title'):
+            self.page_profile.lbl_profile_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
+        
+        # Обновляем список подписок
+        if hasattr(self.page_profile, 'sub_list'):
+            self.page_profile.sub_list.setStyleSheet(f"""
+                QListWidget {{
+                    background-color: {theme.get_color('background_tertiary')};
+                    border: none;
+                    border-radius: {theme.get_size('border_radius_medium')}px;
+                    padding: {theme.get_size('padding_small')}px;
+                    outline: none;
+                }}
+                QListWidget::item {{
+                    background-color: transparent;
+                    border-radius: {theme.get_size('border_radius_small')}px;
+                    padding: {theme.get_size('padding_medium')}px;
+                    margin: 2px;
+                }}
+                QListWidget::item:hover {{
+                    background-color: {theme.get_color('accent_light')};
+                }}
+                QListWidget::item:selected {{
+                    background-color: {theme.get_color('accent_light')};
+                    color: {theme.get_color('accent')};
+                }}
+            """)
+        
+        # Обновляем кнопки
+        button_style = f"""
+            QPushButton {{
+                background-color: {theme.get_color('background_tertiary')};
+                color: {theme.get_color('text_primary')};
+                border: 1px solid {theme.get_color('border')};
+                border-radius: {theme.get_size('border_radius_medium')}px;
+                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                font-size: {theme.get_font('size_medium')}px;
+                font-weight: {theme.get_font('weight_medium')};
+                font-family: {theme.get_font('family')};
+            }}
+            QPushButton:hover {{
+                background-color: {theme.get_color('accent_light')};
+                border-color: {theme.get_color('border_hover')};
+            }}
+            QPushButton:pressed {{
+                background-color: {theme.get_color('accent_light_hover')};
+                opacity: 0.9;
+            }}
+            QPushButton:disabled {{
+                background-color: {theme.get_color('background_secondary')};
+                color: {theme.get_color('text_disabled')};
+                opacity: 0.5;
+            }}
+        """
+        if hasattr(self.page_profile, 'btn_add_sub'):
+            self.page_profile.btn_add_sub.setStyleSheet(button_style)
+        if hasattr(self.page_profile, 'btn_del_sub'):
+            self.page_profile.btn_del_sub.setStyleSheet(button_style)
+        if hasattr(self.page_profile, 'btn_rename_sub'):
+            self.page_profile.btn_rename_sub.setStyleSheet(button_style)
+        
+        # Обновляем все карточки на странице
+        self._refresh_cards_on_page(self.page_profile)
+        
+        # Принудительно обновляем всю страницу для перерисовки
+        self.page_profile.update()
+        self.page_profile.repaint()
+    
+    def _refresh_cards_on_page(self, page):
+        """Обновляет все CardWidget на странице"""
+        from ui.widgets.card import CardWidget
+        
+        # Находим все карточки на странице
+        cards = page.findChildren(CardWidget)
+        for card in cards:
+            if hasattr(card, 'apply_theme'):
+                card.apply_theme()
+                # update() уже вызывается в apply_theme, но убедимся что перерисовка происходит
+                card.update()
+    
+    def _refresh_settings_page_styles(self):
+        """Обновление стилей страницы настроек"""
+        if not hasattr(self, 'page_settings'):
+            return
+        from ui.styles import theme
+        from ui.styles import StyleSheet
+        
+        # Обновляем фон страницы
+        self.page_settings.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.get_color('background_primary')};
+            }}
+        """)
+        
+        # Обновляем заголовок
+        if hasattr(self.page_settings, 'lbl_settings_title'):
+            self.page_settings.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + """
+                QLabel {
+                    line-height: 24px;
+                    padding: 0px;
+                    margin: 0px;
+                }
+            """)
+        
+        # Обновляем лейблы
+        if hasattr(self.page_settings, 'interval_label'):
+            self.page_settings.interval_label.setStyleSheet(StyleSheet.label(variant="secondary"))
+        if hasattr(self.page_settings, 'language_label'):
+            self.page_settings.language_label.setStyleSheet(StyleSheet.label(variant="secondary"))
+        if hasattr(self.page_settings, 'theme_label'):
+            self.page_settings.theme_label.setStyleSheet(StyleSheet.label(variant="secondary"))
+        
+        # Обновляем все чекбоксы
+        if hasattr(self.page_settings, 'cb_autostart'):
+            self.page_settings.cb_autostart.setStyleSheet(StyleSheet.checkbox())
+        if hasattr(self.page_settings, 'cb_run_as_admin'):
+            self.page_settings.cb_run_as_admin.setStyleSheet(StyleSheet.checkbox())
+        if hasattr(self.page_settings, 'cb_auto_start_singbox'):
+            self.page_settings.cb_auto_start_singbox.setStyleSheet(StyleSheet.checkbox())
+        if hasattr(self.page_settings, 'cb_minimize_to_tray'):
+            self.page_settings.cb_minimize_to_tray.setStyleSheet(StyleSheet.checkbox())
+        
+        # Обновляем чекбокс allow_multiple (специальный стиль)
+        if hasattr(self.page_settings, 'cb_allow_multiple'):
+            error_color = theme.get_color('error')
+            error_hex = error_color.lstrip('#')
+            error_r = int(error_hex[0:2], 16)
+            error_g = int(error_hex[2:4], 16)
+            error_b = int(error_hex[4:6], 16)
+            error_light = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
+            self.page_settings.cb_allow_multiple.setStyleSheet(f"""
+                QCheckBox {{
+                    color: {error_color};
+                    background-color: transparent;
+                    border: none;
+                    padding: 0px;
+                }}
+                QCheckBox::indicator {{
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 6px;
+                    border: 2px solid {error_color};
+                    background-color: {error_light};
+                }}
+                QCheckBox::indicator:checked {{
+                    background-color: {error_color};
+                    border-color: {error_color};
+                }}
+            """)
+        
+        # Обновляем радиокнопки интервала
+        if hasattr(self.page_settings, 'interval_buttons'):
+            for radio in self.page_settings.interval_buttons.values():
+                radio.setStyleSheet(StyleSheet.checkbox())
+        
+        # Обновляем комбобоксы
+        if hasattr(self.page_settings, 'combo_language'):
+            self.page_settings.combo_language.setStyleSheet(StyleSheet.combo_box())
+        if hasattr(self.page_settings, 'combo_theme'):
+            self.page_settings.combo_theme.setStyleSheet(StyleSheet.combo_box())
+        
+        # Обновляем кнопку kill_all
+        if hasattr(self.page_settings, 'btn_kill_all'):
+            self.page_settings.btn_kill_all.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.get_color('error')};
+                    color: {theme.get_color('text_primary')};
+                    border: none;
+                    border-radius: {theme.get_size('border_radius_medium')}px;
+                    padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                    font-size: {theme.get_font('size_medium')}px;
+                    font-weight: {theme.get_font('weight_medium')};
+                    font-family: {theme.get_font('family')};
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.get_color('error')};
+                    opacity: 0.9;
+                }}
+                QPushButton:pressed {{
+                    opacity: 0.9;
+                }}
+                QPushButton:disabled {{
+                    background-color: {theme.get_color('background_secondary')};
+                    color: {theme.get_color('text_disabled')};
+                    opacity: 0.5;
+                }}
+            """)
+        
+        # Обновляем кнопку logs
+        if hasattr(self.page_settings, 'btn_open_logs'):
+            self.page_settings.btn_open_logs.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.get_color('background_tertiary')};
+                    color: {theme.get_color('text_primary')};
+                    border: 1px solid {theme.get_color('border')};
+                    border-radius: {theme.get_size('border_radius_medium')}px;
+                    padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
+                    font-size: {theme.get_font('size_medium')}px;
+                    font-weight: {theme.get_font('weight_medium')};
+                    font-family: {theme.get_font('family')};
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.get_color('accent_light')};
+                    border-color: {theme.get_color('border_hover')};
+                }}
+            """)
+        
+        # Обновляем все карточки на странице
+        self._refresh_cards_on_page(self.page_settings)
+        
+        # Принудительно обновляем всю страницу для перерисовки
+        self.page_settings.update()
+        self.page_settings.repaint()
+    
     def refresh_ui_texts(self):
         """Обновление всех текстов в интерфейсе после смены языка"""
         # Обновляем заголовок окна

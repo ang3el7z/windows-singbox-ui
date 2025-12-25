@@ -23,9 +23,11 @@ class NavButton(QPushButton):
         layout.setSpacing(10)
         
         # Иконка
+        from ui.styles import theme
         self.icon_label = QLabel()
         self.icon_label.setAlignment(Qt.AlignCenter)
-        self.icon_label.setPixmap(icon(icon_name, color="#64748b").pixmap(36, 36))
+        icon_color = theme.get_color('text_secondary')
+        self.icon_label.setPixmap(icon(icon_name, color=icon_color).pixmap(36, 36))
         self.icon_label.setStyleSheet("background-color: transparent; border: none;")
         
         # Текст

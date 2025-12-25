@@ -63,4 +63,6 @@ class CardWidget(QWidget):
         }}
         """
         self.setStyleSheet(card_style)
+        # Обновляем виджет чтобы перерисовать paintEvent
+        self.update()
 

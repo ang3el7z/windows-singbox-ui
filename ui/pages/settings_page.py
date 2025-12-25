@@ -131,6 +131,13 @@ class SettingsPage(BasePage):
         self.cb_allow_multiple.setChecked(self.main_window.settings.get("allow_multiple_processes", True))
         self.cb_allow_multiple.stateChanged.connect(self.main_window.on_allow_multiple_changed)
         self.cb_allow_multiple.setFont(QFont("Segoe UI", 13))
+        # Создаем rgba для error light (можно улучшить, добавив error_light в темы)
+        error_color = theme.get_color('error')
+        error_hex = error_color.lstrip('#')
+        error_r = int(error_hex[0:2], 16)
+        error_g = int(error_hex[2:4], 16)
+        error_b = int(error_hex[4:6], 16)
+        error_light = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
         self.cb_allow_multiple.setStyleSheet(f"""
             QCheckBox {{
                 color: {theme.get_color('error')};
@@ -143,7 +150,7 @@ class SettingsPage(BasePage):
                 height: 22px;
                 border-radius: 6px;
                 border: 2px solid {theme.get_color('error')};
-                background-color: rgba(255,107,107,0.1);
+                background-color: {error_light};
             }}
             QCheckBox::indicator:checked {{
                 background-color: {theme.get_color('error')};
@@ -209,7 +216,7 @@ class SettingsPage(BasePage):
         self.btn_kill_all.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.get_color('error')};
-                color: #ffffff;
+                color: {theme.get_color('text_primary')};
                 border: none;
                 border-radius: {theme.get_size('border_radius_medium')}px;
                 padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
@@ -218,7 +225,8 @@ class SettingsPage(BasePage):
                 font-family: {theme.get_font('family')};
             }}
             QPushButton:hover {{
-                background-color: #ff5252;
+                background-color: {theme.get_color('error')};
+                opacity: 0.9;
             }}
             QPushButton:pressed {{
                 opacity: 0.9;

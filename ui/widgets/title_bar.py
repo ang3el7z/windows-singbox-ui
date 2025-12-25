@@ -58,6 +58,13 @@ class TitleBar(QWidget):
         text = theme.get_color("text_primary")
         secondary = theme.get_color("text_secondary")
         hover = theme.get_color("accent_light")
+        # Создаем rgba для error hover (можно улучшить, добавив error_light в темы)
+        error_color = theme.get_color('error')
+        error_hex = error_color.lstrip('#')
+        error_r = int(error_hex[0:2], 16)
+        error_g = int(error_hex[2:4], 16)
+        error_b = int(error_hex[4:6], 16)
+        error_hover = f"rgba({error_r}, {error_g}, {error_b}, 0.12)"
 
         self.setStyleSheet(
             f"""
@@ -75,7 +82,7 @@ class TitleBar(QWidget):
                 background-color: {hover};
             }}
             QPushButton#titleBarClose:hover {{
-                background-color: rgba(255, 107, 107, 0.12);
+                background-color: {error_hover};
             }}
             """
         )
