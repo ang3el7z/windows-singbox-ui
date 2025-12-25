@@ -164,8 +164,15 @@ class MainWindow(QMainWindow):
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
         
-        # Флаг для предотвращения множественных перезапусков
-        self._restarting = False
+        # Таймер для блокировки комбобокса темы после выбора
+        self._theme_lock_timer = QTimer(self)
+        self._theme_lock_timer.setSingleShot(True)
+        self._theme_lock_timer.timeout.connect(self._unlock_theme_combo)
+        
+        # Таймер для блокировки комбобокса языка после выбора
+        self._language_lock_timer = QTimer(self)
+        self._language_lock_timer.setSingleShot(True)
+        self._language_lock_timer.timeout.connect(self._unlock_language_combo)
         
         # Локальный сервер будет установлен из main() после создания окна
         if not hasattr(self, "local_server"):
@@ -1630,6 +1637,11 @@ class MainWindow(QMainWindow):
             if lang_code:
                 old_language = self.settings.get("language", "en")
                 if lang_code != old_language:
+                    # Блокируем комбобокс языка на 5 секунд
+                    self._lock_language_combo()
+                    self._language_lock_timer.stop()  # Останавливаем предыдущий таймер если был
+                    self._language_lock_timer.start(5000)  # 5 секунд
+                    
                     self.settings.set("language", lang_code)
                     set_language(lang_code)
                     self.log(tr("settings.language_changed", language=get_language_name(lang_code)))
@@ -1647,13 +1659,68 @@ class MainWindow(QMainWindow):
                             if theme_info["id"] == current_theme_id:
                                 self.page_settings.combo_theme.setCurrentIndex(self.page_settings.combo_theme.count() - 1)
     
+    def _lock_theme_combo(self):
+        """Блокирует комбобокс темы с визуальной индикацией загрузки"""
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_theme'):
+            combo = self.page_settings.combo_theme
+            combo.setEnabled(False)
+            combo.setProperty("loading", "true")
+            combo.style().unpolish(combo)
+            combo.style().polish(combo)
+            # Сохраняем текущий текст для отображения
+            current_text = combo.currentText()
+            loading_text = tr("settings.loading")
+            combo.setItemText(combo.currentIndex(), f"{current_text} ({loading_text})")
+    
+    def _unlock_theme_combo(self):
+        """Разблокирует комбобокс темы и убирает индикацию загрузки"""
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_theme'):
+            combo = self.page_settings.combo_theme
+            combo.setEnabled(True)
+            combo.setProperty("loading", "false")
+            combo.style().unpolish(combo)
+            combo.style().polish(combo)
+            # Восстанавливаем оригинальный текст (убираем "Загрузка...")
+            current_index = combo.currentIndex()
+            theme_id = combo.itemData(current_index)
+            if theme_id:
+                from utils.theme_manager import get_theme_name
+                from utils.i18n import get_translator
+                current_language = get_translator().language
+                theme_name = get_theme_name(theme_id, current_language)
+                combo.setItemText(current_index, theme_name)
+    
+    def _lock_language_combo(self):
+        """Блокирует комбобокс языка с визуальной индикацией загрузки"""
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_language'):
+            combo = self.page_settings.combo_language
+            combo.setEnabled(False)
+            combo.setProperty("loading", "true")
+            combo.style().unpolish(combo)
+            combo.style().polish(combo)
+            # Сохраняем текущий текст для отображения
+            current_text = combo.currentText()
+            loading_text = tr("settings.loading")
+            combo.setItemText(combo.currentIndex(), f"{current_text} ({loading_text})")
+    
+    def _unlock_language_combo(self):
+        """Разблокирует комбобокс языка и убирает индикацию загрузки"""
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'combo_language'):
+            combo = self.page_settings.combo_language
+            combo.setEnabled(True)
+            combo.setProperty("loading", "false")
+            combo.style().unpolish(combo)
+            combo.style().polish(combo)
+            # Восстанавливаем оригинальный текст (убираем "Загрузка...")
+            current_index = combo.currentIndex()
+            lang_code = combo.itemData(current_index)
+            if lang_code:
+                from utils.i18n import get_language_name
+                lang_name = get_language_name(lang_code)
+                combo.setItemText(current_index, lang_name)
+    
     def on_theme_changed(self, index: int):
         """Обработка изменения темы"""
-        # Защита от множественных перезапусков
-        if self._restarting:
-            self.log(tr("messages.restart_in_progress"))
-            return
-        
         if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'combo_theme'):
             return
         if index >= 0:
@@ -1661,6 +1728,11 @@ class MainWindow(QMainWindow):
             if theme_id:
                 old_theme = self.settings.get("theme", "dark")
                 if theme_id != old_theme:
+                    # Блокируем комбобокс темы на 5 секунд
+                    self._lock_theme_combo()
+                    self._theme_lock_timer.stop()  # Останавливаем предыдущий таймер если был
+                    self._theme_lock_timer.start(5000)  # 5 секунд
+                    
                     self.settings.set("theme", theme_id)
                     from utils.theme_manager import set_theme, get_theme_name
                     from utils.i18n import get_translator
@@ -1670,12 +1742,11 @@ class MainWindow(QMainWindow):
                     theme_name = get_theme_name(theme_id, current_language)
                     self.log(tr("settings.theme_changed", theme=theme_name))
                     
-                    # Устанавливаем флаг перед перезапуском
-                    self._restarting = True
                     # Быстрый перезапуск для гарантированного применения темы
                     if not restart_application(self, run_as_admin=False):
-                        # Если перезапуск не удался, сбрасываем флаг
-                        self._restarting = False
+                        # Если перезапуск не удался, разблокируем комбобокс
+                        self._unlock_theme_combo()
+                        self._theme_lock_timer.stop()
 
 
     # Полное точечное обновление UI заменено на быстрый перезапуск приложения при смене темы.

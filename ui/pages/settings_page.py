@@ -173,6 +173,8 @@ class SettingsPage(BasePage):
                 self.combo_language.setCurrentIndex(self.combo_language.count() - 1)
         self.combo_language.currentIndexChanged.connect(self.main_window.on_language_changed)
         self.combo_language.setStyleSheet(StyleSheet.combo_box())
+        # Убеждаемся, что комбобокс разблокирован при инициализации
+        self.combo_language.setEnabled(True)
         language_row.addWidget(self.combo_language, 1)
         settings_layout.addLayout(language_row)
         
@@ -195,6 +197,8 @@ class SettingsPage(BasePage):
                 self.combo_theme.setCurrentIndex(self.combo_theme.count() - 1)
         self.combo_theme.currentIndexChanged.connect(self.main_window.on_theme_changed)
         self.combo_theme.setStyleSheet(StyleSheet.combo_box())
+        # Убеждаемся, что комбобокс разблокирован при инициализации
+        self.combo_theme.setEnabled(True)
         theme_row.addWidget(self.combo_theme, 1)
         settings_layout.addLayout(theme_row)
         

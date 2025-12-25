@@ -67,6 +67,7 @@
     "language_changed": "Язык изменен на {language}",
     "theme": "Тема:",
     "theme_changed": "Тема изменена на {theme}",
+    "loading": "Загрузка...",
     "kill_all": "Убить все процессы",
     "logs": "Логи",
     "allow_multiple_processes": "Разрешить несколько процессов одновременно"

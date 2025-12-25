@@ -304,6 +304,15 @@ class StyleSheet:
             color: {theme.get_color('text_disabled')};
             opacity: 0.5;
         }}
+        QComboBox[loading="true"] {{
+            background-color: {theme.get_color('background_tertiary')};
+            color: {theme.get_color('text_secondary')};
+            border: 1px solid {theme.get_color('accent')};
+            opacity: 0.7;
+        }}
+        QComboBox[loading="true"]::drop-down {{
+            border: none;
+        }}
         """
     
     @staticmethod

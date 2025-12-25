@@ -67,6 +67,7 @@
     "language_changed": "Language changed to {language}",
     "theme": "Theme:",
     "theme_changed": "Theme changed to {theme}",
+    "loading": "Loading...",
     "kill_all": "Kill all processes",
     "logs": "Logs",
     "allow_multiple_processes": "Allow multiple processes"
