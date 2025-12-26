@@ -12,9 +12,9 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7b10bc3c-4a28-4688-8f3e-042eb6784aa0" width="320" height="700" alt="Profile"/>
-  <img src="https://github.com/user-attachments/assets/9f89cf4e-e367-4fca-bff5-81872ac73a20" width="320" height="700" alt="Home"/>
-  <img src="https://github.com/user-attachments/assets/f2bd3451-5913-45a2-8e02-6ef70667ec15" width="320" height="700" alt="Settings"/>
+  <img width="320" height="700" alt="profile" src="https://github.com/user-attachments/assets/2db09749-0207-405c-9fc4-baf0c2d2e9a8" />
+  <img width="320" height="700" alt="home" src="https://github.com/user-attachments/assets/ac5a98f2-14ef-45bb-833c-d8ab36965e21" />
+  <img width="320" height="700" alt="settings" src="https://github.com/user-attachments/assets/299007bd-10f2-42bd-9d57-65fdf4d3cd42" />
 </p>
 
 ## Features
