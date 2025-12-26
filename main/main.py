@@ -2154,6 +2154,10 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'theme_label'):
             self.page_settings.theme_label.setText(tr("settings.theme"))
         
+        # Обновляем меню трея
+        if hasattr(self, 'tray_manager') and self.tray_manager.tray_icon:
+            self.tray_manager.update_menu()
+        
         # Обновляем информацию о профиле и версии
         self.update_profile_info()
         self.update_version_info()

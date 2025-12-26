@@ -5,6 +5,7 @@
 import sys
 from pathlib import Path
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QApplication, QStyle
+from typing import Union
 from PyQt5.QtGui import QIcon
 from utils.i18n import tr
 from utils.icon_manager import get_icon
@@ -127,7 +128,7 @@ class TrayManager:
         """
         return self.tray_icon.isVisible() if self.tray_icon else False
     
-    def show_message(self, title: str, message: str, icon: int = QSystemTrayIcon.Information, duration: int = 2000) -> None:
+    def show_message(self, title: str, message: str, icon: Union[int, QSystemTrayIcon.MessageIcon] = QSystemTrayIcon.Information, duration: int = 2000) -> None:
         """
         Показать уведомление в трее
         
@@ -138,7 +139,18 @@ class TrayManager:
             duration: Длительность показа в миллисекундах
         """
         if self.tray_icon:
-            self.tray_icon.showMessage(title, message, icon, duration)
+            self.tray_icon.showMessage(title, message, icon, timeout=duration)  # type: ignore
+    
+    def update_menu(self) -> None:
+        """Обновление меню трея (например, при смене языка)"""
+        if not self.tray_icon:
+            return
+        
+        # Обновляем tooltip
+        self.tray_icon.setToolTip(tr("app.title"))
+        
+        # Пересоздаем меню с новыми переводами
+        self._create_menu()
     
     def cleanup(self) -> None:
         """Очистка ресурсов трея"""
