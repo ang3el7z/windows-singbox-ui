@@ -122,3 +122,4 @@ class BaseTitleBar(QWidget):
         self._drag_pos = None
         super().mouseReleaseEvent(event)
 
+

@@ -5,3 +5,4 @@ from .version_worker import CheckVersionWorker, CheckAppVersionWorker
 
 __all__ = ['BaseWorker', 'InitOperationsWorker', 'CheckVersionWorker', 'CheckAppVersionWorker']
 
+

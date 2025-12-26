@@ -66,3 +66,4 @@ class BaseCard(QWidget):
         # Обновляем виджет чтобы перерисовать paintEvent
         self.update()
 
+

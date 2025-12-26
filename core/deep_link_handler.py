@@ -3,7 +3,7 @@
 Обработка протоколов sing-box:// и singbox-ui:// для импорта подписок
 """
 import sys
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 from typing import TYPE_CHECKING
 from utils.i18n import tr
 from ui.design.component import show_info_dialog
@@ -54,26 +54,72 @@ class DeepLinkHandler:
             Нормализованный URL или пустая строка если невалидный
         """
         url = arg
+        original_fragment = None
         
         if url.startswith('sing-box://'):
             # Убираем протокол sing-box://
             url = url.replace('sing-box://', '', 1)
             # Декодируем URL (sing-box передает URL в encoded виде)
             url = unquote(url)
-            # Если после протокола нет http:// или https://, добавляем https://
-            if not url.startswith('http://') and not url.startswith('https://'):
-                url = 'https://' + url
+            
+            # Парсим URL для проверки наличия параметра url в query string
+            parsed = urlparse(url)
+            if parsed.query:
+                # Проверяем, есть ли параметр url в query string
+                query_params = parse_qs(parsed.query)
+                if 'url' in query_params and query_params['url']:
+                    # Извлекаем реальный URL из параметра url
+                    real_url = query_params['url'][0]
+                    # Сохраняем фрагмент из исходного URL, если он есть
+                    if parsed.fragment:
+                        original_fragment = parsed.fragment
+                    url = real_url
+                else:
+                    # Если параметра url нет, используем весь URL как обычно
+                    if not url.startswith('http://') and not url.startswith('https://'):
+                        url = 'https://' + url
+            else:
+                # Если query string нет, используем весь URL как обычно
+                if not url.startswith('http://') and not url.startswith('https://'):
+                    url = 'https://' + url
         elif url.startswith('singbox-ui://'):
             # Убираем протокол singbox-ui://
             url = url.replace('singbox-ui://', '', 1)
             # Декодируем URL (может быть в encoded виде)
             url = unquote(url)
-            # Если после протокола нет http:// или https://, добавляем https://
-            if not url.startswith('http://') and not url.startswith('https://'):
-                url = 'https://' + url
+            
+            # Парсим URL для проверки наличия параметра url в query string
+            parsed = urlparse(url)
+            if parsed.query:
+                # Проверяем, есть ли параметр url в query string
+                query_params = parse_qs(parsed.query)
+                if 'url' in query_params and query_params['url']:
+                    # Извлекаем реальный URL из параметра url
+                    real_url = query_params['url'][0]
+                    # Сохраняем фрагмент из исходного URL, если он есть
+                    if parsed.fragment:
+                        original_fragment = parsed.fragment
+                    url = real_url
+                else:
+                    # Если параметра url нет, используем весь URL как обычно
+                    if not url.startswith('http://') and not url.startswith('https://'):
+                        url = 'https://' + url
+            else:
+                # Если query string нет, используем весь URL как обычно
+                if not url.startswith('http://') and not url.startswith('https://'):
+                    url = 'https://' + url
         
         # Убираем лишние пробелы и нормализуем URL
         url = url.strip()
+        
+        # Если был сохранен фрагмент из исходного URL, добавляем его к финальному URL
+        if original_fragment:
+            # Парсим финальный URL и добавляем фрагмент
+            final_parsed = urlparse(url)
+            if not final_parsed.fragment:
+                # Добавляем фрагмент только если его еще нет
+                url = url + '#' + original_fragment
+        
         return url
     
     def _import_subscription(self, url: str) -> None:

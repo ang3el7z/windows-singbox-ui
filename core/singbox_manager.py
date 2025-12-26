@@ -60,3 +60,4 @@ class StartSingBoxThread(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
+

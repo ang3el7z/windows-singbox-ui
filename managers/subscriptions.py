@@ -1,6 +1,7 @@
 """Менеджер подписок"""
 import json
 import requests
+from urllib.parse import urlparse
 from config.paths import SUB_FILE, CONFIG_FILE
 
 # Импортируем log_to_file если доступен
@@ -72,6 +73,17 @@ class SubscriptionManager:
         if not sub:
             return False
         url = sub["url"]
+        
+        # Проверяем и нормализуем URL
+        if not url:
+            return False
+        
+        # Убеждаемся что URL абсолютный
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            log_to_file(f"download_config error: URL не является абсолютным: {url}")
+            return False
+        
         try:
             # Убеждаемся что папка существует
             CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
