@@ -136,7 +136,7 @@ class SettingsPage(BasePage):
                 background-color: transparent;
                 border: none;
                 padding: 0px;
-                font-size: {theme.get_font('size_medium')}px;
+                font-size: 13px;
                 font-family: {theme.get_font('family')};
                 spacing: {theme.get_size('spacing_small')}px;
             }}
