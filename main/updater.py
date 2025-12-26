@@ -312,8 +312,18 @@ class UpdateThread(QThread):
             # В случае ошибки просто не трогаем существующие настройки
             pass
     
+    def _cleanup_old_updater_files(self):
+        """Удаляет старые .old файлы updater.exe при запуске."""
+        app_data_dir = self.app_dir / "data"
+        old_updater = app_data_dir / "updater.exe.old"
+        if old_updater.exists():
+            try:
+                old_updater.unlink()
+            except Exception:
+                pass  # Файл может быть заблокирован, это нормально
+    
     def _update_updater_exe(self, new_app_dir: Path) -> int:
-        """Обновляет data/updater.exe, если это не текущий исполняемый файл."""
+        """Обновляет data/updater.exe, включая обновление самого себя."""
         new_updater = new_app_dir / "data" / "updater.exe"
         if not new_updater.exists():
             return 0
@@ -323,15 +333,39 @@ class UpdateThread(QThread):
         app_updater = app_data_dir / "updater.exe"
         
         try:
-            if app_updater.resolve() == Path(sys.executable).resolve():
-                return 0
-        except Exception:
-            pass
-        
-        try:
-            if app_updater.exists():
-                app_updater.unlink()
-            shutil.copy2(new_updater, app_updater)
+            # Если это текущий процесс, используем переименование для обхода блокировки
+            is_current_process = False
+            try:
+                if app_updater.exists() and app_updater.resolve() == Path(sys.executable).resolve():
+                    is_current_process = True
+            except Exception:
+                pass
+            
+            if is_current_process:
+                # Переименовываем старый файл в .old (это работает даже для запущенного процесса)
+                old_updater = app_data_dir / "updater.exe.old"
+                try:
+                    if old_updater.exists():
+                        old_updater.unlink()
+                except Exception:
+                    pass  # Игнорируем ошибки удаления старого .old файла
+                
+                # Переименовываем текущий updater.exe в .old
+                app_updater.rename(old_updater)
+                # Копируем новый updater.exe
+                shutil.copy2(new_updater, app_updater)
+                
+                # Пытаемся удалить .old файл (может не получиться, если процесс еще работает - это нормально)
+                try:
+                    old_updater.unlink()
+                except Exception:
+                    pass  # Файл заблокирован процессом, будет удален при следующем запуске
+            else:
+                # Если это не текущий процесс, просто заменяем файл
+                if app_updater.exists():
+                    app_updater.unlink()
+                shutil.copy2(new_updater, app_updater)
+            
             return 1
         except Exception:  # noqa: BLE001
             return 0
@@ -385,6 +419,9 @@ class UpdateThread(QThread):
         temp_root = Path(tempfile.mkdtemp(prefix="singbox-ui-update-"))
         try:
             self.progress_signal.emit(0)
+            
+            # Очистка старых .old файлов
+            self._cleanup_old_updater_files()
             
             # Проверка версии
             self.status(tr("updater.progress_checking"))
