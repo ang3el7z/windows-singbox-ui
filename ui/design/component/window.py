@@ -212,4 +212,12 @@ class LogsWindow(QDialog):
         # Убеждаемся, что окно видимо и активировано при показе
         self.raise_()
         self.activateWindow()
+    
+    def refresh_texts(self):
+        """Обновление текстов в окне при смене языка"""
+        self.setWindowTitle(tr("settings.logs"))
+        if hasattr(self, 'btn_logs'):
+            self.btn_logs.setText(tr("settings.logs"))
+        if hasattr(self, 'btn_debug_logs'):
+            self.btn_debug_logs.setText(tr("settings.debug_logs"))
 

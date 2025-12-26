@@ -1614,6 +1614,8 @@ class MainWindow(QMainWindow):
         # Обновляем LogsWindow если оно открыто
         if hasattr(self, 'page_settings') and hasattr(self.page_settings, '_logs_window'):
             if self.page_settings._logs_window is not None:
+                if hasattr(self.page_settings._logs_window, 'refresh_texts'):
+                    self.page_settings._logs_window.refresh_texts()
                 if hasattr(self.page_settings._logs_window, 'apply_theme'):
                     self.page_settings._logs_window.apply_theme()
         
@@ -2034,6 +2036,8 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_minimize_to_tray.setText(tr("settings.minimize_to_tray"))
             if hasattr(self.page_settings, 'btn_kill_all'):
                 self.page_settings.btn_kill_all.setText(tr("settings.kill_all"))
+            if hasattr(self.page_settings, 'btn_open_logs'):
+                self.page_settings.btn_open_logs.setText(tr("settings.logs"))
         if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'interval_label'):
             self.page_settings.interval_label.setText(tr("settings.auto_update_interval"))
         if hasattr(self, 'language_label'):
