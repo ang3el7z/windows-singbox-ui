@@ -2115,8 +2115,8 @@ class MainWindow(QMainWindow):
         # Обновляем заголовки страниц
         if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'lbl_profile_title'):
             self.page_profile.lbl_profile_title.setText(tr("profile.title"))
-        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'settings_title'):
-            self.page_settings.settings_title.setText(tr("settings.title"))
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'lbl_settings_title'):
+            self.page_settings.lbl_settings_title.setText(tr("settings.title"))
         if hasattr(self, 'page_home') and hasattr(self.page_home, 'profile_title'):
             self.page_home.profile_title.setText(tr("home.profile"))
         if hasattr(self, 'page_home') and hasattr(self.page_home, 'version_title'):
@@ -2149,8 +2149,10 @@ class MainWindow(QMainWindow):
                 self.page_settings.btn_open_logs.setText(tr("settings.logs"))
         if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'interval_label'):
             self.page_settings.interval_label.setText(tr("settings.auto_update_interval"))
-        if hasattr(self, 'language_label'):
-            self.language_label.setText(tr("settings.language"))
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'language_label'):
+            self.page_settings.language_label.setText(tr("settings.language"))
+        if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'theme_label'):
+            self.page_settings.theme_label.setText(tr("settings.theme"))
         
         # Обновляем информацию о профиле и версии
         self.update_profile_info()
