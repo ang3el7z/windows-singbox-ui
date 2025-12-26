@@ -14,13 +14,8 @@ import requests
 from PyQt5.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
-    QPushButton,
-    QProgressBar,
-    QTextEdit,
     QVBoxLayout,
-    QWidget,
 )
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -28,7 +23,8 @@ from PyQt5.QtGui import QFont
 from app.application import create_application
 from config.paths import ROOT
 from ui.styles import StyleSheet, theme
-from ui.widgets import CardWidget, TitleBar
+from ui.design import CardWidget, TitleBar
+from ui.design.component import Container, TextEdit, ProgressBar, Button, Label
 from utils.i18n import tr, set_language
 from managers.settings import SettingsManager
 
@@ -468,7 +464,7 @@ class UpdaterWindow(QMainWindow):
             """
         )
         
-        central = QWidget()
+        central = Container()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -492,8 +488,9 @@ class UpdaterWindow(QMainWindow):
         card_layout.setSpacing(12)
         
         # Окно логов - показывает что происходит
-        self.logs_text = QTextEdit()
+        self.logs_text = TextEdit()
         self.logs_text.setReadOnly(True)
+        # Переопределяем стиль для логов updater
         self.logs_text.setStyleSheet(
             f"""
             QTextEdit {{
@@ -513,73 +510,21 @@ class UpdaterWindow(QMainWindow):
         content_layout.addWidget(card, 1)  # Карточка растягивается
         
         # Прогресс-бар - показывает общий прогресс скачивания и установки (без подложки)
-        self.progress_bar = QProgressBar()
+        self.progress_bar = ProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setStyleSheet(
-            f"""
-            QProgressBar {{
-                border: 1px solid {theme.get_color('border')};
-                border-radius: 6px;
-                text-align: center;
-                background-color: {theme.get_color('background_primary')};
-                color: {theme.get_color('text_primary')};
-                font-family: {theme.get_font('family')};
-                font-size: 10px;
-                height: 24px;
-            }}
-            QProgressBar::chunk {{
-                background-color: {theme.get_color('accent')};
-                border-radius: 5px;
-            }}
-            """
-        )
         content_layout.addWidget(self.progress_bar)
         
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(12)
         
-        self.done_button = QPushButton(tr("updater.button_done"))
+        self.done_button = Button(tr("updater.button_done"), variant="primary")
         self.done_button.setFont(QFont("Segoe UI", 11, QFont.Bold))
-        self.done_button.setStyleSheet(
-            f"""
-            QPushButton {{
-                background-color: {theme.get_color('accent')};
-                color: {theme.get_color('background_primary')};
-                border: none;
-                border-radius: 8px;
-                padding: 10px 24px;
-                min-width: 110px;
-                font-family: {theme.get_font('family')};
-                font-weight: {theme.get_font('weight_semibold')};
-            }}
-            QPushButton:hover {{
-                background-color: {theme.get_color('accent_hover')};
-            }}
-            """
-        )
         self.done_button.clicked.connect(self.close)
         self.done_button.hide()
         
-        self.cancel_button = QPushButton(tr("updater.button_cancel"))
+        self.cancel_button = Button(tr("updater.button_cancel"), variant="secondary")
         self.cancel_button.setFont(QFont("Segoe UI", 11))
-        self.cancel_button.setStyleSheet(
-            f"""
-            QPushButton {{
-                background-color: {theme.get_color('background_secondary')};
-                color: {theme.get_color('text_primary')};
-                border: 1px solid {theme.get_color('border')};
-                border-radius: 8px;
-                padding: 10px 24px;
-                min-width: 110px;
-                font-family: {theme.get_font('family')};
-            }}
-            QPushButton:hover {{
-                background-color: {theme.get_color('accent_light')};
-                border-color: {theme.get_color('border_hover')};
-            }}
-            """
-        )
         self.cancel_button.clicked.connect(self.close)
         self.cancel_button.hide()
         
@@ -592,14 +537,13 @@ class UpdaterWindow(QMainWindow):
         self.close_timer.timeout.connect(self.close)
         self.close_timer.setSingleShot(True)
         
-        self.countdown_label = QLabel("")
+        self.countdown_label = Label("", variant="secondary")
         self.countdown_label.setFont(QFont("Segoe UI", 10))
-        self.countdown_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         self.countdown_label.hide()
         content_layout.addWidget(self.countdown_label)
         
         # Добавляем content_layout в основной layout
-        content_widget = QWidget()
+        content_widget = Container()
         content_widget.setLayout(content_layout)
         layout.addWidget(content_widget, 1)
         

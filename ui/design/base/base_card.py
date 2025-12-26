@@ -1,14 +1,14 @@
-"""Универсальный виджет карточки"""
+"""Базовая карточка - компонент из дизайн-системы"""
 from typing import Optional
 from PyQt5.QtWidgets import QWidget, QSizePolicy
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor, QPalette
-from ui.styles import StyleSheet, theme
+from ui.styles import theme
 
 
-class CardWidget(QWidget):
+class BaseCard(QWidget):
     """
-    Универсальная карточка с единым стилем
+    Универсальная карточка с единым стилем из дизайн-системы
     
     Args:
         parent: Родительский виджет

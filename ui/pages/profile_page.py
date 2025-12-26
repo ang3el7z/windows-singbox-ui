@@ -1,10 +1,11 @@
 """Страница профилей"""
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.pages.base_page import BasePage
-from ui.widgets import CardWidget
+from ui.design import CardWidget
+from ui.design.component import ListWidget, Button, Label
 from ui.styles import StyleSheet, theme
 from utils.i18n import tr
 
@@ -35,47 +36,21 @@ class ProfilePage(BasePage):
         layout.setSpacing(16)
         
         # Заголовок
-        self.lbl_profile_title = QLabel(tr("profile.title"))
+        self.lbl_profile_title = Label(tr("profile.title"), variant="default", size="xlarge")
         self.lbl_profile_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        self.lbl_profile_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
         layout.addWidget(self.lbl_profile_title)
         
         # Список подписок (без обводки, внутри карточки)
-        self.sub_list = QListWidget()
-        self.sub_list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.sub_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.sub_list = ListWidget()
         self.sub_list.currentRowChanged.connect(self.main_window.on_sub_changed)
-        # Убираем обводку у списка, оставляем только фон
-        self.sub_list.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {theme.get_color('background_tertiary')};
-                border: none;
-                border-radius: {theme.get_size('border_radius_medium')}px;
-                padding: {theme.get_size('padding_small')}px;
-                outline: none;
-            }}
-            QListWidget::item {{
-                background-color: transparent;
-                border-radius: {theme.get_size('border_radius_small')}px;
-                padding: {theme.get_size('padding_medium')}px;
-                margin: 2px;
-            }}
-            QListWidget::item:hover {{
-                background-color: {theme.get_color('accent_light')};
-            }}
-            QListWidget::item:selected {{
-                background-color: {theme.get_color('accent_light')};
-                color: {theme.get_color('accent')};
-            }}
-        """)
         layout.addWidget(self.sub_list, 1)
         
         # Кнопки управления (без отдельных подложек, просто кнопки)
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        self.btn_add_sub = QPushButton(tr("profile.add"))
-        self.btn_del_sub = QPushButton(tr("profile.delete"))
-        self.btn_rename_sub = QPushButton(tr("profile.rename"))
+        self.btn_add_sub = Button(tr("profile.add"), variant="secondary")
+        self.btn_del_sub = Button(tr("profile.delete"), variant="secondary")
+        self.btn_rename_sub = Button(tr("profile.rename"), variant="secondary")
         
         # Стиль кнопок без подложек, просто с фоном и границей
         button_style = f"""
@@ -106,7 +81,6 @@ class ProfilePage(BasePage):
         """
         
         for b in (self.btn_add_sub, self.btn_del_sub, self.btn_rename_sub):
-            b.setCursor(Qt.PointingHandCursor)
             b.setStyleSheet(button_style)
             btn_row.addWidget(b, 1)
         

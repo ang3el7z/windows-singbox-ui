@@ -1,14 +1,13 @@
-"""Кастомный заголовок/статус-бар приложения в стиле темы."""
+"""Базовый заголовок окна - компонент из дизайн-системы"""
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
 from PyQt5.QtCore import Qt, QPoint
 from utils.icon_helper import icon
-
 from ui.styles import StyleSheet, theme
 from utils.icon_manager import get_icon
 from utils.i18n import tr
 
 
-class TitleBar(QWidget):
+class BaseTitleBar(QWidget):
     """Фреймлесс-бар с кнопками окна, стилизованный под текущую тему."""
 
     def __init__(self, window: QWidget):
@@ -50,7 +49,6 @@ class TitleBar(QWidget):
 
         self.apply_theme()
 
-    # --- Public API ---------------------------------------------------------
     def apply_theme(self):
         """Применяет текущую тему к заголовку."""
         bg = theme.get_color("background_primary")
@@ -58,7 +56,7 @@ class TitleBar(QWidget):
         text = theme.get_color("text_primary")
         secondary = theme.get_color("text_secondary")
         hover = theme.get_color("accent_light")
-        # Создаем rgba для error hover (можно улучшить, добавив error_light в темы)
+        # Создаем rgba для error hover
         error_color = theme.get_color('error')
         error_hex = error_color.lstrip('#')
         error_r = int(error_hex[0:2], 16)
@@ -103,7 +101,6 @@ class TitleBar(QWidget):
         """Обновляет отображаемый заголовок."""
         self.title_label.setText(text)
 
-    # --- Drag support -------------------------------------------------------
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             target = self.childAt(event.pos())

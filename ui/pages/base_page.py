@@ -1,6 +1,6 @@
 """Базовый класс для всех страниц"""
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
-from ui.widgets import CardWidget
+from ui.design import CardWidget
 from ui.styles import StyleSheet
 
 
@@ -31,11 +31,10 @@ class BasePage(QWidget):
         layout.setSpacing(12)
         
         if title:
-            from PyQt5.QtWidgets import QLabel
+            from ui.design.component import Label
             from PyQt5.QtGui import QFont
-            title_label = QLabel(title)
+            title_label = Label(title, variant="default", size="xlarge")
             title_label.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-            title_label.setStyleSheet(StyleSheet.label(variant="default", size="xlarge"))
             layout.addWidget(title_label)
         
         self._layout.addWidget(card)

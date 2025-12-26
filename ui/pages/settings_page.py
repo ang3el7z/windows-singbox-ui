@@ -1,12 +1,10 @@
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QCheckBox, QComboBox, QTextEdit
-)
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.pages.base_page import BasePage
-from ui.widgets import CardWidget
+from ui.design import CardWidget
+from ui.design.component import Label, CheckBox, ComboBox, TextEdit, Button
 from ui.styles import StyleSheet, theme
 from utils.i18n import tr, get_available_languages, get_language_name, get_translator
 from utils.theme_manager import get_available_themes, get_theme_name
@@ -15,18 +13,6 @@ if TYPE_CHECKING:
     from main import MainWindow
 
 
-class ClickableLabel(QLabel):
-    """Кликабельный лейбл для заголовка логов"""
-    def __init__(self, parent, callback):
-        super().__init__()
-        self.parent_window = parent
-        self.callback = callback
-        self.setCursor(Qt.PointingHandCursor)
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.callback()
-        super().mousePressEvent(event)
 
 
 class SettingsPage(BasePage):
@@ -56,9 +42,9 @@ class SettingsPage(BasePage):
         settings_layout.setSpacing(16)
         
         # Заголовок страницы (внутри карточки)
-        self.lbl_settings_title = QLabel(tr("settings.title"))
+        self.lbl_settings_title = Label(tr("settings.title"), variant="default", size="xlarge")
         self.lbl_settings_title.setFont(QFont("Segoe UI Semibold", 20, QFont.Bold))
-        self.lbl_settings_title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + """
+        self.lbl_settings_title.setStyleSheet(self.lbl_settings_title.styleSheet() + """
             QLabel {
                 line-height: 24px;
                 padding: 0px;
@@ -72,9 +58,8 @@ class SettingsPage(BasePage):
         interval_container = QVBoxLayout()
         interval_container.setSpacing(8)
         
-        self.interval_label = QLabel(tr("settings.auto_update_interval"))
+        self.interval_label = Label(tr("settings.auto_update_interval"), variant="secondary")
         self.interval_label.setFont(QFont("Segoe UI", 13))
-        self.interval_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         interval_container.addWidget(self.interval_label)
         
         # Кнопки для выбора интервала (в одну линию под текстом)
@@ -86,14 +71,13 @@ class SettingsPage(BasePage):
         current_interval = self.main_window.settings.get("auto_update_minutes", 90)
         
         for value in interval_values:
-            radio = QCheckBox(str(value))
+            radio = CheckBox(str(value))
             radio.setFont(QFont("Segoe UI", 12))
             radio.setChecked(value == current_interval)
             # Используем lambda с правильным захватом значения
             def make_handler(v):
                 return lambda checked: self._on_interval_radio_toggled(v) if checked else None
             radio.toggled.connect(make_handler(value))
-            radio.setStyleSheet(StyleSheet.checkbox())
             self.interval_buttons[value] = radio
             interval_buttons_row.addWidget(radio)
         
@@ -102,36 +86,32 @@ class SettingsPage(BasePage):
         settings_layout.addLayout(interval_container)
         
         # Чекбоксы настроек
-        self.cb_autostart = QCheckBox(tr("settings.autostart"))
+        self.cb_autostart = CheckBox(tr("settings.autostart"))
         self.cb_autostart.setChecked(self.main_window.settings.get("start_with_windows", False))
         self.cb_autostart.stateChanged.connect(self.main_window.on_autostart_changed)
         self.cb_autostart.setFont(QFont("Segoe UI", 13))
-        self.cb_autostart.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_autostart)
         
-        self.cb_run_as_admin = QCheckBox(tr("settings.run_as_admin"))
+        self.cb_run_as_admin = CheckBox(tr("settings.run_as_admin"))
         self.cb_run_as_admin.setChecked(self.main_window.settings.get("run_as_admin", False))
         self.cb_run_as_admin.stateChanged.connect(self.main_window.on_run_as_admin_changed)
         self.cb_run_as_admin.setFont(QFont("Segoe UI", 13))
-        self.cb_run_as_admin.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_run_as_admin)
         
-        self.cb_auto_start_singbox = QCheckBox(tr("settings.auto_start_singbox"))
+        self.cb_auto_start_singbox = CheckBox(tr("settings.auto_start_singbox"))
         self.cb_auto_start_singbox.setChecked(self.main_window.settings.get("auto_start_singbox", False))
         self.cb_auto_start_singbox.stateChanged.connect(self.main_window.on_auto_start_singbox_changed)
         self.cb_auto_start_singbox.setFont(QFont("Segoe UI", 13))
-        self.cb_auto_start_singbox.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_auto_start_singbox)
         
-        self.cb_minimize_to_tray = QCheckBox(tr("settings.minimize_to_tray"))
+        self.cb_minimize_to_tray = CheckBox(tr("settings.minimize_to_tray"))
         self.cb_minimize_to_tray.setChecked(self.main_window.settings.get("minimize_to_tray", True))
         self.cb_minimize_to_tray.stateChanged.connect(self.main_window.on_minimize_to_tray_changed)
         self.cb_minimize_to_tray.setFont(QFont("Segoe UI", 13))
-        self.cb_minimize_to_tray.setStyleSheet(StyleSheet.checkbox())
         settings_layout.addWidget(self.cb_minimize_to_tray)
         
         # Дебаг настройка (появляется только в дебаг режиме)
-        self.cb_allow_multiple = QCheckBox(tr("settings.allow_multiple_processes"))
+        self.cb_allow_multiple = CheckBox(tr("settings.allow_multiple_processes"))
         self.cb_allow_multiple.setChecked(self.main_window.settings.get("allow_multiple_processes", True))
         self.cb_allow_multiple.stateChanged.connect(self.main_window.on_allow_multiple_changed)
         self.cb_allow_multiple.setFont(QFont("Segoe UI", 13))
@@ -167,12 +147,11 @@ class SettingsPage(BasePage):
         # Выбор языка
         language_row = QHBoxLayout()
         language_row.setSpacing(12)
-        self.language_label = QLabel(tr("settings.language"))
+        self.language_label = Label(tr("settings.language"), variant="secondary")
         self.language_label.setFont(QFont("Segoe UI", 13))
-        self.language_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         language_row.addWidget(self.language_label)
         
-        self.combo_language = QComboBox()
+        self.combo_language = ComboBox()
         available_languages = get_available_languages()
         current_language = self.main_window.settings.get("language", "")
         if not current_language:
@@ -183,7 +162,6 @@ class SettingsPage(BasePage):
             if lang_code == current_language:
                 self.combo_language.setCurrentIndex(self.combo_language.count() - 1)
         self.combo_language.currentIndexChanged.connect(self.main_window.on_language_changed)
-        self.combo_language.setStyleSheet(StyleSheet.combo_box())
         # Убеждаемся, что комбобокс разблокирован при инициализации
         self.combo_language.setEnabled(True)
         language_row.addWidget(self.combo_language, 1)
@@ -192,12 +170,11 @@ class SettingsPage(BasePage):
         # Выбор темы
         theme_row = QHBoxLayout()
         theme_row.setSpacing(12)
-        self.theme_label = QLabel(tr("settings.theme"))
+        self.theme_label = Label(tr("settings.theme"), variant="secondary")
         self.theme_label.setFont(QFont("Segoe UI", 13))
-        self.theme_label.setStyleSheet(StyleSheet.label(variant="secondary"))
         theme_row.addWidget(self.theme_label)
         
-        self.combo_theme = QComboBox()
+        self.combo_theme = ComboBox()
         available_themes = get_available_themes()
         current_theme = self.main_window.settings.get("theme", "dark")
         current_language = get_translator().language
@@ -207,40 +184,14 @@ class SettingsPage(BasePage):
             if theme_info["id"] == current_theme:
                 self.combo_theme.setCurrentIndex(self.combo_theme.count() - 1)
         self.combo_theme.currentIndexChanged.connect(self.main_window.on_theme_changed)
-        self.combo_theme.setStyleSheet(StyleSheet.combo_box())
         # Убеждаемся, что комбобокс разблокирован при инициализации
         self.combo_theme.setEnabled(True)
         theme_row.addWidget(self.combo_theme, 1)
         settings_layout.addLayout(theme_row)
         
         # Кнопка "Убить" для полной остановки всех процессов (без отдельной подложки, просто кнопка)
-        self.btn_kill_all = QPushButton(tr("settings.kill_all"))
+        self.btn_kill_all = Button(tr("settings.kill_all"), variant="danger")
         self.btn_kill_all.setFont(QFont("Segoe UI", 13))
-        self.btn_kill_all.setCursor(Qt.PointingHandCursor)
-        self.btn_kill_all.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {theme.get_color('error')};
-                color: {theme.get_color('text_primary')};
-                border: none;
-                border-radius: {theme.get_size('border_radius_medium')}px;
-                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
-                font-size: {theme.get_font('size_medium')}px;
-                font-weight: {theme.get_font('weight_medium')};
-                font-family: {theme.get_font('family')};
-            }}
-            QPushButton:hover {{
-                background-color: {theme.get_color('error')};
-                opacity: 0.9;
-            }}
-            QPushButton:pressed {{
-                opacity: 0.9;
-            }}
-            QPushButton:disabled {{
-                background-color: {theme.get_color('background_secondary')};
-                color: {theme.get_color('text_disabled')};
-                opacity: 0.5;
-            }}
-        """)
         self.btn_kill_all.clicked.connect(self.main_window.on_kill_all_clicked)
         settings_layout.addWidget(self.btn_kill_all)
         
@@ -250,36 +201,19 @@ class SettingsPage(BasePage):
         logs_button_row = QHBoxLayout()
         logs_button_row.setSpacing(12)
         
-        self.btn_open_logs = QPushButton(tr("settings.logs"))
+        self.btn_open_logs = Button(tr("settings.logs"), variant="secondary")
         self.btn_open_logs.setFont(QFont("Segoe UI", 13))
-        self.btn_open_logs.setCursor(Qt.PointingHandCursor)
         self.btn_open_logs.clicked.connect(self._open_logs_window)
-        self.btn_open_logs.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {theme.get_color('background_tertiary')};
-                color: {theme.get_color('text_primary')};
-                border: 1px solid {theme.get_color('border')};
-                border-radius: {theme.get_size('border_radius_medium')}px;
-                padding: {theme.get_size('padding_medium')}px {theme.get_size('padding_large')}px;
-                font-size: {theme.get_font('size_medium')}px;
-                font-weight: {theme.get_font('weight_medium')};
-                font-family: {theme.get_font('family')};
-            }}
-            QPushButton:hover {{
-                background-color: {theme.get_color('accent_light')};
-                border-color: {theme.get_color('border_hover')};
-            }}
-        """)
         logs_button_row.addWidget(self.btn_open_logs, 1)
         
         self._layout.addLayout(logs_button_row)
         
         # Скрытые текстовые поля для хранения логов (используются окном логов)
-        self.logs = QTextEdit()
+        self.logs = TextEdit()
         self.logs.setReadOnly(True)
         self.logs.setVisible(False)  # Скрываем, так как логи теперь в отдельном окне
         
-        self.debug_logs = QTextEdit()
+        self.debug_logs = TextEdit()
         self.debug_logs.setReadOnly(True)
         self.debug_logs.setVisible(False)  # Скрываем, так как логи теперь в отдельном окне
         
@@ -323,7 +257,7 @@ class SettingsPage(BasePage):
     def _open_logs_window(self, mode="logs"):
         """Открывает окно с логами"""
         if not hasattr(self, '_logs_window') or self._logs_window is None:
-            from ui.widgets.logs_window import LogsWindow
+            from ui.design.component import LogsWindow
             self._logs_window = LogsWindow(self.main_window, self)
             self._logs_window.finished.connect(lambda: setattr(self, '_logs_window', None))
         

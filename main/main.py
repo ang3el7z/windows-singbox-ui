@@ -101,10 +101,9 @@ def cleanup_single_instance(server_name: str, local_server: 'QLocalServer | None
     release_global_mutex()
 
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QListWidget, QTextEdit, QStackedWidget,
-    QSpinBox, QCheckBox, QDialog, QProgressBar,
-    QLineEdit, QSystemTrayIcon, QMenu, QAction, QComboBox, QSizePolicy
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
+    QStackedWidget, QSystemTrayIcon, QMenu, QAction, QSizePolicy,
+    QWidget, QPushButton, QLabel  # Для проверок типов в isinstance
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QByteArray
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
@@ -112,13 +111,21 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from utils.icon_helper import icon
 
 # Импорты новых UI компонентов
-from ui.widgets import CardWidget, NavButton, TitleBar
+from ui.design.component import NavButton, Container, Label
+from ui.design import CardWidget, TitleBar
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
-from ui.dialogs.info_dialog import show_info_dialog
-from ui.dialogs.confirm_dialog import show_confirm_dialog
-from ui.dialogs.input_dialog import show_input_dialog
-from ui.dialogs.add_subscription_dialog import show_add_subscription_dialog
+from ui.design.component import (
+    show_info_dialog,
+    show_confirm_dialog,
+    show_input_dialog,
+    show_add_subscription_dialog,
+    show_language_selection_dialog,
+    show_restart_admin_dialog,
+    show_kill_all_confirm_dialog,
+    show_kill_all_success_dialog,
+    DownloadDialog
+)
 
 # Импорты из архитектуры проекта
 from config.paths import (
@@ -136,9 +143,6 @@ from core.restart_manager import restart_application
 from core.singbox_manager import StartSingBoxThread
 from workers.init_worker import InitOperationsWorker
 from workers.version_worker import CheckVersionWorker, CheckAppVersionWorker
-from ui.dialogs.language_dialog import show_language_selection_dialog
-from ui.dialogs.confirm_dialog import show_restart_admin_dialog, show_kill_all_confirm_dialog
-from ui.dialogs.info_dialog import show_kill_all_success_dialog
 import requests
 from datetime import datetime
 from utils.logger import log_to_file, set_main_window
@@ -207,15 +211,8 @@ class MainWindow(QMainWindow):
         # Устанавливаем иконку окна через IconManager
         set_window_icon(self)
 
-        central = QWidget()
+        central = Container()
         self.setCentralWidget(central)
-        # Устанавливаем фон центрального виджета
-        from ui.styles import theme
-        central.setStyleSheet(f"""
-            QWidget {{
-                background-color: {theme.get_color('background_primary')};
-            }}
-        """)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -239,7 +236,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(1)
         
         # Нижняя навигация
-        nav = QWidget()
+        nav = Container()
         nav.setObjectName("nav")
         nav.setMinimumHeight(80)
         nav.setMaximumHeight(120)
@@ -265,27 +262,18 @@ class MainWindow(QMainWindow):
         root.addWidget(self.stack, 1)
         
         # Версия приложения над навигацией
-        self.version_container = QWidget()
+        self.version_container = Container()
         self.version_container.setFixedHeight(30)
         version_layout = QHBoxLayout(self.version_container)
         version_layout.setContentsMargins(16, 0, 16, 0)
         version_layout.setAlignment(Qt.AlignCenter)
         
-        self.lbl_app_version = QLabel()
+        self.lbl_app_version = Label(variant="secondary", size="medium")
         self.lbl_app_version.setFont(QFont("Segoe UI", 10))
-        self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary", size="medium"))
         self.lbl_app_version.setAlignment(Qt.AlignCenter)
         self.lbl_app_version.setCursor(Qt.PointingHandCursor)
         self.lbl_app_version.mousePressEvent = self.on_version_clicked
         version_layout.addWidget(self.lbl_app_version)
-        
-        from ui.styles import theme
-        self.version_container.setStyleSheet(f"""
-            QWidget {{
-                background-color: {theme.get_color('background_primary')};
-                border: none;
-            }}
-        """)
         
         root.addWidget(self.version_container)
         root.addWidget(nav)
@@ -912,107 +900,23 @@ class MainWindow(QMainWindow):
     
     def show_download_dialog(self):
         """Диалог загрузки SingBox"""
-        dialog = QDialog(self)
-        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
-        dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.Window | Qt.Dialog)
-        dialog.setWindowTitle(tr("download.title"))
-        dialog.setMinimumWidth(400)
-        dialog.setModal(True)
-        
-        # Стили диалога через дизайн-систему
-        dialog.setStyleSheet(StyleSheet.dialog() + StyleSheet.progress_bar())
-        
-        layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        
-        # Собственный статус-бар в стиле приложения
-        title_bar = TitleBar(dialog)
-        title_bar.set_title(tr("download.title"))
-        layout.addWidget(title_bar)
-        
-        # Внутренний layout для содержимого
-        content_layout = QVBoxLayout()
-        content_layout.setSpacing(16)
-        content_layout.setContentsMargins(24, 24, 24, 24)
-        
-        # Заголовок
-        title = QLabel(tr("download.not_installed"))
-        title.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-        title.setStyleSheet(StyleSheet.label(variant="default", size="xlarge") + "margin-bottom: 8px;")
-        content_layout.addWidget(title)
-        
-        # Описание
-        info = QLabel(tr("download.description"))
-        info.setWordWrap(True)
-        info.setStyleSheet(StyleSheet.label(variant="secondary", size="medium"))
-        content_layout.addWidget(info)
-        
-        # Прогресс-бар
-        self.download_progress = QProgressBar()
-        self.download_progress.setRange(0, 100)
-        self.download_progress.setValue(0)
-        self.download_progress.hide()
-        self.download_progress.setStyleSheet(StyleSheet.progress_bar())
-        content_layout.addWidget(self.download_progress)
-        
-        # Кнопки
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(12)
-        
-        # Кнопка отмены слева
-        btn_cancel = QPushButton(tr("download.cancel"))
-        btn_cancel.setCursor(Qt.PointingHandCursor)
-        btn_cancel.setStyleSheet(StyleSheet.dialog_button(variant="cancel"))
-        btn_cancel.clicked.connect(dialog.reject)
-        btn_layout.addWidget(btn_cancel)
-        
-        # Растяжка между кнопками
-        btn_layout.addStretch()
-        
-        # Кнопка загрузки справа
-        btn_download = QPushButton(tr("download.download"))
-        btn_download.setCursor(Qt.PointingHandCursor)
-        btn_download.setDefault(True)
-        btn_download.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
-        btn_download.clicked.connect(lambda: self.start_download(dialog, btn_download))
-        btn_layout.addWidget(btn_download)
-        
-        content_layout.addLayout(btn_layout)
-        
-        # Добавляем content_layout в основной layout
-        content_widget = QWidget()
-        content_widget.setLayout(content_layout)
-        layout.addWidget(content_widget, 1)
-        
+        dialog = DownloadDialog(self, self._start_download_from_dialog)
         dialog.exec_()
     
-    def start_download(self, dialog, btn_download):
-        """Начало загрузки"""
-        btn_download.setEnabled(False)
-        btn_download.setText(tr("download.downloading"))
-        
-        self.download_progress.show()
-        self.download_progress.setValue(0)
-        
-        self.download_thread = DownloadThread()
-        self.download_thread.progress.connect(self.download_progress.setValue)
-        self.download_thread.finished.connect(
-            lambda success, msg: self.on_download_finished(success, msg, dialog, btn_download)
+    def _start_download_from_dialog(self, dialog: DownloadDialog):
+        """Запуск загрузки из диалога (коллбэк)"""
+        dialog.download_thread = DownloadThread()
+        dialog.download_thread.progress.connect(dialog.progress_bar.setValue)
+        dialog.download_thread.finished.connect(
+            lambda success, msg: self._on_download_finished(success, msg, dialog)
         )
-        self.download_thread.start()
+        dialog.download_thread.start()
     
-    def on_download_finished(self, success: bool, message: str, dialog: QDialog, btn_download):
+    def _on_download_finished(self, success: bool, message: str, dialog: DownloadDialog):
         """Завершение загрузки"""
-        self.download_progress.hide()
+        dialog.on_download_finished(success, message)
         if success:
-            show_info_dialog(dialog, tr("download.success"), message, success=True)
-            dialog.accept()
             self.update_version_info()
-        else:
-            show_info_dialog(dialog, tr("download.error"), message)
-            btn_download.setEnabled(True)
-            btn_download.setText(tr("download.download"))
     
     # Кнопка Start/Stop
     def _apply_big_btn_wrapper_style(self, glow_color: Optional[str] = None):
@@ -1799,7 +1703,8 @@ class MainWindow(QMainWindow):
         if hasattr(self.page_home, 'lbl_update_info'):
             processed_labels.add(self.page_home.lbl_update_info)
         
-        for label in self.page_home.findChildren(QLabel):
+        from ui.design.component import Label
+        for label in self.page_home.findChildren(Label):
             if label in processed_labels:
                 continue
             # Обновляем заголовки карточек (жирный шрифт размером >= 13)
@@ -1936,7 +1841,7 @@ class MainWindow(QMainWindow):
     
     def _refresh_cards_on_page(self, page):
         """Обновляет все CardWidget на странице"""
-        from ui.widgets.card import CardWidget
+        from ui.design import CardWidget
         
         # Находим все карточки на странице
         cards = page.findChildren(CardWidget)

@@ -58,14 +58,26 @@ SingBox-UI/
 │   │   ├── profile_page.py # Profile management page
 │   │   ├── home_page.py  # Home page
 │   │   └── settings_page.py # Settings page
-│   ├── widgets/          # Reusable widgets
+│   ├── design/           # Design system
 │   │   ├── __init__.py
-│   │   ├── animated_button.py # Animated button widget
-│   │   ├── card.py       # Card widget
-│   │   ├── logs_window.py # Logs window widget
-│   │   ├── nav_button.py # Navigation button
-│   │   ├── title_bar.py  # Custom title bar widget
-│   │   └── version_label.py # Version label
+│   │   ├── base/         # Base UI components (used only by components)
+│   │   │   ├── __init__.py
+│   │   │   ├── base_card.py # Base card component
+│   │   │   ├── base_dialog.py # Base dialog component
+│   │   │   └── base_title_bar.py # Base title bar component
+│   │   └── component/    # UI components (used in project)
+│   │       ├── __init__.py
+│   │       ├── button.py # Button components (Button, NavButton, etc.)
+│   │       ├── checkbox.py # CheckBox component
+│   │       ├── combo_box.py # ComboBox component
+│   │       ├── dialog.py # Dialog functions and DownloadDialog
+│   │       ├── label.py # Label components (Label, VersionLabel)
+│   │       ├── line_edit.py # LineEdit component
+│   │       ├── list_widget.py # ListWidget component
+│   │       ├── progress_bar.py # ProgressBar component
+│   │       ├── text_edit.py # TextEdit component
+│   │       ├── widget.py # Container component
+│   │       └── window.py # LogsWindow component
 │   ├── utils/            # UI utilities
 │   │   └── animations.py # Page transition animations
 │   ├── styles/           # Styling system
@@ -73,12 +85,6 @@ SingBox-UI/
 │   │   ├── constants.py  # Constants (colors, fonts, sizes)
 │   │   ├── theme.py      # Theme management
 │   │   └── stylesheet.py # Widget stylesheet generation
-│   ├── dialogs/          # Dialog windows
-│   │   ├── __init__.py
-│   │   ├── base_dialog.py # Base dialog class
-│   │   ├── confirm_dialog.py # Confirmation dialogs
-│   │   ├── info_dialog.py # Info dialogs
-│   │   └── language_dialog.py # Language selection dialog
 │   └── tray_manager.py   # System tray manager
 ├── resources/            # Resources
 │   ├── app.qrc          # Qt resource file
@@ -289,16 +295,39 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - Logs (regular and debug)
   - Debug section (hidden by default)
 
-### ui/widgets/
-- **animated_button.py** - Animated button widget with loading indicator
-- **card.py** - Card widget with background and rounded corners
-- **logs_window.py** - Logs window widget for displaying application logs
-- **nav_button.py** - Navigation button with icon and text
-- **title_bar.py** - Custom title bar widget for frameless windows
-  - Drag support for moving window
-  - Minimize and close buttons
-  - Theme-aware styling
-- **version_label.py** - Version label for displaying version information
+### ui/design/
+- **base/** - Base UI components (used only by components, not directly in project)
+  - **base_card.py** - Base card component (BaseCard)
+  - **base_dialog.py** - Base dialog component (BaseDialog)
+  - **base_title_bar.py** - Base title bar component (BaseTitleBar)
+
+- **component/** - UI components (used throughout the project)
+  - **button.py** - Button components
+    - `Button` - Universal button with variants (default, primary, secondary, danger)
+    - `NavButton` - Navigation button with icon and text
+    - `AnimatedStartButton` - Animated start/stop button
+    - `RoundGradientButton` - Round button with gradient
+    - `GradientWidget` - Gradient widget for button effects
+  - **checkbox.py** - CheckBox component (`CheckBox`)
+  - **combo_box.py** - ComboBox component (`ComboBox`)
+  - **dialog.py** - Dialog functions and classes
+    - `show_info_dialog()` - Info dialog
+    - `show_confirm_dialog()` - Confirmation dialog
+    - `show_input_dialog()` - Input dialog
+    - `show_language_selection_dialog()` - Language selection dialog
+    - `show_add_subscription_dialog()` - Add subscription dialog
+    - `DownloadDialog` - Download dialog with progress bar
+    - Dialog helper functions for admin restart, kill all, etc.
+  - **label.py** - Label components
+    - `Label` - Universal label with variants and sizes
+    - `VersionLabel` - Version label with states
+  - **line_edit.py** - LineEdit component (`LineEdit`)
+  - **list_widget.py** - ListWidget component (`ListWidget`)
+  - **progress_bar.py** - ProgressBar component (`ProgressBar`)
+  - **text_edit.py** - TextEdit component (`TextEdit`)
+  - **widget.py** - Container component (`Container`)
+  - **window.py** - Window components
+    - `LogsWindow` - Logs display window
 
 ### ui/utils/
 - **animations.py** - Page transition animations
@@ -315,22 +344,23 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
 - **stylesheet.py** - Widget stylesheet generation
   - `StyleSheet` class - static methods for generating CSS styles
 
-### ui/dialogs/
-- **base_dialog.py** - Base dialog class
-  - `create_dialog()` function - universal dialog factory
-  - `DialogType` enum - dialog types (INFO, CONFIRM, WARNING, SUCCESS)
+### UI Component Architecture
 
-- **confirm_dialog.py** - Confirmation dialogs
-  - `show_confirm_dialog()` function - universal confirmation dialog
-  - `show_restart_admin_dialog()` function - admin restart dialog
-  - `show_kill_all_confirm_dialog()` function - process termination confirmation dialog
+The project follows a strict component hierarchy:
 
-- **info_dialog.py** - Info dialogs
-  - `show_info_dialog()` function - universal info dialog
-  - `show_kill_all_success_dialog()` function - process termination success dialog
+1. **Base UI** (`ui/design/base/`) - Base components that provide core functionality
+   - Used ONLY by components, never directly in the project
+   - Examples: `BaseCard`, `BaseDialog`, `BaseTitleBar`
 
-- **language_dialog.py** - Language selection dialog
-  - `show_language_selection_dialog()` function - language selection dialog on first run
+2. **Components** (`ui/design/component/`) - Reusable UI components
+   - Use base UI internally
+   - Used throughout the project (main.py, updater.py, pages, etc.)
+   - Examples: `Button`, `Label`, `CheckBox`, `Dialog` functions
+
+3. **Usage Rules**:
+   - ✅ Use components from `ui/design/component/` in main.py, updater.py, and pages
+   - ❌ Never use base UI directly (only through components)
+   - ❌ Never create PyQt5 widgets directly (QPushButton, QLabel, etc.) - use components instead
 
 ### ui/
 - **tray_manager.py** - System tray manager
@@ -470,12 +500,27 @@ python main.py
 - `InitOperationsWorker` - инициализация при старте
 - `CheckVersionWorker` / `CheckAppVersionWorker` - проверка версий
 
-### Переиспользуемые компоненты
-Общие UI компоненты вынесены в `ui/widgets/`:
-- `CardWidget` - карточка с фоном
-- `NavButton` - кнопка навигации
-- `TitleBar` - кастомный заголовок для фреймлесс окон
-- `VersionLabel` - лейбл версии
+### Система компонентов UI
+Проект использует трехуровневую архитектуру компонентов:
+
+1. **Base UI** (`ui/design/base/`) - базовые компоненты:
+   - `BaseCard` - базовая карточка
+   - `BaseDialog` - базовый диалог
+   - `BaseTitleBar` - базовый заголовок окна
+
+2. **Components** (`ui/design/component/`) - компоненты для использования:
+   - `Button`, `NavButton` - кнопки
+   - `Label`, `VersionLabel` - лейблы
+   - `CheckBox`, `ComboBox`, `ListWidget` - элементы форм
+   - `TextEdit`, `LineEdit`, `ProgressBar` - поля ввода и прогресс
+   - `Container` - контейнер
+   - Функции диалогов (`show_info_dialog`, `show_confirm_dialog`, etc.)
+   - `LogsWindow` - окно логов
+
+3. **Правила использования**:
+   - В main.py, updater.py и страницах используются ТОЛЬКО компоненты из `ui/design/component/`
+   - Base UI используется только внутри компонентов, никогда напрямую
+   - Прямое создание PyQt5 виджетов запрещено - используются компоненты
 
 ### Уменьшение размера main.py
 Для улучшения поддерживаемости и читаемости кода, из `main.py` были вынесены:

@@ -6,7 +6,7 @@ import sys
 from urllib.parse import urlparse, unquote
 from typing import TYPE_CHECKING
 from utils.i18n import tr
-from ui.dialogs.info_dialog import show_info_dialog
+from ui.design.component import show_info_dialog
 
 if TYPE_CHECKING:
     from main import MainWindow
