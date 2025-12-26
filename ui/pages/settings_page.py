@@ -57,6 +57,8 @@ class SettingsPage(BasePage):
         # Интервал автообновления (текст сверху, кнопки снизу)
         # Создаем виджет-контейнер вместо layout для контроля размера
         interval_widget = QWidget()
+        # Убираем фон у виджета - делаем прозрачным
+        interval_widget.setStyleSheet("background-color: transparent;")
         interval_container = QVBoxLayout(interval_widget)
         interval_container.setSpacing(8)
         interval_container.setContentsMargins(0, 0, 0, 0)  # Убираем лишние отступы
@@ -263,33 +265,30 @@ class SettingsPage(BasePage):
     def _open_logs_window(self, mode="logs"):
         """Открывает окно с логами"""
         try:
-            # Проверяем, существует ли окно и не было ли оно закрыто
-            if not hasattr(self, '_logs_window') or self._logs_window is None:
-                from ui.design.component import LogsWindow
-                # Создаем окно с parent=main_window вместо self, чтобы оно было независимым
-                self._logs_window = LogsWindow(self.main_window, self.main_window)
-                # Подключаем сигнал закрытия для очистки ссылки
-                self._logs_window.finished.connect(self._on_logs_window_closed)
+            # Всегда создаем новое окно при нажатии кнопки (как диалоги)
+            from ui.design.component import LogsWindow
+            # Создаем окно с parent=main_window, чтобы оно было независимым
+            logs_window = LogsWindow(self.main_window, self.main_window)
             
             # Переключаем режим если нужно
             if mode == "debug":
-                self._logs_window._switch_mode("debug")
+                logs_window._switch_mode("debug")
             
             # Загружаем логи перед показом
             self.load_logs()
             if hasattr(self, 'debug_logs'):
                 self.load_debug_logs()
             
-            # Показываем окно (немодальное)
-            self._logs_window.setWindowModality(Qt.NonModal)
-            # Убеждаемся, что окно видимо
-            if self._logs_window.isHidden():
-                self._logs_window.show()
-            # Поднимаем окно на передний план
-            self._logs_window.raise_()
-            self._logs_window.activateWindow()
-            # Дополнительно фокусируем окно
-            self._logs_window.setFocus()
+            # Показываем окно (немодальное) - используем show() как для обычных окон
+            logs_window.setWindowModality(Qt.NonModal)
+            logs_window.show()
+            logs_window.raise_()
+            logs_window.activateWindow()
+            
+            # Сохраняем ссылку для возможного повторного использования
+            self._logs_window = logs_window
+            # Подключаем сигнал закрытия для очистки ссылки
+            logs_window.finished.connect(self._on_logs_window_closed)
         except Exception as e:
             # В случае ошибки выводим в консоль для отладки
             import traceback
