@@ -129,6 +129,8 @@ class UpdateThread(QThread):
         
         total_size = int(response.headers.get("content-length", 0))
         downloaded = 0
+        last_logged_mb = 0.0
+        log_interval_mb = 10.0  # Логируем раз в 25 МБ
         
         if total_size:
             size_mb = total_size / (1024 * 1024)
@@ -144,12 +146,14 @@ class UpdateThread(QThread):
                     progress_pct = 10 + int((downloaded / total_size) * 30)
                     self.progress_signal.emit(min(progress_pct, 40))
                     downloaded_mb = downloaded / (1024 * 1024)
-                    if total_size:
+                    # Логируем прогресс только раз в 25 МБ (или при завершении)
+                    if downloaded_mb - last_logged_mb >= log_interval_mb or downloaded >= total_size:
                         total_mb = total_size / (1024 * 1024)
                         self.status(tr("updater.downloaded_progress", 
                                      downloaded_mb=f"{downloaded_mb:.2f}",
                                      total_mb=f"{total_mb:.2f}",
                                      progress_pct=progress_pct))
+                        last_logged_mb = downloaded_mb
         
         self.status(tr("updater.download_complete"))
     
