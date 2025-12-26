@@ -20,7 +20,7 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 ## Features
 
 - 🎨 Modern mobile design
-- 🌍 Support for Russian and English languages (with custom language support)
+- 🌍 Support for Russian, English, and Chinese languages (with custom language support)
 - 📥 Automatic SingBox core download
 - 🔄 Automatic configuration updates
 - 📊 Built-in logs
@@ -31,37 +31,115 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 
 ## Project Structure
 
+For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ```
 SingBox-UI/
-├── main.py                 # Main application file
-├── updater.py              # Update utility (built as updater.exe)
+├── .version                # Application version file
+├── main/                   # Main application files
+│   ├── main.py            # Main application file (window management and coordination)
+│   ├── updater.py         # Update utility (built as updater.exe)
+│   └── post_build.py      # Post-build script
+├── icons/                  # Application icons
+│   ├── icon.ico           # Windows icon
+│   ├── icon.png           # PNG icon
+│   └── icon.svg           # SVG icon (source)
+├── scripts/                # Utility scripts
+│   ├── build_parallel.py   # Parallel build script (builds both exe simultaneously)
+│   ├── build_qrc.py        # QRC compilation script
+│   ├── check_locales.py    # Locale validation script
+│   ├── create_icon.py      # Icon creation script
+│   └── register_protocol.py # Protocol registration script
 ├── config/                 # Configuration
 │   └── paths.py           # File paths
 ├── managers/              # Data managers
 │   ├── settings.py        # Settings
-│   └── subscriptions.py   # Subscriptions
+│   ├── subscriptions.py   # Subscriptions
+│   └── log_ui_manager.py  # Log UI manager
 ├── utils/                 # Utilities
 │   ├── i18n.py           # Localization
+│   ├── icon_manager.py   # Icon management
+│   ├── icon_helper.py   # Icon helper (embedded fonts)
 │   ├── logger.py         # Logging
-│   └── singbox.py        # SingBox utilities
+│   ├── singbox.py        # SingBox utilities
+│   └── theme_manager.py  # Theme management
 ├── core/                  # Core logic
-│   └── downloader.py     # Core download
+│   ├── deep_link_handler.py # Deep link handler
+│   ├── downloader.py     # Core downloader
+│   ├── protocol.py       # Protocol registration and admin rights
+│   ├── restart_manager.py # Application restart manager
+│   └── singbox_manager.py # SingBox process management
+├── app/                   # Application initialization
+│   └── application.py    # QApplication creation and theme
+├── workers/               # Background threads
+│   ├── base_worker.py    # Base worker class
+│   ├── init_worker.py    # Initialization worker
+│   └── version_worker.py # Version check workers
+├── ui/                    # User interface
+│   ├── pages/            # Application pages
+│   │   ├── base_page.py  # Base page class
+│   │   ├── profile_page.py # Profile management page
+│   │   ├── home_page.py  # Home page
+│   │   └── settings_page.py # Settings page
+│   ├── design/           # Design system
+│   │   ├── base/         # Base UI components (used only by components)
+│   │   │   ├── base_card.py # Base card component
+│   │   │   ├── base_dialog.py # Base dialog component
+│   │   │   └── base_title_bar.py # Base title bar component
+│   │   └── component/    # UI components (used in project)
+│   │       ├── button.py # Button components (Button, NavButton, etc.)
+│   │       ├── checkbox.py # CheckBox component
+│   │       ├── combo_box.py # ComboBox component
+│   │       ├── dialog.py # Dialog functions and DownloadDialog
+│   │       ├── label.py # Label components (Label, VersionLabel)
+│   │       ├── line_edit.py # LineEdit component
+│   │       ├── list_widget.py # ListWidget component
+│   │       ├── progress_bar.py # ProgressBar component
+│   │       ├── text_edit.py # TextEdit component
+│   │       ├── widget.py # Container component
+│   │       └── window.py # LogsWindow component
+│   ├── widgets/          # Legacy widgets (deprecated, use design/component)
+│   │   └── logs_window.py # Logs window widget (moved to design/component/window.py)
+│   ├── utils/            # UI utilities
+│   │   └── animations.py # Page transition animations
+│   ├── styles/           # Styling system
+│   │   ├── constants.py  # Constants (colors, fonts, sizes)
+│   │   ├── theme.py      # Theme management
+│   │   └── stylesheet.py # Widget stylesheet generation
+│   └── tray_manager.py   # System tray manager
+├── resources/            # Resources
+│   ├── app.qrc          # Qt resource file
+│   ├── icons/           # Icon resources
+│   │   └── app.ico      # Application icon
+│   └── fonts/           # Font resources
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Material Design Icons font
+├── scripts/
+│   └── resources_rc.py   # Compiled Qt resources (generated)
 ├── locales/              # Localization source files
 │   ├── ru.json           # Russian
-│   └── en.json           # English
+│   ├── en.json           # English
+│   └── zh.json           # Chinese
+├── themes/               # Theme source files
+│   ├── dark.json         # Dark theme
+│   ├── light.json        # Light theme
+│   ├── black.json        # Black theme
+│   └── newyear.json      # New Year theme
 ├── changelog/            # Version changelogs
-│   ├── CHANGELOG_v1.0.0.md
-│   ├── CHANGELOG_v1.0.1.md
-│   ├── CHANGELOG_v1.0.2.md
-│   ├── CHANGELOG_v1.0.3.md
 │   └── ...
 └── data/                 # Data (created automatically)
     ├── core/             # SingBox core
     ├── logs/             # Logs
     ├── locales/          # Localization files (copied from locales/)
     │   ├── ru.json       # Russian
-    │   └── en.json       # English
+    │   ├── en.json       # English
+    │   └── zh.json       # Chinese
+    ├── themes/           # Theme files (copied from themes/)
+    │   ├── dark.json     # Dark theme
+    │   ├── light.json    # Light theme
+    │   ├── black.json    # Black theme
+    │   └── newyear.json  # New Year theme
     ├── updater.exe       # Update utility executable (with GUI)
+    ├── .version          # Application version (copied from root)
     └── config.json       # Config
 ```
 
@@ -76,10 +154,19 @@ SingBox-UI/
    ```
 3. Run the application:
    ```bash
-   python main.py
+   python main/main.py
    ```
 
 ### Build exe
+
+**Recommended: Use parallel build script (builds both exe simultaneously, faster):**
+
+```bash
+# Build both SingBox-UI.exe and updater.exe in parallel
+python scripts/build_parallel.py --clean-build
+```
+
+**Alternative: Manual build (sequential):**
 
 ```bash
 # Build main application
@@ -89,13 +176,16 @@ py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py -m PyInstaller updater.spec --clean --noconfirm
 
 # Run post-build script to organize files
-py post_build.py
+python main/post_build.py
 ```
+
+The parallel build script automatically runs the post-build script after successful builds.
 
 The result will be in the `dist/SingBox-UI/` folder with the following structure:
 - `SingBox-UI.exe` - Main application
 - `data/updater.exe` - Update utility
 - `data/locales/` - Localization files
+- `data/themes/` - Theme files
 - `data/core/` - SingBox core (downloaded on first run)
 
 ## Usage
@@ -129,6 +219,11 @@ On first launch, the application automatically creates:
 - `data/locales/` - Localization files (copied during build)
   - `ru.json` - Russian translations
   - `en.json` - English translations
+- `data/themes/` - Theme files (copied during build)
+  - `dark.json` - Dark theme
+  - `light.json` - Light theme
+  - `black.json` - Black theme
+  - `newyear.json` - New Year theme
 - `data/updater.exe` - Update utility with GUI (handles entire update process)
 - `data/config.json` - Configuration file (downloaded from subscription)
 - `data/.subscriptions` - Subscription list (preserved during updates)
@@ -139,7 +234,6 @@ On first launch, the application automatically creates:
 - Python 3.8+
 - Windows 10/11
 - PyQt5
-- qtawesome
 - requests
 
 ## License

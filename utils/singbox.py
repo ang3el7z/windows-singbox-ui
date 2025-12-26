@@ -92,45 +92,48 @@ def get_latest_version() -> str:
         return None
 
 
-def get_app_latest_version(repo_owner: str = "ang3el7z", repo_name: str = "windows-singbox-ui") -> str:
+def get_app_latest_version(
+    repo_owner: str = "ang3el7z",
+    repo_name: str = "SingBox-UI",
+    branch: str = "main",
+) -> str:
     """
-    Получить последнюю версию приложения с GitHub
+    Получить последнюю версию приложения из ветки main (.version в репозитории)
+    
     Args:
-        repo_owner: Владелец репозитория (по умолчанию "Ang3el")
-        repo_name: Название репозитория (по умолчанию "SingBox-UI")
-    Returns: версия в формате "x.y.z" или None при ошибке
+        repo_owner: Владелец репозитория
+        repo_name: Название репозитория
+        branch: Ветка, из которой читаем файл версии
+    
+    Returns:
+        Версия в формате "x.y.z" или None при ошибке
     """
+    raw_url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{branch}/.version"
     try:
-        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-        response = requests.get(api_url, timeout=10)
+        response = requests.get(raw_url, timeout=10)
         response.raise_for_status()
-        release_data = response.json()
-        tag_name = release_data.get("tag_name", "")
+        version = response.text.strip()
         
-        if not tag_name:
-            _log_version_check(f"[App Update Check] Пустой tag_name в ответе API для {repo_owner}/{repo_name}")
+        if not version:
+            _log_version_check(f"[App Update Check] Пустой .version для {repo_owner}/{repo_name}@{branch}")
             return None
         
-        # Убираем 'v' из начала если есть (например, "v1.0.0" -> "1.0.0")
-        version = tag_name.lstrip('v')
-        
-        # Проверяем формат версии (может быть "1.0.0" или "1.0.0-beta.1")
-        match = re.match(r'^(\d+\.\d+\.\d+)', version)
+        match = re.match(r'^(\d+\\.\\d+\\.\\d+)', version)
         if match:
             version = match.group(1)
-            _log_version_check(f"[App Update Check] Получена последняя версия приложения: {version}")
+            _log_version_check(f"[App Update Check] Получена версия из main: {version}")
             return version
-        else:
-            _log_version_check(f"[App Update Check] Неверный формат версии: {tag_name} -> {version}")
-            return None
+        
+        _log_version_check(f"[App Update Check] Неверный формат версии в .version: '{version}'")
+        return None
     except requests.exceptions.Timeout:
-        _log_version_check(f"[App Update Check] Таймаут при запросе к GitHub API для {repo_owner}/{repo_name}")
+        _log_version_check(f"[App Update Check] Таймаут при запросе {raw_url}")
         return None
     except requests.exceptions.RequestException as e:
-        _log_version_check(f"[App Update Check] Ошибка запроса к GitHub API для {repo_owner}/{repo_name}: {e}")
+        _log_version_check(f"[App Update Check] Ошибка запроса {raw_url}: {e}")
         return None
     except Exception as e:
-        _log_version_check(f"[App Update Check] Неожиданная ошибка при получении версии приложения: {e}")
+        _log_version_check(f"[App Update Check] Неожиданная ошибка при получении версии из .version: {e}")
         import traceback
         traceback.print_exc()
         return None

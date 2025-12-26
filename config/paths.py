@@ -13,12 +13,18 @@ except ImportError:
 # Определяем корневую папку: для exe - папка с exe, для .py - папка с .py
 if getattr(sys, 'frozen', False):
     # Запущено как exe - папка где находится exe файл
-    # Если exe в _internal, берем родительскую папку
     exe_path = Path(sys.executable)
-    if exe_path.parent.name == '_internal':
-        ROOT = exe_path.parent.parent
+    exe_dir = exe_path.parent
+    
+    # Если exe в _internal, берем родительскую папку
+    if exe_dir.name == '_internal':
+        ROOT = exe_dir.parent
+    # Если exe в папке data (например updater.exe), берем родительскую папку
+    # чтобы ROOT указывал на корень приложения, а не на data
+    elif exe_dir.name == 'data':
+        ROOT = exe_dir.parent
     else:
-        ROOT = exe_path.parent
+        ROOT = exe_dir
 else:
     # Запущено как скрипт
     ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +34,7 @@ DATA_DIR = ROOT / "data"
 CORE_DIR = DATA_DIR / "core"
 LOG_DIR = DATA_DIR / "logs"
 LOCALES_DIR = DATA_DIR / "locales"
+THEMES_DIR = DATA_DIR / "themes"
 
 # Файлы
 SUB_FILE = DATA_DIR / ".subscriptions"
@@ -40,7 +47,7 @@ DEBUG_LOG_FILE = LOG_DIR / "debug.log"
 
 def ensure_dirs():
     """Создает все необходимые папки и проверяет их создание"""
-    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR]
+    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR]
     for p in dirs_to_create:
         try:
             p.mkdir(parents=True, exist_ok=True)
@@ -50,10 +57,4 @@ def ensure_dirs():
         except Exception as e:
             log_to_file(f"ОШИБКА создания папки {p}: {e}")
             raise
-    log_to_file(f"Папки созданы/проверены:")
-    log_to_file(f"  ROOT: {ROOT}")
-    log_to_file(f"  DATA_DIR: {DATA_DIR}")
-    log_to_file(f"  CORE_DIR: {CORE_DIR}")
-    log_to_file(f"  LOG_DIR: {LOG_DIR}")
-    log_to_file(f"  LOCALES_DIR: {LOCALES_DIR}")
 

@@ -20,7 +20,7 @@
 ## Возможности
 
 - 🎨 Современный мобильный дизайн
-- 🌍 Поддержка русского и английского языков (с поддержкой пользовательских языков)
+- 🌍 Поддержка русского, английского и китайского языков (с поддержкой пользовательских языков)
 - 📥 Автоматическая загрузка ядра SingBox
 - 🔄 Автоматическое обновление конфигурации
 - 📊 Встроенные логи
@@ -31,37 +31,115 @@
 
 ## Структура проекта
 
+Подробную документацию по архитектуре см. в [ARCHITECTURE.ru.md](./ARCHITECTURE.ru.md).
+
 ```
 SingBox-UI/
-├── main.py                 # Главный файл приложения
-├── updater.py              # Утилита обновления (собирается как updater.exe)
+├── .version                # Файл версии приложения
+├── main/                   # Основные файлы приложения
+│   ├── main.py            # Главный файл приложения (управление окном и координация)
+│   ├── updater.py         # Утилита обновления (собирается как updater.exe)
+│   └── post_build.py      # Скрипт пост-обработки сборки
+├── icons/                  # Иконки приложения
+│   ├── icon.ico           # Иконка Windows
+│   ├── icon.png           # PNG иконка
+│   └── icon.svg           # SVG иконка (исходник)
+├── scripts/                # Утилитарные скрипты
+│   ├── build_parallel.py   # Скрипт параллельной сборки (собирает оба exe одновременно)
+│   ├── build_qrc.py        # Скрипт компиляции QRC
+│   ├── check_locales.py    # Скрипт проверки локализации
+│   ├── create_icon.py      # Скрипт создания иконок
+│   └── register_protocol.py # Скрипт регистрации протоколов
 ├── config/                 # Конфигурация
 │   └── paths.py           # Пути к файлам
 ├── managers/              # Менеджеры данных
 │   ├── settings.py        # Настройки
-│   └── subscriptions.py   # Подписки
+│   ├── subscriptions.py   # Подписки
+│   └── log_ui_manager.py  # Менеджер логов для UI
 ├── utils/                 # Утилиты
 │   ├── i18n.py           # Локализация
+│   ├── icon_manager.py   # Управление иконками
+│   ├── icon_helper.py   # Хелпер для иконок (встроенные шрифты)
 │   ├── logger.py         # Логирование
-│   └── singbox.py        # Утилиты SingBox
+│   ├── singbox.py        # Утилиты SingBox
+│   └── theme_manager.py  # Управление темами
 ├── core/                  # Основная логика
-│   └── downloader.py     # Загрузка ядра
+│   ├── deep_link_handler.py # Обработчик deep links
+│   ├── downloader.py     # Загрузчик ядра
+│   ├── protocol.py       # Регистрация протоколов и работа с правами администратора
+│   ├── restart_manager.py # Менеджер перезапуска приложения
+│   └── singbox_manager.py # Управление процессом SingBox
+├── app/                   # Инициализация приложения
+│   └── application.py    # Создание QApplication и применение темы
+├── workers/               # Фоновые потоки
+│   ├── base_worker.py    # Базовый класс для воркеров
+│   ├── init_worker.py    # Воркер инициализации
+│   └── version_worker.py # Воркеры проверки версий
+├── ui/                    # Интерфейс пользователя
+│   ├── pages/            # Страницы приложения
+│   │   ├── base_page.py  # Базовый класс для страниц
+│   │   ├── profile_page.py # Страница управления профилями
+│   │   ├── home_page.py  # Главная страница
+│   │   └── settings_page.py # Страница настроек
+│   ├── design/           # Дизайн-система
+│   │   ├── base/         # Базовые UI компоненты (используются только компонентами)
+│   │   │   ├── base_card.py # Базовый компонент карточки
+│   │   │   ├── base_dialog.py # Базовый компонент диалога
+│   │   │   └── base_title_bar.py # Базовый компонент заголовка окна
+│   │   └── component/    # UI компоненты (используются в проекте)
+│   │       ├── button.py # Компоненты кнопок (Button, NavButton и т.д.)
+│   │       ├── checkbox.py # Компонент CheckBox
+│   │       ├── combo_box.py # Компонент ComboBox
+│   │       ├── dialog.py # Функции диалогов и DownloadDialog
+│   │       ├── label.py # Компоненты лейблов (Label, VersionLabel)
+│   │       ├── line_edit.py # Компонент LineEdit
+│   │       ├── list_widget.py # Компонент ListWidget
+│   │       ├── progress_bar.py # Компонент ProgressBar
+│   │       ├── text_edit.py # Компонент TextEdit
+│   │       ├── widget.py # Компонент Container
+│   │       └── window.py # Компонент LogsWindow
+│   ├── widgets/          # Устаревшие виджеты (deprecated, используйте design/component)
+│   │   └── logs_window.py # Виджет окна логов (перенесен в design/component/window.py)
+│   ├── utils/            # Утилиты UI
+│   │   └── animations.py # Анимации переходов между страницами
+│   ├── styles/           # Система стилей
+│   │   ├── constants.py  # Константы (цвета, шрифты, размеры)
+│   │   ├── theme.py      # Управление темой
+│   │   └── stylesheet.py # Генерация стилей для виджетов
+│   └── tray_manager.py   # Менеджер системного трея
+├── resources/            # Ресурсы
+│   ├── app.qrc          # Файл ресурсов Qt
+│   ├── icons/           # Ресурсы иконок
+│   │   └── app.ico      # Иконка приложения
+│   └── fonts/           # Ресурсы шрифтов
+│       └── materialdesignicons5-webfont-5.9.55.ttf  # Шрифт Material Design Icons
+├── scripts/
+│   └── resources_rc.py  # Скомпилированные ресурсы Qt (генерируется)
 ├── locales/              # Исходные файлы локализации
 │   ├── ru.json           # Русский
-│   └── en.json           # Английский
+│   ├── en.json           # Английский
+│   └── zh.json           # Китайский
+├── themes/               # Исходные файлы тем
+│   ├── dark.json         # Темная тема
+│   ├── light.json        # Светлая тема
+│   ├── black.json        # Черная тема
+│   └── newyear.json      # Новогодняя тема
 ├── changelog/            # История изменений версий
-│   ├── CHANGELOG_v1.0.0.md
-│   ├── CHANGELOG_v1.0.1.md
-│   ├── CHANGELOG_v1.0.2.md
-│   ├── CHANGELOG_v1.0.3.md
 │   └── ...
 └── data/                 # Данные (создается автоматически)
     ├── core/             # Ядро SingBox
     ├── logs/             # Логи
     ├── locales/          # Файлы локализации (копируются из locales/)
     │   ├── ru.json       # Русский
-    │   └── en.json       # Английский
+    │   ├── en.json       # Английский
+    │   └── zh.json       # Китайский
+    ├── themes/          # Файлы тем (копируются из themes/)
+    │   ├── dark.json     # Темная тема
+    │   ├── light.json    # Светлая тема
+    │   ├── black.json    # Черная тема
+    │   └── newyear.json  # Новогодняя тема
     ├── updater.exe       # Утилита обновления (с GUI)
+    ├── .version          # Версия приложения (копируется из корня при сборке)
     └── config.json       # Конфиг
 ```
 
@@ -76,10 +154,19 @@ SingBox-UI/
    ```
 3. Запустите приложение:
    ```bash
-   python main.py
+   python main/main.py
    ```
 
 ### Сборка exe
+
+**Рекомендуется: Использовать скрипт параллельной сборки (собирает оба exe одновременно, быстрее):**
+
+```bash
+# Сборка обоих exe (SingBox-UI.exe и updater.exe) параллельно
+python scripts/build_parallel.py --clean-build
+```
+
+**Альтернатива: Ручная сборка (последовательно):**
 
 ```bash
 # Сборка основного приложения
@@ -89,13 +176,16 @@ py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 py -m PyInstaller updater.spec --clean --noconfirm
 
 # Запуск post-build скрипта для организации файлов
-py post_build.py
+python main/post_build.py
 ```
+
+Скрипт параллельной сборки автоматически запускает post-build скрипт после успешной сборки.
 
 Результат будет в папке `dist/SingBox-UI/` со следующей структурой:
 - `SingBox-UI.exe` - Основное приложение
 - `data/updater.exe` - Утилита обновления
 - `data/locales/` - Файлы локализации
+- `data/themes/` - Файлы тем
 - `data/core/` - Ядро SingBox (скачивается при первом запуске)
 
 ## Использование
@@ -129,6 +219,11 @@ py post_build.py
 - `data/locales/` - Файлы локализации (копируются при сборке)
   - `ru.json` - Русские переводы
   - `en.json` - Английские переводы
+- `data/themes/` - Файлы тем (копируются при сборке)
+  - `dark.json` - Темная тема
+  - `light.json` - Светлая тема
+  - `black.json` - Черная тема
+  - `newyear.json` - Новогодняя тема
 - `data/updater.exe` - Утилита обновления с GUI (выполняет весь процесс обновления)
 - `data/config.json` - Конфигурационный файл (скачивается из подписки)
 - `data/.subscriptions` - Список подписок (сохраняется при обновлениях)
@@ -139,7 +234,6 @@ py post_build.py
 - Python 3.8+
 - Windows 10/11
 - PyQt5
-- qtawesome
 - requests
 
 ## Лицензия

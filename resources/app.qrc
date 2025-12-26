@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/app.ico</file>
+        <!-- Material Design Icons font - используется для icon_helper.py -->
+        <!-- Скопируйте шрифт в resources/fonts/ (см. resources/fonts/README.md) -->
+        <file>fonts/materialdesignicons5-webfont-5.9.55.ttf</file>
+    </qresource>
+</RCC>
+
