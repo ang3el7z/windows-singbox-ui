@@ -732,6 +732,16 @@ class MainWindow(QMainWindow):
                     self.page_home.lbl_update_info.hide()
                 if hasattr(self.page_home, 'btn_version_update'):
                     self.page_home.btn_version_update.hide()
+        else:
+            # Ядро не установлено
+            self.page_home.lbl_version.setText(tr("home.not_installed"))
+            self.page_home.lbl_version.setStyleSheet(StyleSheet.label(variant="error"))
+            if hasattr(self.page_home, 'lbl_update_info'):
+                self.page_home.lbl_update_info.hide()
+            if hasattr(self.page_home, 'btn_version_warning'):
+                self.page_home.btn_version_warning.show()
+            if hasattr(self.page_home, 'btn_version_update'):
+                self.page_home.btn_version_update.hide()
     
     def update_app_version_display(self):
         """Обновление отображения версии приложения"""

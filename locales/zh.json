@@ -80,7 +80,7 @@
   "download": {
     "title": "安装 SingBox",
     "not_installed": "SingBox 未安装",
-    "description": "应用运行需要安装 SingBox 内核。\\n\\n点击"下载"按钮，将自动从 GitHub 获取\\n最新版本并完成安装。",
+    "description": "应用运行需要安装 SingBox 内核。\\n\\n点击\"下载\"按钮，将自动从 GitHub 获取\\n最新版本并完成安装。",
     "core_required": "应用运行需要安装 SingBox 内核。",
     "update_available": "检测到新版本内核：{latest_version}\\n\\n当前版本：{current_version}\\n\\n是否立即更新？",
     "cancel": "取消",
