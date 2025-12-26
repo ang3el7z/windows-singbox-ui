@@ -16,7 +16,7 @@
   },
   "home": {
     "version": "SingBox Version",
-    "installed": "Installed: version {version}",
+    "installed": "Current version: {version}",
     "not_installed": "Not installed",
     "update_available": "Update available: version {version}",
     "profile": "Profile",

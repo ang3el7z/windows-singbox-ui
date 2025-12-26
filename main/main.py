@@ -388,14 +388,14 @@ class MainWindow(QMainWindow):
         
         from ui.styles import theme
         accent_color = theme.get_color('accent')
-        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px; padding-left: 4px;"
+        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;"
         
         if running_sub and selected_sub:
             if self.running_sub_index == self.current_sub_index:
                 self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
                 self.page_home.lbl_profile.setStyleSheet(profile_style)
             else:
-                text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
+                text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n{tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
                 self.page_home.lbl_profile.setStyleSheet(profile_style)
                 self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
@@ -848,7 +848,7 @@ class MainWindow(QMainWindow):
         # Формируем текст
         from ui.styles import theme
         accent_color = theme.get_color('accent')
-        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px; padding-left: 4px;"
+        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;"
         
         if running_sub and selected_sub:
             if self.running_sub_index == self.current_sub_index:
@@ -856,8 +856,8 @@ class MainWindow(QMainWindow):
                 self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
                 self.page_home.lbl_profile.setStyleSheet(profile_style)
             else:
-                # Профили разные - добавляем отступ для второй строки
-                text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n    {tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
+                # Профили разные
+                text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n{tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
                 self.page_home.lbl_profile.setText(text)
                 self.page_home.lbl_profile.setStyleSheet(profile_style)
                 self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)

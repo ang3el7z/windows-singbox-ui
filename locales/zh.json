@@ -16,7 +16,7 @@
   },
   "home": {
     "version": "SingBox 版本",
-    "installed": "已安装：版本 {version}",
+    "installed": "当前版本：{version}",
     "not_installed": "未安装",
     "update_available": "有可用更新：版本 {version}",
     "profile": "配置文件",

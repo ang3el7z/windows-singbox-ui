@@ -16,7 +16,7 @@
   },
   "home": {
     "version": "Версия SingBox",
-    "installed": "Установлено: версия {version}",
+    "installed": "Текущая версия: {version}",
     "not_installed": "Не установлено",
     "update_available": "Доступно обновление: версия {version}",
     "profile": "Профиль",
