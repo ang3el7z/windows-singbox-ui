@@ -1496,11 +1496,12 @@ class MainWindow(QMainWindow):
                     self.settings.set("language", lang_code)
                     set_language(lang_code)
                     self.log(tr("settings.language_changed", language=get_language_name(lang_code)))
-                    # Обновляем все тексты в интерфейсе
-                    self.refresh_ui_texts()
-                    # Обновляем названия тем в комбобоксе
+                    
+                    # Обновляем названия тем в комбобоксе ПЕРЕД обновлением текстов
+                    # чтобы избежать моргания темы
                     if hasattr(self.page_settings, 'combo_theme'):
                         current_theme_id = self.page_settings.combo_theme.itemData(self.page_settings.combo_theme.currentIndex())
+                        self.page_settings.combo_theme.blockSignals(True)  # Блокируем сигналы, чтобы не вызвать on_theme_changed
                         self.page_settings.combo_theme.clear()
                         from utils.theme_manager import get_available_themes, get_theme_name
                         available_themes = get_available_themes()
@@ -1509,6 +1510,10 @@ class MainWindow(QMainWindow):
                             self.page_settings.combo_theme.addItem(theme_name, theme_info["id"])
                             if theme_info["id"] == current_theme_id:
                                 self.page_settings.combo_theme.setCurrentIndex(self.page_settings.combo_theme.count() - 1)
+                        self.page_settings.combo_theme.blockSignals(False)  # Разблокируем сигналы
+                    
+                    # Обновляем все тексты в интерфейсе (без изменения темы)
+                    self.refresh_ui_texts()
     
     def on_theme_changed(self, index: int):
         """Обработка изменения темы"""

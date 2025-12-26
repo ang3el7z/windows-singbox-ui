@@ -30,11 +30,20 @@ class LogsWindow(QDialog):
         self.user_has_scrolled = False
         
         # Фреймлесс-режим, чтобы убрать системный статус-бар
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        # Используем флаги для независимого окна (без Dialog, чтобы не было модальности)
+        # Если parent=None, окно будет полностью независимым
+        if parent is None:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        else:
+            # Если есть parent, используем Dialog флаг
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window | Qt.Dialog)
         
         self.setWindowTitle(tr("settings.logs"))
         self.setMinimumSize(600, 500)
         self.resize(800, 600)
+        
+        # Устанавливаем модальность после установки флагов (немодальное окно)
+        self.setModal(False)
         
         # Устанавливаем стиль окна через дизайн-систему
         self.setStyleSheet(StyleSheet.dialog())
@@ -192,5 +201,15 @@ class LogsWindow(QDialog):
         """Обработка закрытия окна"""
         self.update_timer.stop()
         self.autoscroll_reset_timer.stop()
+        # Отправляем сигнал finished для очистки ссылки в settings_page
+        # Используем QDialog.Rejected, так как окно закрывается пользователем
+        self.finished.emit(QDialog.Rejected)
         super().closeEvent(event)
+    
+    def showEvent(self, event):
+        """Обработка события показа окна"""
+        super().showEvent(event)
+        # Убеждаемся, что окно видимо и активировано при показе
+        self.raise_()
+        self.activateWindow()
 

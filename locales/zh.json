@@ -44,7 +44,7 @@
     "name": "名称：",
     "url": "配置 URL：",
     "delete_question": "删除？",
-    "delete_confirm": "确定删除"{name}"？",
+    "delete_confirm": "确定删除\"{name}\"？",
     "rename_subscription": "重命名配置文件",
     "rename_confirm": "请输入 \"{name}\" 的新名称：",
     "select_for_test": "选择要测试的订阅",

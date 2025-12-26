@@ -265,10 +265,19 @@ class SettingsPage(BasePage):
     def _open_logs_window(self, mode="logs"):
         """Открывает окно с логами"""
         try:
+            # Если окно уже открыто, просто активируем его
+            if self._logs_window is not None:
+                self._logs_window.raise_()
+                self._logs_window.activateWindow()
+                if self._logs_window.isMinimized():
+                    self._logs_window.showNormal()
+                return
+            
             # Всегда создаем новое окно при нажатии кнопки (как диалоги)
             from ui.design.component import LogsWindow
-            # Создаем окно с parent=main_window, чтобы оно было независимым
-            logs_window = LogsWindow(self.main_window, self.main_window)
+            # Создаем окно БЕЗ parent, чтобы оно было полностью независимым
+            # Используем None в качестве parent, чтобы окно не было привязано к главному окну
+            logs_window = LogsWindow(self.main_window, parent=None)
             
             # Переключаем режим если нужно
             if mode == "debug":
@@ -279,21 +288,45 @@ class SettingsPage(BasePage):
             if hasattr(self, 'debug_logs'):
                 self.load_debug_logs()
             
-            # Показываем окно (немодальное) - используем show() как для обычных окон
-            logs_window.setWindowModality(Qt.NonModal)
-            logs_window.show()
-            logs_window.raise_()
-            logs_window.activateWindow()
-            
-            # Сохраняем ссылку для возможного повторного использования
+            # Сохраняем ссылку ПЕРЕД показом, чтобы окно не было уничтожено
             self._logs_window = logs_window
             # Подключаем сигнал закрытия для очистки ссылки
             logs_window.finished.connect(self._on_logs_window_closed)
+            
+            # Устанавливаем позицию окна относительно главного окна
+            main_geometry = self.main_window.geometry()
+            logs_window.move(
+                main_geometry.x() + (main_geometry.width() - logs_window.width()) // 2,
+                main_geometry.y() + (main_geometry.height() - logs_window.height()) // 2
+            )
+            
+            # Показываем окно (немодальное) - используем show() как для обычных окон
+            # Убеждаемся, что окно видимо и активировано
+            logs_window.setAttribute(Qt.WA_ShowWithoutActivating, False)
+            logs_window.show()
+            
+            # Обрабатываем события, чтобы окно успело отобразиться
+            from PyQt5.QtWidgets import QApplication
+            QApplication.processEvents()
+            
+            logs_window.raise_()
+            logs_window.activateWindow()
+            # Дополнительно убеждаемся, что окно на переднем плане
+            if logs_window.isMinimized():
+                logs_window.showNormal()
+            logs_window.setFocus()
+            
+            # Принудительно обновляем окно
+            logs_window.update()
+            QApplication.processEvents()
         except Exception as e:
             # В случае ошибки выводим в консоль для отладки
             import traceback
-            print(f"Error opening logs window: {e}")
+            import sys
+            print(f"Error opening logs window: {e}", file=sys.stderr)
             traceback.print_exc()
+            # Очищаем ссылку в случае ошибки
+            self._logs_window = None
     
     def _on_logs_window_closed(self):
         """Обработчик закрытия окна логов"""
