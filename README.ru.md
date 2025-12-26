@@ -12,9 +12,9 @@
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/147dbbec-c702-4c36-b518-c71dd9fc4a02" width="320" height="700" alt="Profile"/>
-  <img src="https://github.com/user-attachments/assets/19ce8dce-89c5-48fe-a07f-df35f94d807e" width="320" height="700" alt="Home"/>
-  <img src="https://github.com/user-attachments/assets/77995e07-5bbf-4e4b-88d5-cb9f41106e09" width="320" height="700" alt="Settings"/>
+  <img width="320" height="700" alt="profile" src="https://github.com/user-attachments/assets/5b87bc1a-8b88-4a16-aec5-06e1d5c724d7" />
+  <img width="320" height="700" alt="home" src="https://github.com/user-attachments/assets/e9b0dc79-a33b-4eb3-8736-f58944c88ab0" />
+  <img width="320" height="700" alt="settings" src="https://github.com/user-attachments/assets/53f0bc60-774c-46ff-8969-936e4f2e4a74" />
 </p>
 
 ## Возможности
