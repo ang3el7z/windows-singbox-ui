@@ -722,21 +722,46 @@ class MainWindow(QMainWindow):
     
     def update_app_version_display(self):
         """Обновление отображения версии приложения"""
-        if self.cached_app_latest_version:
-            comparison = compare_versions(self.app_version, self.cached_app_latest_version)
-            if comparison < 0:
-                # Есть обновление
-                self.lbl_app_version.setText(tr("app.update_available", version=self.cached_app_latest_version))
-                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="warning") + "cursor: pointer;")
-                # Обработчик клика уже установлен в __init__, он обрабатывает и обновления, и дебаг режим
-            else:
-                # Нет обновления
-                self.lbl_app_version.setText(tr("app.version", version=self.app_version))
-                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
-        else:
-            # Показываем текущую версию
-            self.lbl_app_version.setText(tr("app.version", version=self.app_version))
-            self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
+        # Всегда показываем текущую версию в lbl_app_version
+        self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+        self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
+        
+        # Проверяем наличие обновления приложения и показываем информацию снизу на главной странице
+        # (обновление SingBox обрабатывается отдельно в update_version_info)
+        if hasattr(self, 'page_home') and hasattr(self.page_home, 'lbl_update_info'):
+            # Проверяем, есть ли обновление SingBox (чтобы не перезаписывать его сообщение)
+            has_singbox_update = False
+            if self.cached_latest_version:
+                from utils.singbox import get_singbox_version, compare_versions
+                current_singbox_version = get_singbox_version()
+                if current_singbox_version:
+                    has_singbox_update = compare_versions(current_singbox_version, self.cached_latest_version) < 0
+            
+            # Если нет обновления SingBox, показываем обновление приложения
+            if not has_singbox_update:
+                if self.cached_app_latest_version:
+                    comparison = compare_versions(self.app_version, self.cached_app_latest_version)
+                    if comparison < 0:
+                        # Есть обновление приложения - показываем информацию снизу
+                        self.page_home.lbl_update_info.setText(tr("app.update_available", version=self.cached_app_latest_version))
+                        self.page_home.lbl_update_info.setStyleSheet(StyleSheet.label(variant="warning"))
+                        self.page_home.lbl_update_info.setCursor(Qt.PointingHandCursor)
+                        self.page_home.lbl_update_info.show()
+                        
+                        # Устанавливаем обработчик клика для обновления приложения
+                        if not hasattr(self.page_home.lbl_update_info, '_app_update_click_handler_set'):
+                            def handle_app_update_click(event):
+                                if event.button() == Qt.LeftButton:
+                                    self.show_app_update_dialog()
+                            
+                            self.page_home.lbl_update_info.mousePressEvent = handle_app_update_click
+                            self.page_home.lbl_update_info._app_update_click_handler_set = True
+                    else:
+                        # Нет обновления приложения
+                        self.page_home.lbl_update_info.hide()
+                else:
+                    # Нет информации об обновлении приложения
+                    self.page_home.lbl_update_info.hide()
     
     
     def show_app_update_dialog(self):
