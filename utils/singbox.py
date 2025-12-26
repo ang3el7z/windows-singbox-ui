@@ -95,7 +95,7 @@ def get_latest_version() -> Optional[str]:
 
 def get_app_latest_version(
     repo_owner: str = "ang3el7z",
-    repo_name: str = "SingBox-UI",
+    repo_name: str = "windows-singbox-ui",
     branch: str = "main",
 ) -> Optional[str]:
     """

@@ -29,7 +29,7 @@ from utils.i18n import tr, set_language
 from managers.settings import SettingsManager
 
 GITHUB_OWNER = "ang3el7z"
-GITHUB_REPO = "SingBox-UI"
+GITHUB_REPO = "windows-singbox-ui"
 GITHUB_BRANCH = "main"
 
 
