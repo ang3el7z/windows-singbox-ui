@@ -380,13 +380,14 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
 class DownloadDialog(BaseDialog):
     """Диалог загрузки SingBox с прогресс-баром"""
     
-    def __init__(self, parent: QWidget, on_download_callback: Callable[['DownloadDialog'], None]):
+    def __init__(self, parent: QWidget, on_download_callback: Callable[['DownloadDialog'], None], message: str = None):
         """
         Инициализация диалога загрузки
         
         Args:
             parent: Родительский виджет
             on_download_callback: Функция-коллбэк для запуска загрузки (принимает dialog)
+            message: Кастомное сообщение (если None, используется стандартное)
         """
         super().__init__(parent, tr("download.title"))
         self.on_download_callback = on_download_callback
@@ -397,7 +398,8 @@ class DownloadDialog(BaseDialog):
         self.content_layout.setSpacing(16)
         
         # Убираем дублирование заголовка - он уже в TitleBar
-        info = Label(tr("download.description"), variant="secondary", size="medium")
+        info_text = message if message else tr("download.description")
+        info = Label(info_text, variant="secondary", size="medium")
         info.setWordWrap(True)
         self.content_layout.addWidget(info)
         

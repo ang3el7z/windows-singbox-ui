@@ -81,6 +81,8 @@
     "title": "Install SingBox",
     "not_installed": "SingBox is not installed",
     "description": "To use the application, you need to install the SingBox core.\n\nClick the 'Download' button to automatically download\nand install the latest version from GitHub.",
+    "core_required": "To use the application, you need to install the SingBox core.",
+    "update_available": "A new version of the core is available: {latest_version}\n\nCurrent version: {current_version}\n\nDo you want to update?",
     "cancel": "Cancel",
     "download": "Download",
     "downloading": "Downloading...",

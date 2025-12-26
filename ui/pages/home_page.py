@@ -48,9 +48,7 @@ class HomePage(BasePage):
         
         self.lbl_version = Label(variant="secondary")
         self.lbl_version.setFont(QFont("Segoe UI", 12))
-        # Делаем версию кликабельной для активации дебаг режима
-        self.lbl_version.setCursor(Qt.PointingHandCursor)
-        self.lbl_version.mousePressEvent = self.main_window.on_version_clicked
+        # Версия ядра не кликабельна (дебаг режим активируется только через версию приложения)
         version_row.addWidget(self.lbl_version)
         
         self.btn_version_warning = Button()
@@ -81,12 +79,16 @@ class HomePage(BasePage):
         version_row.addWidget(self.btn_version_warning)
         
         self.btn_version_update = Button()
-        accent_color = theme.get_color('accent')
-        self.btn_version_update.setIcon(icon("mdi.download", color=accent_color).icon())
+        warning_color = theme.get_color('warning')
+        self.btn_version_update.setIcon(icon("mdi.download", color=warning_color).icon())
         self.btn_version_update.setMinimumSize(24, 24)
         self.btn_version_update.setMaximumSize(32, 32)
         self.btn_version_update.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        accent_light = theme.get_color('accent_light')
+        warning_hex = warning_color.lstrip('#')
+        warning_r = int(warning_hex[0:2], 16)
+        warning_g = int(warning_hex[2:4], 16)
+        warning_b = int(warning_hex[4:6], 16)
+        warning_light = f"rgba({warning_r}, {warning_g}, {warning_b}, 0.15)"
         self.btn_version_update.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
@@ -95,10 +97,36 @@ class HomePage(BasePage):
                 padding: 4px;
             }}
             QPushButton:hover {{
-                background-color: {accent_light};
+                background-color: {warning_light};
             }}
         """)
-        self.btn_version_update.clicked.connect(self.main_window.show_download_dialog)
+        # Обработчик клика для обновления ядра
+        def on_core_update_clicked():
+            from utils.singbox import get_singbox_version
+            from config.paths import CORE_EXE
+            
+            # Если стрелочка показывается, значит есть обновление
+            # Получаем текущую версию и показываем диалог обновления
+            if CORE_EXE.exists():
+                current_version = get_singbox_version()
+                if current_version and self.main_window.cached_latest_version:
+                    # Есть обновление - показываем диалог с версиями
+                    self.main_window.show_download_dialog(
+                        is_update=True,
+                        current_version=current_version,
+                        latest_version=self.main_window.cached_latest_version
+                    )
+                    return
+            
+            # Если ядра нет - показываем диалог установки
+            if not CORE_EXE.exists():
+                self.main_window.show_download_dialog()
+                return
+            
+            # Если версии не определены - показываем обычный диалог
+            self.main_window.show_download_dialog()
+        
+        self.btn_version_update.clicked.connect(on_core_update_clicked)
         self.btn_version_update.hide()
         version_row.addWidget(self.btn_version_update)
         

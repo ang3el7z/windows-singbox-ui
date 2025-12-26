@@ -111,7 +111,7 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from utils.icon_helper import icon
 
 # Импорты новых UI компонентов
-from ui.design.component import NavButton, Container, Label
+from ui.design.component import NavButton, Container, Label, Button
 from ui.design import CardWidget, TitleBar
 from ui.styles import StyleSheet, theme
 from ui.tray_manager import TrayManager
@@ -272,8 +272,35 @@ class MainWindow(QMainWindow):
         self.lbl_app_version.setFont(QFont("Segoe UI", 10))
         self.lbl_app_version.setAlignment(Qt.AlignCenter)
         self.lbl_app_version.setCursor(Qt.PointingHandCursor)
-        self.lbl_app_version.mousePressEvent = self.on_version_clicked
+        self.lbl_app_version.mousePressEvent = self.on_app_version_clicked
         version_layout.addWidget(self.lbl_app_version)
+        
+        # Стрелочка загрузки для версии приложения
+        self.btn_app_version_update = Button()
+        warning_color = theme.get_color('warning')
+        self.btn_app_version_update.setIcon(icon("mdi.download", color=warning_color).icon())
+        self.btn_app_version_update.setMinimumSize(20, 20)
+        self.btn_app_version_update.setMaximumSize(24, 24)
+        self.btn_app_version_update.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        warning_hex = warning_color.lstrip('#')
+        warning_r = int(warning_hex[0:2], 16)
+        warning_g = int(warning_hex[2:4], 16)
+        warning_b = int(warning_hex[4:6], 16)
+        warning_light = f"rgba({warning_r}, {warning_g}, {warning_b}, 0.15)"
+        self.btn_app_version_update.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 50%;
+                padding: 2px;
+            }}
+            QPushButton:hover {{
+                background-color: {warning_light};
+            }}
+        """)
+        self.btn_app_version_update.clicked.connect(self.show_app_update_dialog)
+        self.btn_app_version_update.hide()
+        version_layout.addWidget(self.btn_app_version_update)
         
         root.addWidget(self.version_container)
         root.addWidget(nav)
@@ -430,18 +457,11 @@ class MainWindow(QMainWindow):
                 from utils.singbox import compare_versions
                 comparison = compare_versions(current_version, latest_version)
                 if comparison < 0:
+                    # Есть обновление - показываем стрелочку, скрываем текст обновления
                     if hasattr(self.page_home, 'lbl_update_info'):
-                        self.page_home.lbl_update_info.setText(tr("home.update_available", version=latest_version))
-                        self.page_home.lbl_update_info.show()
-                        # Делаем текст кликабельным
-                        if not hasattr(self.page_home.lbl_update_info, '_click_handler_set'):
-                            def handle_update_click(event):
-                                if event.button() == Qt.LeftButton:
-                                    self.show_download_dialog()
-                            self.page_home.lbl_update_info.mousePressEvent = handle_update_click
-                            self.page_home.lbl_update_info._click_handler_set = True
+                        self.page_home.lbl_update_info.hide()
                     if hasattr(self.page_home, 'btn_version_update'):
-                        self.page_home.btn_version_update.hide()
+                        self.page_home.btn_version_update.show()
                 else:
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.hide()
@@ -697,18 +717,11 @@ class MainWindow(QMainWindow):
                 from utils.singbox import compare_versions
                 comparison = compare_versions(version, self.cached_latest_version)
                 if comparison < 0:
+                    # Есть обновление - показываем стрелочку, скрываем текст обновления
                     if hasattr(self.page_home, 'lbl_update_info'):
-                        self.page_home.lbl_update_info.setText(tr("home.update_available", version=self.cached_latest_version))
-                        self.page_home.lbl_update_info.show()
-                        # Делаем текст кликабельным
-                        if not hasattr(self.page_home.lbl_update_info, '_click_handler_set'):
-                            def handle_update_click(event):
-                                if event.button() == Qt.LeftButton:
-                                    self.show_download_dialog()
-                            self.page_home.lbl_update_info.mousePressEvent = handle_update_click
-                            self.page_home.lbl_update_info._click_handler_set = True
+                        self.page_home.lbl_update_info.hide()
                     if hasattr(self.page_home, 'btn_version_update'):
-                        self.page_home.btn_version_update.hide()
+                        self.page_home.btn_version_update.show()
                 else:
                     if hasattr(self.page_home, 'lbl_update_info'):
                         self.page_home.lbl_update_info.hide()
@@ -722,46 +735,26 @@ class MainWindow(QMainWindow):
     
     def update_app_version_display(self):
         """Обновление отображения версии приложения"""
-        # Всегда показываем текущую версию в lbl_app_version
-        self.lbl_app_version.setText(tr("app.version", version=self.app_version))
-        self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
-        
-        # Проверяем наличие обновления приложения и показываем информацию снизу на главной странице
-        # (обновление SingBox обрабатывается отдельно в update_version_info)
-        if hasattr(self, 'page_home') and hasattr(self.page_home, 'lbl_update_info'):
-            # Проверяем, есть ли обновление SingBox (чтобы не перезаписывать его сообщение)
-            has_singbox_update = False
-            if self.cached_latest_version:
-                from utils.singbox import get_singbox_version, compare_versions
-                current_singbox_version = get_singbox_version()
-                if current_singbox_version:
-                    has_singbox_update = compare_versions(current_singbox_version, self.cached_latest_version) < 0
-            
-            # Если нет обновления SingBox, показываем обновление приложения
-            if not has_singbox_update:
-                if self.cached_app_latest_version:
-                    comparison = compare_versions(self.app_version, self.cached_app_latest_version)
-                    if comparison < 0:
-                        # Есть обновление приложения - показываем информацию снизу
-                        self.page_home.lbl_update_info.setText(tr("app.update_available", version=self.cached_app_latest_version))
-                        self.page_home.lbl_update_info.setStyleSheet(StyleSheet.label(variant="warning"))
-                        self.page_home.lbl_update_info.setCursor(Qt.PointingHandCursor)
-                        self.page_home.lbl_update_info.show()
-                        
-                        # Устанавливаем обработчик клика для обновления приложения
-                        if not hasattr(self.page_home.lbl_update_info, '_app_update_click_handler_set'):
-                            def handle_app_update_click(event):
-                                if event.button() == Qt.LeftButton:
-                                    self.show_app_update_dialog()
-                            
-                            self.page_home.lbl_update_info.mousePressEvent = handle_app_update_click
-                            self.page_home.lbl_update_info._app_update_click_handler_set = True
-                    else:
-                        # Нет обновления приложения
-                        self.page_home.lbl_update_info.hide()
-                else:
-                    # Нет информации об обновлении приложения
-                    self.page_home.lbl_update_info.hide()
+        if self.cached_app_latest_version:
+            comparison = compare_versions(self.app_version, self.cached_app_latest_version)
+            if comparison < 0:
+                # Есть обновление - показываем стрелочку
+                self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
+                if hasattr(self, 'btn_app_version_update'):
+                    self.btn_app_version_update.show()
+            else:
+                # Нет обновления
+                self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+                self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
+                if hasattr(self, 'btn_app_version_update'):
+                    self.btn_app_version_update.hide()
+        else:
+            # Показываем текущую версию
+            self.lbl_app_version.setText(tr("app.version", version=self.app_version))
+            self.lbl_app_version.setStyleSheet(StyleSheet.label(variant="secondary") + "cursor: pointer;")
+            if hasattr(self, 'btn_app_version_update'):
+                self.btn_app_version_update.hide()
     
     
     def show_app_update_dialog(self):
@@ -774,11 +767,13 @@ class MainWindow(QMainWindow):
             # Нет обновления
             return
         
-        # Используем красивое диалоговое окно
-        if show_kill_all_success_dialog(
+        # Используем диалог подтверждения с правильными кнопками
+        if show_confirm_dialog(
             self,
             tr("app.update_title"),
-            tr("app.update_message", version=self.cached_app_latest_version, current=self.app_version)
+            tr("app.update_message", version=self.cached_app_latest_version, current=self.app_version),
+            yes_text=tr("download.download"),
+            no_text=tr("download.cancel")
         ):
             # Пользователь хочет обновиться - запускаем автоматическое обновление
             self.start_app_update()
@@ -923,10 +918,32 @@ class MainWindow(QMainWindow):
         """Обработка deep link для импорта подписки (поддержка sing-box:// и singbox-ui://)"""
         self.deep_link_handler.handle()
     
-    def show_download_dialog(self):
+    def show_download_dialog(self, is_update: bool = False, current_version: str = None, latest_version: str = None):
         """Диалог загрузки SingBox"""
-        dialog = DownloadDialog(self, self._start_download_from_dialog)
-        dialog.exec_()
+        from utils.singbox import get_singbox_version
+        from config.paths import CORE_EXE
+        
+        # Определяем режим и сообщение
+        if is_update and current_version and latest_version:
+            # Режим обновления - показываем диалог подтверждения
+            if show_confirm_dialog(
+                self,
+                tr("download.title"),
+                tr("download.update_available", latest_version=latest_version, current_version=current_version),
+                yes_text=tr("download.download"),
+                no_text=tr("download.cancel")
+            ):
+                # Пользователь хочет обновиться - показываем диалог загрузки
+                dialog = DownloadDialog(self, self._start_download_from_dialog)
+                dialog.exec_()
+        elif not CORE_EXE.exists():
+            # Ядра нет - показываем диалог установки
+            dialog = DownloadDialog(self, self._start_download_from_dialog, message=tr("download.core_required"))
+            dialog.exec_()
+        else:
+            # Обычная установка (не должно происходить, но на всякий случай)
+            dialog = DownloadDialog(self, self._start_download_from_dialog)
+            dialog.exec_()
     
     def _start_download_from_dialog(self, dialog: DownloadDialog):
         """Запуск загрузки из диалога (коллбэк)"""
@@ -1280,19 +1297,47 @@ class MainWindow(QMainWindow):
             self.log(tr("messages.interval_changed", value=value))
     
     def on_version_clicked(self, event):
-        """Обработка клика по версии для показа дебаг меню и обновлений"""
+        """Обработка клика по версии ядра для активации дебаг режима"""
         if event.button() != Qt.LeftButton:
             return
         
-        # Проверяем, есть ли обновление приложения
-        if self.cached_app_latest_version:
-            comparison = compare_versions(self.app_version, self.cached_app_latest_version)
-            if comparison < 0:
-                # Есть обновление - показываем диалог обновления
-                self.show_app_update_dialog()
-                return
+        # Обрабатываем клики для дебаг режима (6 кликов)
+        self.version_click_count += 1
         
-        # Если нет обновления, обрабатываем клики для дебаг режима
+        # На 5-м клике показываем сообщение
+        if self.version_click_count == 5:
+            show_info_dialog(
+                self,
+                tr("settings.debug_mode"),
+                tr("settings.debug_mode_activate_hint")
+            )
+        elif self.version_click_count >= 6:
+            self.version_click_count = 0  # Сбрасываем счетчик
+            
+            # Переключаем настройку isDebug
+            current_debug = self.settings.get("isDebug", False)
+            new_debug = not current_debug
+            self.settings.set("isDebug", new_debug)
+            
+            # Обновляем видимость всей дебаг секции на основе isDebug
+            self._update_debug_logs_visibility()
+            
+            if new_debug:
+                log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
+                show_info_dialog(
+                    self,
+                    tr("settings.debug_mode"),
+                    tr("settings.debug_mode_activated")
+                )
+            else:
+                log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
+    
+    def on_app_version_clicked(self, event):
+        """Обработка клика по версии приложения для активации дебаг режима"""
+        if event.button() != Qt.LeftButton:
+            return
+        
+        # Обрабатываем клики для дебаг режима (6 кликов)
         self.version_click_count += 1
         
         # На 5-м клике показываем сообщение
@@ -1673,7 +1718,7 @@ class MainWindow(QMainWindow):
         from ui.styles import theme
         from utils.icon_helper import icon
         
-        # Обновляем кнопки версии
+        # Обновляем кнопки версии ядра
         if hasattr(self.page_home, 'btn_version_warning'):
             error_color = theme.get_color('error')
             self.page_home.btn_version_warning.setIcon(icon("mdi.alert-circle", color=error_color).icon())
@@ -1695,9 +1740,13 @@ class MainWindow(QMainWindow):
             """)
         
         if hasattr(self.page_home, 'btn_version_update'):
-            accent_color = theme.get_color('accent')
-            self.page_home.btn_version_update.setIcon(icon("mdi.download", color=accent_color).icon())
-            accent_light = theme.get_color('accent_light')
+            warning_color = theme.get_color('warning')
+            self.page_home.btn_version_update.setIcon(icon("mdi.download", color=warning_color).icon())
+            warning_hex = warning_color.lstrip('#')
+            warning_r = int(warning_hex[0:2], 16)
+            warning_g = int(warning_hex[2:4], 16)
+            warning_b = int(warning_hex[4:6], 16)
+            warning_light = f"rgba({warning_r}, {warning_g}, {warning_b}, 0.15)"
             self.page_home.btn_version_update.setStyleSheet(f"""
                 QPushButton {{
                     background-color: transparent;
@@ -1706,7 +1755,28 @@ class MainWindow(QMainWindow):
                     padding: 4px;
                 }}
                 QPushButton:hover {{
-                    background-color: {accent_light};
+                    background-color: {warning_light};
+                }}
+            """)
+        
+        # Обновляем стрелочку версии приложения
+        if hasattr(self, 'btn_app_version_update'):
+            warning_color = theme.get_color('warning')
+            self.btn_app_version_update.setIcon(icon("mdi.download", color=warning_color).icon())
+            warning_hex = warning_color.lstrip('#')
+            warning_r = int(warning_hex[0:2], 16)
+            warning_g = int(warning_hex[2:4], 16)
+            warning_b = int(warning_hex[4:6], 16)
+            warning_light = f"rgba({warning_r}, {warning_g}, {warning_b}, 0.15)"
+            self.btn_app_version_update.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: none;
+                    border-radius: 50%;
+                    padding: 2px;
+                }}
+                QPushButton:hover {{
+                    background-color: {warning_light};
                 }}
             """)
         
