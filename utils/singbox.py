@@ -4,6 +4,7 @@ import re
 import sys
 import requests
 from pathlib import Path
+from typing import Optional
 from config.paths import CORE_EXE
 
 # Импортируем log_to_file если доступен
@@ -19,7 +20,7 @@ def _log_version_check(msg: str):
     log_to_file(msg)
 
 
-def get_singbox_version() -> str:
+def get_singbox_version() -> Optional[str]:
     """Получить версию singbox"""
     if not CORE_EXE.exists():
         return None
@@ -51,7 +52,7 @@ def get_singbox_version() -> str:
     return None
 
 
-def get_latest_version() -> str:
+def get_latest_version() -> Optional[str]:
     """
     Получить последнюю версию SingBox с GitHub
     Returns: версия в формате "x.y.z" или None при ошибке
@@ -94,46 +95,51 @@ def get_latest_version() -> str:
 
 def get_app_latest_version(
     repo_owner: str = "ang3el7z",
-    repo_name: str = "SingBox-UI",
+    repo_name: str = "windows-singbox-ui",
     branch: str = "main",
-) -> str:
+) -> Optional[str]:
     """
-    Получить последнюю версию приложения из ветки main (.version в репозитории)
+    Получить последнюю версию приложения с GitHub через API (releases/latest)
     
     Args:
         repo_owner: Владелец репозитория
         repo_name: Название репозитория
-        branch: Ветка, из которой читаем файл версии
+        branch: Ветка (не используется, оставлено для совместимости)
     
     Returns:
         Версия в формате "x.y.z" или None при ошибке
     """
-    raw_url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{branch}/.version"
     try:
-        response = requests.get(raw_url, timeout=10)
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        response = requests.get(api_url, timeout=10)
         response.raise_for_status()
-        version = response.text.strip()
+        release_data = response.json()
+        tag_name = release_data.get("tag_name", "")
         
-        if not version:
-            _log_version_check(f"[App Update Check] Пустой .version для {repo_owner}/{repo_name}@{branch}")
+        if not tag_name:
+            _log_version_check(f"[App Update Check] Пустой tag_name в ответе API для {repo_owner}/{repo_name}")
             return None
         
-        match = re.match(r'^(\d+\\.\\d+\\.\\d+)', version)
+        # Убираем 'v' из начала если есть (например, "v1.2.0" -> "1.2.0")
+        version = tag_name.lstrip('v')
+        
+        # Проверяем формат версии (может быть "1.2.0" или "1.2.0-beta.1")
+        match = re.match(r'^(\d+\.\d+\.\d+)', version)
         if match:
             version = match.group(1)
-            _log_version_check(f"[App Update Check] Получена версия из main: {version}")
+            _log_version_check(f"[App Update Check] Получена последняя версия: {version}")
             return version
-        
-        _log_version_check(f"[App Update Check] Неверный формат версии в .version: '{version}'")
-        return None
+        else:
+            _log_version_check(f"[App Update Check] Неверный формат версии: {tag_name} -> {version}")
+            return None
     except requests.exceptions.Timeout:
-        _log_version_check(f"[App Update Check] Таймаут при запросе {raw_url}")
+        _log_version_check(f"[App Update Check] Таймаут при запросе к GitHub API для {repo_owner}/{repo_name}")
         return None
     except requests.exceptions.RequestException as e:
-        _log_version_check(f"[App Update Check] Ошибка запроса {raw_url}: {e}")
+        _log_version_check(f"[App Update Check] Ошибка запроса к GitHub API для {repo_owner}/{repo_name}: {e}")
         return None
     except Exception as e:
-        _log_version_check(f"[App Update Check] Неожиданная ошибка при получении версии из .version: {e}")
+        _log_version_check(f"[App Update Check] Неожиданная ошибка при получении версии: {e}")
         import traceback
         traceback.print_exc()
         return None
