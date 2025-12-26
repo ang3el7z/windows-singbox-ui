@@ -36,7 +36,7 @@ def _create_dialog(
     
     Args:
         parent: Родительский виджет
-        title: Заголовок диалога
+        title: Заголовок диалога (отображается в TitleBar)
         message: Сообщение
         dialog_type: Тип диалога
         min_width: Минимальная ширина
@@ -51,13 +51,7 @@ def _create_dialog(
     dialog = BaseDialog(parent, title)
     dialog.setMinimumWidth(min_width)
     
-    # Заголовок
-    title_label = Label(title, variant="default", size="xlarge")
-    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-    title_label.setStyleSheet(title_label.styleSheet() + "margin-bottom: 8px;")
-    dialog.content_layout.addWidget(title_label)
-    
-    # Сообщение
+    # Сообщение (заголовок уже в TitleBar)
     message_label = Label(message, variant="secondary")
     message_label.setWordWrap(True)
     message_label.setFont(QFont("Segoe UI", 13))
@@ -172,7 +166,7 @@ def show_input_dialog(
     
     Args:
         parent: Родительский виджет
-        title: Заголовок диалога
+        title: Заголовок диалога (отображается в TitleBar)
         message: Сообщение/подсказка
         text: Начальный текст
         min_width: Минимальная ширина диалога
@@ -184,13 +178,7 @@ def show_input_dialog(
     dialog = BaseDialog(parent, title)
     dialog.setMinimumWidth(min_width)
     
-    # Заголовок
-    title_label = Label(title, variant="default", size="xlarge")
-    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-    title_label.setStyleSheet(title_label.styleSheet() + "margin-bottom: 8px;")
-    dialog.content_layout.addWidget(title_label)
-    
-    # Сообщение
+    # Сообщение (заголовок уже в TitleBar)
     message_label = Label(message, variant="secondary")
     message_label.setWordWrap(True)
     message_label.setFont(QFont("Segoe UI", 13))
@@ -267,10 +255,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
         }}
     """)
     
-    title_label = Label(tr("language_dialog.title"), variant="default", size="xlarge")
-    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-    title_label.setStyleSheet(title_label.styleSheet() + "margin-bottom: 8px;")
-    dialog.content_layout.addWidget(title_label)
+    # Убираем дублирование заголовка - он уже в TitleBar
     
     available_languages = get_available_languages()
     selected_language = ["en"]
@@ -324,16 +309,13 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
     Returns:
         Кортеж (name, url, был ли нажат OK)
     """
-    dialog = BaseDialog(parent, tr("profile.add_subscription"))
+    # Заголовок в TitleBar должен описывать действие, а не объект
+    dialog = BaseDialog(parent, tr("profile.add_subscription_dialog_title"))
     dialog.setMinimumWidth(420)
     
     dialog.setStyleSheet(dialog.styleSheet() + StyleSheet.input())
     
-    title_label = Label(tr("profile.add_subscription"), variant="default", size="xlarge")
-    title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-    title_label.setStyleSheet(title_label.styleSheet() + "margin-bottom: 8px;")
-    dialog.content_layout.addWidget(title_label)
-    
+    # Убираем дублирование заголовка - он уже в TitleBar
     name_label = Label(tr("profile.name"), variant="default", size="medium")
     name_label.setStyleSheet(name_label.styleSheet() + "margin-top: 8px;")
     dialog.content_layout.addWidget(name_label)
@@ -414,11 +396,7 @@ class DownloadDialog(BaseDialog):
         self.setStyleSheet(self.styleSheet() + StyleSheet.progress_bar())
         self.content_layout.setSpacing(16)
         
-        self.title_label = Label(tr("download.not_installed"), variant="default", size="xlarge")
-        self.title_label.setFont(QFont("Segoe UI Semibold", 18, QFont.Bold))
-        self.title_label.setStyleSheet(self.title_label.styleSheet() + "margin-bottom: 8px;")
-        self.content_layout.addWidget(self.title_label)
-        
+        # Убираем дублирование заголовка - он уже в TitleBar
         info = Label(tr("download.description"), variant="secondary", size="medium")
         info.setWordWrap(True)
         self.content_layout.addWidget(info)

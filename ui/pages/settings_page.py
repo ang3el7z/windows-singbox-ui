@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.pages.base_page import BasePage
@@ -55,8 +55,11 @@ class SettingsPage(BasePage):
         settings_layout.addWidget(self.lbl_settings_title)
         
         # Интервал автообновления (текст сверху, кнопки снизу)
-        interval_container = QVBoxLayout()
+        # Создаем виджет-контейнер вместо layout для контроля размера
+        interval_widget = QWidget()
+        interval_container = QVBoxLayout(interval_widget)
         interval_container.setSpacing(8)
+        interval_container.setContentsMargins(0, 0, 0, 0)  # Убираем лишние отступы
         
         self.interval_label = Label(tr("settings.auto_update_interval"), variant="secondary")
         self.interval_label.setFont(QFont("Segoe UI", 13))
@@ -65,6 +68,7 @@ class SettingsPage(BasePage):
         # Кнопки для выбора интервала (в одну линию под текстом)
         interval_buttons_row = QHBoxLayout()
         interval_buttons_row.setSpacing(12)
+        interval_buttons_row.setContentsMargins(0, 0, 0, 0)  # Убираем лишние отступы
         
         self.interval_buttons = {}
         interval_values = [30, 60, 90, 120, 180]  # Добавлен интервал 180 после 120
@@ -83,9 +87,11 @@ class SettingsPage(BasePage):
         
         interval_buttons_row.addStretch()
         interval_container.addLayout(interval_buttons_row)
-        settings_layout.addLayout(interval_container)
+        # Виджет не будет растягиваться по высоте
+        interval_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        settings_layout.addWidget(interval_widget)
         
-        # Чекбоксы настроек
+        # Чекбоксы настроек (без дополнительных отступов)
         self.cb_autostart = CheckBox(tr("settings.autostart"))
         self.cb_autostart.setChecked(self.main_window.settings.get("start_with_windows", False))
         self.cb_autostart.stateChanged.connect(self.main_window.on_autostart_changed)
@@ -256,20 +262,40 @@ class SettingsPage(BasePage):
     
     def _open_logs_window(self, mode="logs"):
         """Открывает окно с логами"""
-        if not hasattr(self, '_logs_window') or self._logs_window is None:
-            from ui.design.component import LogsWindow
-            self._logs_window = LogsWindow(self.main_window, self)
-            self._logs_window.finished.connect(lambda: setattr(self, '_logs_window', None))
-        
-        # Переключаем режим если нужно
-        if mode == "debug":
-            self._logs_window._switch_mode("debug")
-        
-        # Загружаем логи перед показом
-        self.load_logs()
-        if hasattr(self, 'debug_logs'):
-            self.load_debug_logs()
-        
-        self._logs_window.show()
-        self._logs_window.raise_()
-        self._logs_window.activateWindow()
+        try:
+            # Проверяем, существует ли окно и не было ли оно закрыто
+            if not hasattr(self, '_logs_window') or self._logs_window is None:
+                from ui.design.component import LogsWindow
+                # Создаем окно с parent=main_window вместо self, чтобы оно было независимым
+                self._logs_window = LogsWindow(self.main_window, self.main_window)
+                # Подключаем сигнал закрытия для очистки ссылки
+                self._logs_window.finished.connect(self._on_logs_window_closed)
+            
+            # Переключаем режим если нужно
+            if mode == "debug":
+                self._logs_window._switch_mode("debug")
+            
+            # Загружаем логи перед показом
+            self.load_logs()
+            if hasattr(self, 'debug_logs'):
+                self.load_debug_logs()
+            
+            # Показываем окно (немодальное)
+            self._logs_window.setWindowModality(Qt.NonModal)
+            # Убеждаемся, что окно видимо
+            if self._logs_window.isHidden():
+                self._logs_window.show()
+            # Поднимаем окно на передний план
+            self._logs_window.raise_()
+            self._logs_window.activateWindow()
+            # Дополнительно фокусируем окно
+            self._logs_window.setFocus()
+        except Exception as e:
+            # В случае ошибки выводим в консоль для отладки
+            import traceback
+            print(f"Error opening logs window: {e}")
+            traceback.print_exc()
+    
+    def _on_logs_window_closed(self):
+        """Обработчик закрытия окна логов"""
+        self._logs_window = None
