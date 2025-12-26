@@ -155,20 +155,33 @@ class LogsWindow(QDialog):
         else:
             logs = self.main_window.log_ui_manager.get_debug_logs()
         
-        # Сохраняем позицию скролла
+        # Сохраняем позицию скролла ДО обновления текста
         scrollbar = self.logs_text.verticalScrollBar()
         old_position = scrollbar.value()
-        is_at_bottom = (scrollbar.maximum() - old_position) < 50  # Порог 50px
+        old_maximum = scrollbar.maximum()
+        # Проверяем, находился ли пользователь внизу (порог 50px)
+        is_at_bottom = (old_maximum > 0) and ((old_maximum - old_position) < 50)
         
         # Обновляем текст
         self.logs_text.setPlainText(logs)
         
-        # Восстанавливаем позицию скролла
+        # После обновления текста максимальное значение скролла может измениться
+        # Восстанавливаем позицию скролла с учетом новой максимальной позиции
+        new_maximum = scrollbar.maximum()
+        
+        # Единая логика для обоих режимов (logs и debug)
         if self.autoscroll_enabled or is_at_bottom:
-            scrollbar.setValue(scrollbar.maximum())
+            # Автоскролл включен или пользователь был внизу - скроллим вниз
+            scrollbar.setValue(new_maximum)
             self.user_has_scrolled = False
         else:
-            scrollbar.setValue(old_position)
+            # Пользователь прокрутил вверх - сохраняем позицию
+            # Но нужно учесть, что после обновления текста максимальная позиция могла измениться
+            if old_position <= new_maximum:
+                scrollbar.setValue(old_position)
+            else:
+                # Если старая позиция больше новой максимальной, скроллим вниз
+                scrollbar.setValue(new_maximum)
     
     def _on_scroll(self, value):
         """Обработка скролла пользователем"""
