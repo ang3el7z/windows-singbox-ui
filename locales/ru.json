@@ -72,7 +72,7 @@
     "kill_all": "Убить все процессы",
     "logs": "Логи",
     "debug_logs": "Отладочные логи",
-    "allow_multiple_processes": "Разрешить несколько процессов одновременно"
+    "allow_multiple_processes": "Разрешить несколько процессов"
   },
   "download": {
     "title": "Установка SingBox",
