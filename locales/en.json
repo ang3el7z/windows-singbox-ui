@@ -72,7 +72,10 @@
     "kill_all": "Kill all processes",
     "logs": "Logs",
     "debug_logs": "Debug Logs",
-    "allow_multiple_processes": "Allow multiple processes"
+    "allow_multiple_processes": "Allow multiple processes",
+    "debug_mode": "Debug Mode",
+    "debug_mode_activate_hint": "Click one more time to activate developer mode",
+    "debug_mode_activated": "Developer mode activated"
   },
   "download": {
     "title": "Install SingBox",

@@ -71,7 +71,11 @@
     "loading": "加载中...",
     "kill_all": "终止所有进程",
     "logs": "日志",
-    "allow_multiple_processes": "允许多个进程"
+    "debug_logs": "调试日志",
+    "allow_multiple_processes": "允许多个进程",
+    "debug_mode": "调试模式",
+    "debug_mode_activate_hint": "再点击一次以激活开发者模式",
+    "debug_mode_activated": "开发者模式已激活"
   },
   "download": {
     "title": "安装 SingBox",

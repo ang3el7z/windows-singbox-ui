@@ -1274,8 +1274,8 @@ class MainWindow(QMainWindow):
         if self.version_click_count == 5:
             show_info_dialog(
                 self,
-                "Debug Mode",
-                "Нажмите ещё один раз, чтобы активировать режим разработчика"
+                tr("settings.debug_mode"),
+                tr("settings.debug_mode_activate_hint")
             )
         elif self.version_click_count >= 6:
             self.version_click_count = 0  # Сбрасываем счетчик
@@ -1292,8 +1292,8 @@ class MainWindow(QMainWindow):
                 log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
                 show_info_dialog(
                     self,
-                    "Debug Mode",
-                    "Режим разработчика активирован"
+                    tr("settings.debug_mode"),
+                    tr("settings.debug_mode_activated")
                 )
             else:
                 log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
@@ -2014,6 +2014,8 @@ class MainWindow(QMainWindow):
             self.page_settings.settings_title.setText(tr("settings.title"))
         if hasattr(self, 'page_home') and hasattr(self.page_home, 'profile_title'):
             self.page_home.profile_title.setText(tr("home.profile"))
+        if hasattr(self, 'page_home') and hasattr(self.page_home, 'version_title'):
+            self.page_home.version_title.setText(tr("home.version"))
         
         # Обновляем кнопки на странице профилей
         if hasattr(self, 'page_profile'):
@@ -2034,6 +2036,8 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_auto_start_singbox.setText(tr("settings.auto_start_singbox"))
             if hasattr(self.page_settings, 'cb_minimize_to_tray'):
                 self.page_settings.cb_minimize_to_tray.setText(tr("settings.minimize_to_tray"))
+            if hasattr(self.page_settings, 'cb_allow_multiple'):
+                self.page_settings.cb_allow_multiple.setText(tr("settings.allow_multiple_processes"))
             if hasattr(self.page_settings, 'btn_kill_all'):
                 self.page_settings.btn_kill_all.setText(tr("settings.kill_all"))
             if hasattr(self.page_settings, 'btn_open_logs'):
