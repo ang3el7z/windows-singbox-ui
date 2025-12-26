@@ -12,8 +12,14 @@
 
 #### UI Components (`ui/`)
 - **Pages**: Modular page components (`home_page.py`, `profile_page.py`, `settings_page.py`)
-- **Widgets**: Reusable UI widgets (`card.py`, `nav_button.py`, `version_label.py`, `animated_button.py`, `round_gradient_button.py`)
-- **Dialogs**: Standardized dialog components (`base_dialog.py`, `confirm_dialog.py`, `info_dialog.py`, `input_dialog.py`, `language_dialog.py`)
+- **Design System**: New three-tier component architecture
+  - **Base Components** (`ui/design/base/`): Base UI components used only by components (`base_card.py`, `base_dialog.py`, `base_title_bar.py`)
+  - **Components** (`ui/design/component/`): Reusable UI components used throughout the project
+    - Button components (`button.py`: `Button`, `NavButton`, `AnimatedStartButton`, `RoundGradientButton`)
+    - Form components (`checkbox.py`, `combo_box.py`, `line_edit.py`, `list_widget.py`, `text_edit.py`)
+    - Display components (`label.py`: `Label`, `VersionLabel`, `progress_bar.py`, `widget.py`: `Container`)
+    - Dialog functions (`dialog.py`: `show_info_dialog`, `show_confirm_dialog`, `DownloadDialog`, etc.)
+    - Window components (`window.py`: `LogsWindow`)
 - **Styles**: Centralized styling system (`constants.py`, `theme.py`, `stylesheet.py`)
 - **Tray Manager**: Dedicated system tray management (`tray_manager.py`)
 
@@ -130,6 +136,11 @@ This is a major version release with significant architectural changes and new f
 4. **Resource Access**: Code accessing resources should use Qt resource paths (e.g., `:/icons/app.ico`) instead of file paths.
 
 5. **Restart Manager**: Application restarts are now handled through the dedicated `restart_manager.py` module. This improves reliability and prevents multiple simultaneous restarts.
+
+6. **Component Architecture**: UI components have been reorganized into a three-tier design system:
+   - Use components from `ui/design/component/` in your code
+   - Base components in `ui/design/base/` are used only internally by components
+   - Direct creation of PyQt5 widgets is discouraged - use components instead
 
 ---
 

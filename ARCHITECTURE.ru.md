@@ -293,16 +293,39 @@ SingBox-UI/
   - Логи (обычные и debug)
   - Debug секция (скрыта по умолчанию)
 
-### ui/widgets/
-- **animated_button.py** - Виджет анимированной кнопки с индикатором загрузки
-- **card.py** - Виджет-карточка с фоном и скругленными углами
-- **logs_window.py** - Виджет окна логов для отображения логов приложения
-- **nav_button.py** - Кнопка навигации с иконкой и текстом
-- **title_bar.py** - Виджет кастомного заголовка для фреймлесс окон
-  - Поддержка перетаскивания окна
-  - Кнопки минимизации и закрытия
-  - Стилизация в соответствии с темой
-- **version_label.py** - Лейбл для отображения информации о версии
+### ui/design/
+- **base/** - Базовые UI компоненты (используются только компонентами, не напрямую в проекте)
+  - **base_card.py** - Базовый компонент карточки (BaseCard)
+  - **base_dialog.py** - Базовый компонент диалога (BaseDialog)
+  - **base_title_bar.py** - Базовый компонент заголовка окна (BaseTitleBar)
+
+- **component/** - UI компоненты (используются в проекте)
+  - **button.py** - Компоненты кнопок
+    - `Button` - Универсальная кнопка с вариантами (default, primary, secondary, danger)
+    - `NavButton` - Кнопка навигации с иконкой и текстом
+    - `AnimatedStartButton` - Анимированная кнопка старт/стоп
+    - `RoundGradientButton` - Круглая кнопка с градиентом
+    - `GradientWidget` - Виджет градиента для эффектов кнопок
+  - **checkbox.py** - Компонент CheckBox (`CheckBox`)
+  - **combo_box.py** - Компонент ComboBox (`ComboBox`)
+  - **dialog.py** - Функции диалогов и классы
+    - `show_info_dialog()` - Информационный диалог
+    - `show_confirm_dialog()` - Диалог подтверждения
+    - `show_input_dialog()` - Диалог ввода
+    - `show_language_selection_dialog()` - Диалог выбора языка
+    - `show_add_subscription_dialog()` - Диалог добавления подписки
+    - `DownloadDialog` - Диалог загрузки с прогресс-баром
+    - Вспомогательные функции диалогов для перезапуска админа, kill all и т.д.
+  - **label.py** - Компоненты лейблов
+    - `Label` - Универсальный лейбл с вариантами и размерами
+    - `VersionLabel` - Лейбл версии с состояниями
+  - **line_edit.py** - Компонент LineEdit (`LineEdit`)
+  - **list_widget.py** - Компонент ListWidget (`ListWidget`)
+  - **progress_bar.py** - Компонент ProgressBar (`ProgressBar`)
+  - **text_edit.py** - Компонент TextEdit (`TextEdit`)
+  - **widget.py** - Компонент Container (`Container`)
+  - **window.py** - Компоненты окон
+    - `LogsWindow` - Окно отображения логов
 
 ### ui/utils/
 - **animations.py** - Анимации переходов между страницами
@@ -316,23 +339,6 @@ SingBox-UI/
   - Глобальный экземпляр `theme`
 - **stylesheet.py** - Генерация стилей для виджетов
   - Класс `StyleSheet` - статические методы для генерации CSS стилей
-
-### ui/dialogs/
-- **base_dialog.py** - Базовый класс для диалогов
-  - Функция `create_dialog()` - универсальная фабрика диалогов
-  - Enum `DialogType` - типы диалогов (INFO, CONFIRM, WARNING, SUCCESS)
-
-- **confirm_dialog.py** - Диалоги подтверждения
-  - Функция `show_confirm_dialog()` - универсальный диалог подтверждения
-  - Функция `show_restart_admin_dialog()` - диалог перезапуска от админа
-  - Функция `show_kill_all_confirm_dialog()` - диалог подтверждения остановки процессов
-
-- **info_dialog.py** - Информационные диалоги
-  - Функция `show_info_dialog()` - универсальный информационный диалог
-  - Функция `show_kill_all_success_dialog()` - диалог успешной остановки процессов
-
-- **language_dialog.py** - Диалог выбора языка
-  - Функция `show_language_selection_dialog()` - диалог выбора языка при первом запуске
 
 ### ui/
 - **tray_manager.py** - Менеджер системного трея
@@ -461,12 +467,27 @@ python main/main.py
 - `InitOperationsWorker` - инициализация при старте
 - `CheckVersionWorker` / `CheckAppVersionWorker` - проверка версий
 
-### Переиспользуемые компоненты
-Общие UI компоненты вынесены в `ui/widgets/`:
-- `CardWidget` - карточка с фоном
-- `NavButton` - кнопка навигации
-- `TitleBar` - кастомный заголовок для фреймлесс окон
-- `VersionLabel` - лейбл версии
+### Система компонентов UI
+Проект использует трехуровневую архитектуру компонентов:
+
+1. **Base UI** (`ui/design/base/`) - базовые компоненты:
+   - `BaseCard` - базовая карточка
+   - `BaseDialog` - базовый диалог
+   - `BaseTitleBar` - базовый заголовок окна
+
+2. **Components** (`ui/design/component/`) - компоненты для использования:
+   - `Button`, `NavButton` - кнопки
+   - `Label`, `VersionLabel` - лейблы
+   - `CheckBox`, `ComboBox`, `ListWidget` - элементы форм
+   - `TextEdit`, `LineEdit`, `ProgressBar` - поля ввода и прогресс
+   - `Container` - контейнер
+   - Функции диалогов (`show_info_dialog`, `show_confirm_dialog`, etc.)
+   - `LogsWindow` - окно логов
+
+3. **Правила использования**:
+   - В main.py, updater.py и страницах используются ТОЛЬКО компоненты из `ui/design/component/`
+   - Base UI используется только внутри компонентов, никогда напрямую
+   - Прямое создание PyQt5 виджетов запрещено - используются компоненты
 
 ### Уменьшение размера main.py
 Для улучшения поддерживаемости и читаемости кода, из `main/main.py` были вынесены:
@@ -476,6 +497,4 @@ python main/main.py
   - Методы `load_logs()`, `refresh_logs_from_files()`, `cleanup_logs_if_needed()`, `log()` и связанная логика
 - **Обработка deep links** → `core/deep_link_handler.py` (класс `DeepLinkHandler`)
   - Метод `handle_deep_link()` и вся логика парсинга URL и импорта подписок
-
-Текущий размер `main/main.py`: ~2295 строк (было значительно больше до рефакторинга)
 

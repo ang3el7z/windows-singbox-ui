@@ -20,7 +20,7 @@ Modern Windows client for working with SingBox subscriptions with a mobile desig
 ## Features
 
 - 🎨 Modern mobile design
-- 🌍 Support for Russian and English languages (with custom language support)
+- 🌍 Support for Russian, English, and Chinese languages (with custom language support)
 - 📥 Automatic SingBox core download
 - 🔄 Automatic configuration updates
 - 📊 Built-in logs
@@ -81,24 +81,31 @@ SingBox-UI/
 │   │   ├── profile_page.py # Profile management page
 │   │   ├── home_page.py  # Home page
 │   │   └── settings_page.py # Settings page
-│   ├── widgets/          # Reusable widgets
-│   │   ├── animated_button.py # Animated button widget
-│   │   ├── card.py       # Card widget
-│   │   ├── logs_window.py # Logs window widget
-│   │   ├── nav_button.py # Navigation button
-│   │   ├── title_bar.py  # Custom title bar widget
-│   │   └── version_label.py # Version label
+│   ├── design/           # Design system
+│   │   ├── base/         # Base UI components (used only by components)
+│   │   │   ├── base_card.py # Base card component
+│   │   │   ├── base_dialog.py # Base dialog component
+│   │   │   └── base_title_bar.py # Base title bar component
+│   │   └── component/    # UI components (used in project)
+│   │       ├── button.py # Button components (Button, NavButton, etc.)
+│   │       ├── checkbox.py # CheckBox component
+│   │       ├── combo_box.py # ComboBox component
+│   │       ├── dialog.py # Dialog functions and DownloadDialog
+│   │       ├── label.py # Label components (Label, VersionLabel)
+│   │       ├── line_edit.py # LineEdit component
+│   │       ├── list_widget.py # ListWidget component
+│   │       ├── progress_bar.py # ProgressBar component
+│   │       ├── text_edit.py # TextEdit component
+│   │       ├── widget.py # Container component
+│   │       └── window.py # LogsWindow component
+│   ├── widgets/          # Legacy widgets (deprecated, use design/component)
+│   │   └── logs_window.py # Logs window widget (moved to design/component/window.py)
 │   ├── utils/            # UI utilities
 │   │   └── animations.py # Page transition animations
 │   ├── styles/           # Styling system
 │   │   ├── constants.py  # Constants (colors, fonts, sizes)
 │   │   ├── theme.py      # Theme management
 │   │   └── stylesheet.py # Widget stylesheet generation
-│   ├── dialogs/          # Dialog windows
-│   │   ├── base_dialog.py # Base dialog class
-│   │   ├── confirm_dialog.py # Confirmation dialogs
-│   │   ├── info_dialog.py # Info dialogs
-│   │   └── language_dialog.py # Language selection dialog
 │   └── tray_manager.py   # System tray manager
 ├── resources/            # Resources
 │   ├── app.qrc          # Qt resource file
@@ -118,10 +125,6 @@ SingBox-UI/
 │   ├── black.json        # Black theme
 │   └── newyear.json      # New Year theme
 ├── changelog/            # Version changelogs
-│   ├── CHANGELOG_v1.0.0.md
-│   ├── CHANGELOG_v1.0.1.md
-│   ├── CHANGELOG_v1.0.2.md
-│   ├── CHANGELOG_v1.0.3.md
 │   └── ...
 └── data/                 # Data (created automatically)
     ├── core/             # SingBox core

@@ -1,6 +1,6 @@
-# Архитектура проекта SingBox-UI
+# SingBox-UI Project Architecture
 
-## Структура проекта
+## Project Structure
 
 ```
 SingBox-UI/
@@ -116,10 +116,10 @@ SingBox-UI/
 │   ├── themes/           # Theme files (copied from themes/)
 │   ├── .version          # Application version (copied from root during build)
 │   └── config.json       # Config
-├── SingBox-UI.spec       # Конфигурация PyInstaller для основного приложения
-├── updater.spec          # Конфигурация PyInstaller для updater
-├── post_build.py         # Скрипт пост-обработки сборки
-└── requirements.txt      # Зависимости
+├── SingBox-UI.spec       # PyInstaller configuration for main application
+├── updater.spec          # PyInstaller configuration for updater
+├── post_build.py         # Post-build script
+└── requirements.txt      # Dependencies
 ```
 
 ## Version Management
@@ -133,7 +133,7 @@ The `get_version()` function in `main/main.py`:
 
 During CI/CD build by tag, the version in `.version` should be updated automatically if the tag is greater than the current version.
 
-## Модули
+## Modules
 
 ### main/
 - **main.py** - Main application file
@@ -177,29 +177,29 @@ During CI/CD build by tag, the version in `.version` should be updated automatic
   - Requires administrator rights
 
 ### config/
-- **paths.py** - Определение всех путей к файлам и директориям
-- Функция `ensure_dirs()` - создание необходимых папок
+- **paths.py** - Definition of all file and directory paths
+- `ensure_dirs()` function - creates necessary directories
 
 ### managers/
-- **settings.py** - Управление настройками приложения
-  - Сохранение/загрузка настроек
-  - Поддержка языка интерфейса
+- **settings.py** - Application settings management
+  - Save/load settings
+  - Interface language support
   
-- **subscriptions.py** - Управление подписками
-  - CRUD операции с подписками
-  - Скачивание конфигов
+- **subscriptions.py** - Subscription management
+  - CRUD operations with subscriptions
+  - Config downloading
 
-- **log_ui_manager.py** - Управление логами в UI
-  - Класс `LogUIManager` - централизованное управление отображением логов
-  - Метод `load_logs_to_ui()` - загрузка основных логов из файла в QTextEdit
-  - Метод `load_debug_logs_from_file_to_ui()` - загрузка debug логов
-  - Метод `refresh_logs_from_files()` - автоматическое обновление логов каждую секунду
-  - Метод `cleanup_logs_if_needed()` - очистка логов раз в сутки
-  - Метод `append_log_to_ui()` - добавление новой строки лога в UI
-  - Метод `_auto_scroll_if_needed()` - автоматическая прокрутка логов
-  - Метод `on_scroll_value_changed()` - обработка ручной прокрутки (остановка автоскролла)
-  - Метод `_resume_auto_scroll()` - возобновление автоскролла после 5 секунд бездействия
-  - Метод `update_debug_logs_visibility()` - управление видимостью debug логов
+- **log_ui_manager.py** - Log management in UI
+  - `LogUIManager` class - centralized log display management
+  - `load_logs_to_ui()` method - loads main logs from file to QTextEdit
+  - `load_debug_logs_from_file_to_ui()` method - loads debug logs
+  - `refresh_logs_from_files()` method - automatically refreshes logs every second
+  - `cleanup_logs_if_needed()` method - cleans logs once per day
+  - `append_log_to_ui()` method - adds new log line to UI
+  - `_auto_scroll_if_needed()` method - automatic log scrolling
+  - `on_scroll_value_changed()` method - handles manual scrolling (stops auto-scroll)
+  - `_resume_auto_scroll()` method - resumes auto-scroll after 5 seconds of inactivity
+  - `update_debug_logs_visibility()` method - manages debug log visibility
 
 ### utils/
 - **i18n.py** - Localization system
@@ -391,144 +391,144 @@ The project follows a strict component hierarchy:
 ```python
 from utils.i18n import tr, set_language
 
-# Получить перевод
-text = tr("home.version")  # "Версия SingBox"
+# Get translation
+text = tr("home.version")  # "SingBox Version"
 
-# С параметрами
-text = tr("home.installed", version="1.8.0")  # "Установлено: версия 1.8.0"
+# With parameters
+text = tr("home.installed", version="1.8.0")  # "Installed: version 1.8.0"
 
-# Изменить язык
-set_language("en")  # Переключить на английский
+# Change language
+set_language("en")  # Switch to English
 ```
 
-## Добавление нового языка
+## Adding a New Language
 
-1. Создайте файл `data/locales/xx.json` (где xx - код языка, например `eng2.json`)
-2. Скопируйте структуру из `ru.json` или `en.json`
-3. Добавьте поле `"_language_name"` в корень JSON с названием языка (например, `"_language_name": "English (Custom)"`)
-4. Переведите все строки
-5. Язык будет доступен автоматически в настройках
+1. Create file `data/locales/xx.json` (where xx is language code, e.g., `eng2.json`)
+2. Copy structure from `ru.json` or `en.json`
+3. Add `"_language_name"` field to JSON root with language name (e.g., `"_language_name": "English (Custom)"`)
+4. Translate all strings
+5. Language will be automatically available in settings
 
-## Преимущества архитектуры
+## Architecture Benefits
 
-1. **Модульность** - код разделен на логические модули
-2. **Разделение ответственности** - каждый модуль отвечает за свою область
-3. **Переиспользуемость** - общие компоненты вынесены в отдельные модули
-4. **Централизация стилей** - единая система стилей через `ui/styles/`
-5. **Локализация** - легко добавлять новые языки
-6. **Расширяемость** - легко добавлять новые функции
-7. **Поддерживаемость** - проще находить и исправлять ошибки
-8. **Тестируемость** - модули можно тестировать отдельно
-9. **Отзывчивость** - тяжелые операции вынесены в фоновые потоки
+1. **Modularity** - code is divided into logical modules
+2. **Separation of concerns** - each module is responsible for its area
+3. **Reusability** - common components are extracted into separate modules
+4. **Style centralization** - unified styling system via `ui/styles/`
+5. **Localization** - easy to add new languages
+6. **Extensibility** - easy to add new features
+7. **Maintainability** - easier to find and fix bugs
+8. **Testability** - modules can be tested separately
+9. **Responsiveness** - heavy operations are moved to background threads
 
-## Сборка проекта
+## Project Build
 
-### Требования
+### Requirements
 - Python 3.8+
 - PyInstaller 6.0+
 
-### Команда сборки
+### Build Command
 ```bash
-# Сборка основного приложения
+# Build main application
 py -m PyInstaller SingBox-UI.spec --clean --noconfirm
 
-# Сборка updater
+# Build updater
 py -m PyInstaller updater.spec --clean --noconfirm
 
-# Пост-обработка
+# Post-processing
 py main/post_build.py
 ```
 
-### Результат сборки
-После сборки в папке `dist/SingBox-UI/` будет:
-- `SingBox-UI.exe` - главный исполняемый файл
-- `data/locales/` - файлы локализации
-- `data/themes/` - файлы тем
-- `data/core/` - ядро SingBox (если было включено)
-- `data/updater.exe` - утилита обновления
+### Build Result
+After build, the `dist/SingBox-UI/` folder will contain:
+- `SingBox-UI.exe` - main executable file
+- `data/locales/` - localization files
+- `data/themes/` - theme files
+- `data/core/` - SingBox core (if included)
+- `data/updater.exe` - update utility
 
-## Разработка
+## Development
 
-### Запуск в режиме разработки
+### Running in Development Mode
 ```bash
-python main.py
+python main/main.py
 ```
 
-### Структура данных
-Все данные приложения хранятся в папке `data/`:
-- `data/core/sing-box.exe` - ядро SingBox (не обновляется автоматически)
-- `data/logs/` - логи приложения
-  - `singbox.log` - логи SingBox
-  - `debug.log` - отладочные логи
-- `data/locales/` - файлы локализации (обновляются, пользовательские сохраняются)
-- `data/themes/` - файлы тем (копируются при сборке)
-- `data/config.json` - конфигурация SingBox (скачивается из подписки)
-- `data/.subscriptions` - список подписок (JSON, сохраняется при обновлениях)
-- `data/.settings` - настройки приложения (JSON, объединяются при обновлениях)
-- `data/updater.exe` - утилита обновления (обновляется при обновлениях)
+### Data Structure
+All application data is stored in the `data/` folder:
+- `data/core/sing-box.exe` - SingBox core (not updated automatically)
+- `data/logs/` - application logs
+  - `singbox.log` - SingBox logs
+  - `debug.log` - debug logs
+- `data/locales/` - localization files (updated, custom ones preserved)
+- `data/themes/` - theme files (copied during build)
+- `data/config.json` - SingBox configuration (downloaded from subscription)
+- `data/.subscriptions` - subscription list (JSON, preserved during updates)
+- `data/.settings` - application settings (JSON, merged during updates)
+- `data/updater.exe` - update utility (updated during updates)
 
-### Система обновлений
-- Updater (`updater.py`) - отдельное приложение с GUI
-- Выполняет весь процесс обновления: скачивание, установка, перезапуск
-- Защищает пользовательские данные: подписки, настройки, ядро, логи
-- Объединяет настройки: новые ключи добавляются, существующие сохраняются
+### Update System
+- Updater (`main/updater.py`) - separate GUI application
+- Performs entire update process: download, installation, restart
+- Protects user data: subscriptions, settings, core, logs
+- Merges settings: new keys added, existing ones preserved
 
-## Архитектурные решения
+## Architectural Decisions
 
-### Разделение UI на страницы
-Все UI страницы вынесены в отдельные классы в `ui/pages/`:
-- Каждая страница наследуется от `BasePage`
-- Страницы управляются через `QStackedWidget` в `MainWindow`
-- Доступ к элементам страниц через `self.page_profile`, `self.page_home`, `self.page_settings`
+### UI Page Separation
+All UI pages are separated into individual classes in `ui/pages/`:
+- Each page inherits from `BasePage`
+- Pages are managed via `QStackedWidget` in `MainWindow`
+- Access to page elements via `self.page_profile`, `self.page_home`, `self.page_settings`
 
-### Разделение функциональности на менеджеры
-Для уменьшения размера `main.py` и улучшения архитектуры, функциональность вынесена в отдельные менеджеры:
-- **TrayManager** (`ui/tray_manager.py`) - управление системным треем
-- **LogUIManager** (`managers/log_ui_manager.py`) - управление отображением логов в UI
-- **DeepLinkHandler** (`core/deep_link_handler.py`) - обработка deep links и импорт подписок
-- **RestartManager** (`core/restart_manager.py`) - управление перезапуском приложения
+### Functionality Separation into Managers
+To reduce `main/main.py` size and improve architecture, functionality has been extracted into separate managers:
+- **TrayManager** (`ui/tray_manager.py`) - system tray management
+- **LogUIManager** (`managers/log_ui_manager.py`) - log display management in UI
+- **DeepLinkHandler** (`core/deep_link_handler.py`) - deep link handling and subscription import
+- **RestartManager** (`core/restart_manager.py`) - application restart management
 
-### Централизованная система стилей
-Все стили централизованы в `ui/styles/`:
-- Константы (цвета, шрифты, размеры) в `constants.py`
-- Управление темой через `Theme` в `theme.py`
-- Генерация стилей через `StyleSheet` в `stylesheet.py`
+### Centralized Styling System
+All styles are centralized in `ui/styles/`:
+- Constants (colors, fonts, sizes) in `constants.py`
+- Theme management via `Theme` in `theme.py`
+- Stylesheet generation via `StyleSheet` in `stylesheet.py`
 
-### Фоновые потоки
-Тяжелые операции вынесены в фоновые потоки через систему воркеров:
-- `BaseWorker` - базовый класс для всех воркеров
-- `InitOperationsWorker` - инициализация при старте
-- `CheckVersionWorker` / `CheckAppVersionWorker` - проверка версий
+### Background Threads
+Heavy operations are moved to background threads via worker system:
+- `BaseWorker` - base class for all workers
+- `InitOperationsWorker` - initialization on startup
+- `CheckVersionWorker` / `CheckAppVersionWorker` - version checking
 
-### Система компонентов UI
-Проект использует трехуровневую архитектуру компонентов:
+### UI Component System
+The project uses a three-tier component architecture:
 
-1. **Base UI** (`ui/design/base/`) - базовые компоненты:
-   - `BaseCard` - базовая карточка
-   - `BaseDialog` - базовый диалог
-   - `BaseTitleBar` - базовый заголовок окна
+1. **Base UI** (`ui/design/base/`) - base components:
+   - `BaseCard` - base card component
+   - `BaseDialog` - base dialog component
+   - `BaseTitleBar` - base title bar component
 
-2. **Components** (`ui/design/component/`) - компоненты для использования:
-   - `Button`, `NavButton` - кнопки
-   - `Label`, `VersionLabel` - лейблы
-   - `CheckBox`, `ComboBox`, `ListWidget` - элементы форм
-   - `TextEdit`, `LineEdit`, `ProgressBar` - поля ввода и прогресс
-   - `Container` - контейнер
-   - Функции диалогов (`show_info_dialog`, `show_confirm_dialog`, etc.)
-   - `LogsWindow` - окно логов
+2. **Components** (`ui/design/component/`) - components for use:
+   - `Button`, `NavButton` - buttons
+   - `Label`, `VersionLabel` - labels
+   - `CheckBox`, `ComboBox`, `ListWidget` - form elements
+   - `TextEdit`, `LineEdit`, `ProgressBar` - input fields and progress
+   - `Container` - container
+   - Dialog functions (`show_info_dialog`, `show_confirm_dialog`, etc.)
+   - `LogsWindow` - logs window
 
-3. **Правила использования**:
-   - В main.py, updater.py и страницах используются ТОЛЬКО компоненты из `ui/design/component/`
-   - Base UI используется только внутри компонентов, никогда напрямую
-   - Прямое создание PyQt5 виджетов запрещено - используются компоненты
+3. **Usage Rules**:
+   - In main.py, updater.py and pages, use ONLY components from `ui/design/component/`
+   - Base UI is used only inside components, never directly
+   - Direct creation of PyQt5 widgets is prohibited - use components instead
 
-### Уменьшение размера main.py
-Для улучшения поддерживаемости и читаемости кода, из `main.py` были вынесены:
-- **Управление треем** → `ui/tray_manager.py` (класс `TrayManager`)
-  - Методы `setup_tray()`, `tray_icon_activated()`, `quit_application()` и связанная логика
-- **Управление логами в UI** → `managers/log_ui_manager.py` (класс `LogUIManager`)
-  - Методы `load_logs()`, `refresh_logs_from_files()`, `cleanup_logs_if_needed()`, `log()` и связанная логика
-- **Обработка deep links** → `core/deep_link_handler.py` (класс `DeepLinkHandler`)
-  - Метод `handle_deep_link()` и вся логика парсинга URL и импорта подписок
+### Reducing main.py Size
+To improve maintainability and code readability, the following were extracted from `main/main.py`:
+- **Tray Management** → `ui/tray_manager.py` (`TrayManager` class)
+  - Methods `setup_tray()`, `tray_icon_activated()`, `quit_application()` and related logic
+- **Log UI Management** → `managers/log_ui_manager.py` (`LogUIManager` class)
+  - Methods `load_logs()`, `refresh_logs_from_files()`, `cleanup_logs_if_needed()`, `log()` and related logic
+- **Deep Link Handling** → `core/deep_link_handler.py` (`DeepLinkHandler` class)
+  - Method `handle_deep_link()` and all URL parsing and subscription import logic
 
-Текущий размер `main/main.py`: ~2295 строк (было значительно больше до рефакторинга)
+Current size of `main/main.py`: ~2295 lines (was significantly larger before refactoring)
