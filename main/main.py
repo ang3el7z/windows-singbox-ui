@@ -2310,8 +2310,10 @@ class MainWindow(QMainWindow):
         self.log_ui_manager.load_debug_logs()
     
     def refresh_logs_from_files(self):
-        """Обновление логов из файлов (вызывается таймером каждую секунду, если открыта страница настроек)"""
-        self.log_ui_manager.refresh_logs(self.stack.currentIndex())
+        """Обновление логов из файлов (вызывается таймером каждую секунду, если открыто окно логов)"""
+        # Проверяем, открыто ли окно логов, а не страницу настроек
+        # Окно логов само обновляет логи через свой таймер
+        self.log_ui_manager.refresh_logs()
 
     def cleanup_logs_if_needed(self):
         """Очистка логов раз в сутки (полная очистка файла)"""

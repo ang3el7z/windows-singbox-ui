@@ -71,6 +71,7 @@
     "loading": "Loading...",
     "kill_all": "Kill all processes",
     "logs": "Logs",
+    "debug_logs": "Debug Logs",
     "allow_multiple_processes": "Allow multiple processes"
   },
   "download": {

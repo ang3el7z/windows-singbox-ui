@@ -84,29 +84,69 @@ class LogUIManager:
         except Exception:
             pass
     
-    def refresh_logs(self, current_page_index: int) -> None:
+    def _get_logs_from_file(self, log_file: Path) -> str:
+        """
+        Получение логов из файла в виде строки
+        
+        Args:
+            log_file: Путь к файлу логов
+            
+        Returns:
+            Строка с логами
+        """
+        if not log_file.exists():
+            return ""
+        
+        try:
+            with log_file.open("r", encoding="utf-8") as f:
+                content = f.read()
+                # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
+                lines = content.split('\n')
+                formatted_lines = []
+                for line in lines:
+                    # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
+                    line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+                    if line.strip():  # Пропускаем пустые строки
+                        formatted_lines.append(line)
+                return '\n'.join(formatted_lines)
+        except Exception:
+            return ""
+    
+    def get_logs(self) -> str:
+        """
+        Получение логов из singbox.log в виде строки
+        
+        Returns:
+            Строка с логами
+        """
+        return self._get_logs_from_file(LOG_FILE)
+    
+    def get_debug_logs(self) -> str:
+        """
+        Получение debug логов из debug.log в виде строки
+        
+        Returns:
+            Строка с debug логами
+        """
+        return self._get_logs_from_file(DEBUG_LOG_FILE)
+    
+    def refresh_logs(self, current_page_index: int = None) -> None:
         """
         Обновление логов из файлов (вызывается таймером)
         
         Логика обновления:
-        - Обычные логи: обновляются только если открыта страница настроек (index 2)
-        - Debug логи: обновляются только если открыта страница настроек И включен debug режим (isDebug=True)
+        - Обычные логи: обновляются автоматически окном логов через свой таймер, если окно открыто
+        - Debug логи: обновляются автоматически окном логов через свой таймер, если окно открыто и включен debug режим
+        
+        Этот метод больше не выполняет обновление виджетов, так как логи теперь в отдельном окне,
+        которое само обновляет логи через свой таймер (каждые 500мс).
         
         Args:
-            current_page_index: Индекс текущей страницы (2 = Settings)
+            current_page_index: Индекс текущей страницы (не используется, оставлен для совместимости)
         """
-        # Обновляем логи только если открыта страница настроек (index 2)
-        if current_page_index != 2:
-            return
-        
-        # Обновляем обычные логи (только если мы на странице настроек, что уже проверено выше)
-        self.load_logs()
-        
-        # Обновляем debug логи только если включен debug режим (isDebug=True)
-        # Используем только isDebug для проверки, debug_section_visible больше не используется
-        is_debug = self.main_window.settings.get("isDebug", False)
-        if is_debug:
-            self.load_debug_logs()
+        # Окно логов само обновляет логи через свой таймер в методе _update_logs()
+        # Этот метод оставлен для совместимости, но не выполняет никаких действий
+        pass
     
     def cleanup_if_needed(self) -> None:
         """Очистка логов раз в сутки (полная очистка файла)"""
