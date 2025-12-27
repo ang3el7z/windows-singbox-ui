@@ -36,8 +36,10 @@ LOG_DIR = DATA_DIR / "logs"
 LOCALES_DIR = DATA_DIR / "locales"
 THEMES_DIR = DATA_DIR / "themes"
 
-# Ресурсы (для разработки)
-RESOURCES_DIR = ROOT / "resources"
+# Ресурсы (для разработки - исходники)
+SOURCE_RESOURCES_DIR = ROOT / "resources"
+# Ресурсы в data (для собранного приложения)
+RESOURCES_DIR = DATA_DIR / "resources"
 ACE_EDITOR_DIR = RESOURCES_DIR / "web" / "ace"
 
 # Файлы
@@ -52,7 +54,7 @@ SINGBOX_CORE_LOG_FILE = LOG_DIR / "singbox-core.log"
 
 def ensure_dirs():
     """Создает все необходимые папки и проверяет их создание"""
-    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR]
+    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR, ACE_EDITOR_DIR]
     for p in dirs_to_create:
         try:
             p.mkdir(parents=True, exist_ok=True)

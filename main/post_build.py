@@ -138,6 +138,25 @@ def post_build():
     else:
         log(f"[post_build] WARNING: .version not found at {source_version}")
     
+    # Copy Ace Editor files from source to data/resources/web/ace in project directory
+    source_ace_dir = Path('resources/web/ace')
+    log(f"[post_build] Checking for Ace Editor files: {source_ace_dir}")
+    if source_ace_dir.exists():
+        log(f"[post_build] Found Ace Editor files, copying to data/resources/web/ace/")
+        data_dir = project_dir / 'data'
+        resources_dir = data_dir / 'resources' / 'web' / 'ace'
+        resources_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            # Copy all .js files
+            for ace_file in source_ace_dir.glob('*.js'):
+                shutil.copy2(ace_file, resources_dir / ace_file.name)
+                log(f"[post_build] Copied: {ace_file.name}")
+            log(f"[post_build] Ace Editor files copied to: {resources_dir}")
+        except Exception as e:
+            log(f"[post_build] ERROR copying Ace Editor files: {e}")
+    else:
+        log(f"[post_build] WARNING: Ace Editor directory not found at {source_ace_dir}")
+    
     log(f"[post_build] Post-build script completed")
     log(f"[post_build] Project structure:")
     log(f"[post_build]   {project_dir}/")
@@ -146,6 +165,7 @@ def post_build():
     log(f"[post_build]     - data/themes/")
     log(f"[post_build]     - data/core/")
     log(f"[post_build]     - data/updater.exe")
+    log(f"[post_build]     - data/resources/web/ace/")
 
 if __name__ == '__main__':
     post_build()

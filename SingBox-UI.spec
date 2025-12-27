@@ -54,7 +54,7 @@ ace_data = []
 ace_dir = Path('resources/web/ace')
 if ace_dir.exists():
     for ace_file in ace_dir.glob('*.js'):
-        ace_data.append((str(ace_file), 'resources/web/ace'))
+        ace_data.append((str(ace_file), 'data/resources/web/ace'))
 
 # Combine all data files
 # Note: Fonts are now embedded via Qt Resource System (QRC) - see resources/app.qrc
