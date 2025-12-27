@@ -73,7 +73,7 @@
     "logs": "Logs",
     "debug_logs": "Debug Logs",
     "singbox_logs": "Singbox Logs",
-    "logs_window_application": "Information",
+    "logs_window_application": "Info",
     "logs_window_singbox": "Singbox",
     "logs_window_debug": "Debug",
     "allow_multiple_processes": "Allow multiple processes",

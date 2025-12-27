@@ -73,7 +73,7 @@
     "logs": "Логи",
     "debug_logs": "Дебаг логи",
     "singbox_logs": "Логи Singbox",
-    "logs_window_application": "Информация",
+    "logs_window_application": "Info",
     "logs_window_singbox": "Singbox",
     "logs_window_debug": "Отладочные",
     "allow_multiple_processes": "Разрешить несколько процессов",
