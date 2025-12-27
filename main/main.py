@@ -140,7 +140,7 @@ from core.downloader import DownloadThread
 from core.deep_link_handler import DeepLinkHandler
 from core.protocol import register_protocols, is_admin
 from core.restart_manager import restart_application
-from core.singbox_manager import StartSingBoxThread
+from core.singbox_manager import StartSingBoxThread, reload_singbox_config
 from workers.init_worker import InitOperationsWorker
 from workers.version_worker import CheckVersionWorker, CheckAppVersionWorker
 import requests
@@ -1269,21 +1269,27 @@ class MainWindow(QMainWindow):
 
     def auto_update_config(self):
         """Автообновление конфига"""
+        # Проверяем, запущен ли sing-box ПЕРЕД началом обновления
+        if not self.proc or self.proc.poll() is not None:
+            # sing-box не запущен - автообновление не работает
+            return
+        
         if not hasattr(self, 'page_profile') or not hasattr(self.page_profile, 'sub_list'):
             return
         if self.current_sub_index < 0 or self.page_profile.sub_list.count() == 0:
             return
+        
         log_to_file(tr("messages.auto_update"))
         ok = self.subs.download_config(self.current_sub_index)
         if not ok:
             self.log(tr("messages.auto_update_error"))
             return
-        if self.proc and self.proc.poll() is None:
+        
+        # Используем reload вместо перезапуска
+        if reload_singbox_config(CORE_EXE, CONFIG_FILE, CORE_DIR):
             self.log(tr("messages.auto_update_restart"))
-            self.stop_singbox()
-            self.start_singbox()
         else:
-            log_to_file(tr("messages.auto_update_not_running"))
+            self.log(tr("messages.auto_update_error"))
 
     def poll_process(self):
         """Опрос процесса - проверяем, не завершился ли процесс"""

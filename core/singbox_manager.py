@@ -61,3 +61,45 @@ class StartSingBoxThread(QThread):
             self.error.emit(str(e))
 
 
+def reload_singbox_config(core_exe: Path, config_file: Path, core_dir: Path) -> bool:
+    """
+    Перезагрузить конфигурацию sing-box без перезапуска процесса
+    
+    Args:
+        core_exe: Путь к sing-box.exe
+        config_file: Путь к config.json
+        core_dir: Рабочая директория
+        
+    Returns:
+        True если команда выполнена успешно, False в противном случае
+    """
+    try:
+        # Скрываем окно консоли
+        startupinfo = None
+        if sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+        
+        # Выполняем команду reload
+        result = subprocess.run(
+            [str(core_exe), "reload", "-c", str(config_file)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(core_dir),
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            timeout=10,
+        )
+        
+        return result.returncode == 0
+    except Exception as e:
+        # Импортируем log_to_file если доступен
+        try:
+            from utils.logger import log_to_file
+            log_to_file(f"Ошибка при выполнении reload: {e}")
+        except ImportError:
+            pass
+        return False
+
+
