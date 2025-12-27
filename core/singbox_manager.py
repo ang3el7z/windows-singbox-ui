@@ -10,7 +10,6 @@ from config.paths import CORE_EXE, CONFIG_FILE, CORE_DIR, SINGBOX_CORE_LOG_FILE
 
 class SingBoxLogReaderThread(QThread):
     """Поток для чтения логов из stdout/stderr процесса sing-box"""
-    log_line = pyqtSignal(str)  # Сигнал с новой строкой лога
     
     def __init__(self, process: subprocess.Popen, log_file: Path):
         """
@@ -77,7 +76,7 @@ class SingBoxLogReaderThread(QThread):
                 pass
     
     def _write_log_line(self, line: str):
-        """Записать строку лога в файл и отправить сигнал"""
+        """Записать строку лога в файл"""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_line = f"[{timestamp}] {line}"
@@ -88,9 +87,6 @@ class SingBoxLogReaderThread(QThread):
                 f.write(formatted_line + "\n")
         except Exception:
             pass
-        
-        # Отправляем сигнал (не используется сейчас, но может пригодиться)
-        # self.log_line.emit(formatted_line)
     
     def pause(self):
         """Приостановка записи логов (чтение продолжается, но не записывается в файл)"""
