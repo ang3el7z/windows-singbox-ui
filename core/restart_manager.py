@@ -1,7 +1,6 @@
 """Менеджер перезапуска приложения"""
 import sys
 import subprocess
-import ctypes
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -14,33 +13,26 @@ if TYPE_CHECKING:
 
 def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -> bool:
     """
-    Перезапускает приложение (опционально от имени администратора).
+    Перезапускает приложение.
     
-    Универсальная функция перезапуска для всех случаев:
-    1. После смены темы (run_as_admin=False)
-    2. На главной странице при клике на статус администратора (run_as_admin=True)
-    3. В настройках при включении галочки "Запускать от имени администратора" (run_as_admin=True)
+    Примечание: Параметр run_as_admin оставлен для обратной совместимости, но игнорируется,
+    так как приложение всегда запускается от имени администратора благодаря manifest.
     
     Args:
         main_window: Экземпляр MainWindow для доступа к методам остановки
-        run_as_admin: Если True, перезапускает от имени администратора
+        run_as_admin: Игнорируется (оставлен для обратной совместимости)
         
     Returns:
         True если перезапуск успешно инициирован
     """
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtCore import QTimer
-    from core.protocol import is_admin
     
     app = QApplication.instance()
     if not app:
         return False
     
     try:
-        # Если требуется запуск от имени администратора, проверяем, не админ ли уже
-        if run_as_admin and is_admin():
-            return False
-        
         # Останавливаем sing-box перед перезапуском
         try:
             if hasattr(main_window, 'stop_singbox'):
@@ -57,49 +49,19 @@ def restart_application(main_window: 'MainWindow', run_as_admin: bool = False) -
             exe_path = sys.executable
             work_dir = str(Path(exe_path).parent)
             
-            if run_as_admin and sys.platform == "win32":
-                params = " ".join(f'"{a}"' for a in restart_args) if restart_args else ""
-                result = ctypes.windll.shell32.ShellExecuteW(
-                    None,
-                    "runas",  # Запуск от имени администратора
-                    exe_path,
-                    params,
-                    work_dir,
-                    1  # SW_SHOWNORMAL
-                )
-                # ShellExecuteW возвращает значение > 32 при успехе
-                if result <= 32:
-                    # Пользователь отменил UAC или произошла ошибка
-                    return False
-                # Для UAC нужно больше времени
-                wait_time = 4.0
-            else:
-                subprocess.Popen([exe_path] + restart_args, cwd=work_dir, close_fds=False)
-                # Для onefile приложений нужно больше времени на распаковку
-                wait_time = 3.0
+            # Приложение всегда запускается от администратора благодаря manifest
+            subprocess.Popen([exe_path] + restart_args, cwd=work_dir, close_fds=False)
+            # Для onefile приложений нужно больше времени на распаковку
+            wait_time = 3.0
         else:
             # Режим разработки
             exe_path = sys.executable
             script = Path(__file__).parent.parent / "main" / "main.py"
             work_dir = str(Path(__file__).parent.parent)
             
-            if run_as_admin and sys.platform == "win32":
-                params = f'"{script}" ' + " ".join(f'"{a}"' for a in restart_args) if restart_args else f'"{script}"'
-                result = ctypes.windll.shell32.ShellExecuteW(
-                    None,
-                    "runas",
-                    exe_path,
-                    params,
-                    work_dir,
-                    1
-                )
-                if result <= 32:
-                    # Пользователь отменил UAC или произошла ошибка
-                    return False
-                wait_time = 4.0
-            else:
-                subprocess.Popen([exe_path, str(script)] + restart_args, cwd=work_dir, close_fds=False)
-                wait_time = 2.0
+            # В режиме разработки запускаем обычным способом
+            subprocess.Popen([exe_path, str(script)] + restart_args, cwd=work_dir, close_fds=False)
+            wait_time = 2.0
         
         # Даем время новому процессу запуститься
         # Новый процесс с флагом --restart должен закрыть старый процесс

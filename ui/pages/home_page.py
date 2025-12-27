@@ -158,31 +158,6 @@ class HomePage(BasePage):
         
         self._layout.addWidget(profile_card)
         
-        # Информация о правах администратора (на подложке, текст должен быть виден)
-        admin_info_card = CardWidget()
-        admin_info_layout = QVBoxLayout(admin_info_card)
-        admin_info_layout.setContentsMargins(20, 16, 20, 16)
-        admin_info_layout.setSpacing(0)
-        
-        from core.protocol import is_admin
-        if is_admin():
-            initial_color = theme.get_color('accent')
-        else:
-            initial_color = theme.get_color('warning')
-        
-        self.lbl_admin_status = Label()
-        # Уменьшаем шрифт на ~2 пункта (было 11)
-        self.lbl_admin_status.setFont(QFont("Segoe UI", 10))
-        self.lbl_admin_status.setAlignment(Qt.AlignCenter)
-        self.lbl_admin_status.mousePressEvent = self.main_window.admin_status_mouse_press
-        # Устанавливаем начальный стиль с цветом из темы
-        self.lbl_admin_status.setStyleSheet(f"color: {initial_color}; background-color: transparent; border: none; padding: 0px;")
-        # Обновляем текст и стиль
-        self.main_window.update_admin_status_label()
-        admin_info_layout.addWidget(self.lbl_admin_status)
-        
-        self._layout.addWidget(admin_info_card)
-        
         # Кнопка Start/Stop
         from ui.design.component import Container
         self.btn_container = Container()

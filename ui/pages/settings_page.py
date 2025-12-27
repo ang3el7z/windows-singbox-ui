@@ -100,12 +100,6 @@ class SettingsPage(BasePage):
         self.cb_autostart.setFont(QFont("Segoe UI", 13))
         settings_layout.addWidget(self.cb_autostart)
         
-        self.cb_run_as_admin = CheckBox(tr("settings.run_as_admin"))
-        self.cb_run_as_admin.setChecked(self.main_window.settings.get("run_as_admin", False))
-        self.cb_run_as_admin.stateChanged.connect(self.main_window.on_run_as_admin_changed)
-        self.cb_run_as_admin.setFont(QFont("Segoe UI", 13))
-        settings_layout.addWidget(self.cb_run_as_admin)
-        
         self.cb_auto_start_singbox = CheckBox(tr("settings.auto_start_singbox"))
         self.cb_auto_start_singbox.setChecked(self.main_window.settings.get("auto_start_singbox", False))
         self.cb_auto_start_singbox.stateChanged.connect(self.main_window.on_auto_start_singbox_changed)

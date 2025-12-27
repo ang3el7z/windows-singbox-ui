@@ -154,5 +154,6 @@ exe = EXE(
     entitlements_file=None,
     icon=icon_path,  # Icon for exe file
     onefile=True,  # All in one file - no _internal folder
+    uac_admin=True,  # Require administrator rights (always run as admin)
 )
 

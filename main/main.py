@@ -123,7 +123,6 @@ from ui.design.component import (
     show_add_profile_dialog,
     show_edit_profile_dialog,
     show_language_selection_dialog,
-    show_restart_admin_dialog,
     show_kill_all_confirm_dialog,
     show_kill_all_success_dialog,
     DownloadDialog
@@ -140,7 +139,7 @@ from utils.i18n import tr, set_language, get_available_languages, get_language_n
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
 from core.deep_link_handler import DeepLinkHandler
-from core.protocol import register_protocols, is_admin
+from core.protocol import register_protocols
 from core.restart_manager import restart_application
 from core.singbox_manager import StartSingBoxThread, reload_singbox_config
 from workers.init_worker import InitOperationsWorker
@@ -310,15 +309,10 @@ class MainWindow(QMainWindow):
         root.addWidget(nav)
 
         # Инициализация
-        # Проверяем права администратора
-        self.is_admin = is_admin()
-        
         # Выносим тяжелые операции в потоки, чтобы не блокировать UI
         QTimer.singleShot(0, self._init_async_operations)
         
         # Обновляем UI элементы, которые не требуют данных
-        if hasattr(self, 'page_home') and hasattr(self.page_home, 'lbl_admin_status'):
-            self.update_admin_status_label()
         self.update_big_button_state()
         self.update_app_version_display()
     
@@ -462,8 +456,6 @@ class MainWindow(QMainWindow):
         else:
             self.update_app_version_display()
         
-        if hasattr(self, 'lbl_admin_status'):
-            self.update_admin_status_label()
         self.update_big_button_state()
 
         # Обработка deep link (если передан URL как аргумент)
@@ -883,35 +875,7 @@ class MainWindow(QMainWindow):
             
             self.page_home.lbl_profile.mousePressEvent = handle_click
     
-    def update_admin_status_label(self):
-        """Обновление надписи о правах администратора"""
-        if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_admin_status'):
-            return
-        from ui.styles import theme
-        if is_admin():
-            self.page_home.lbl_admin_status.setText(tr("home.admin_running"))
-            # Используем цвета из темы
-            accent_color = theme.get_color('accent')
-            self.page_home.lbl_admin_status.setStyleSheet(f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;")
-            self.page_home.lbl_admin_status.setCursor(Qt.ArrowCursor)
-        else:
-            self.page_home.lbl_admin_status.setText(tr("home.admin_not_running"))
-            # Используем цвета из темы (warning для не запущенного)
-            warning_color = theme.get_color('warning')
-            self.page_home.lbl_admin_status.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px;")
-            self.page_home.lbl_admin_status.setCursor(Qt.PointingHandCursor)
-    
-    def admin_status_mouse_press(self, event):
-        """Обработка клика по надписи о правах администратора"""
-        if not is_admin():
-            if show_restart_admin_dialog(
-                self,
-                tr("messages.admin_required_title"),
-                tr("messages.restart_as_admin_question")
-            ):
-                if not restart_application(self, run_as_admin=True):
-                    self.log(tr("messages.admin_restart_failed"))
-        else:
+    else:
             event.ignore()
     
     def handle_deep_link(self):
@@ -1170,19 +1134,6 @@ class MainWindow(QMainWindow):
             self.log(tr("messages.no_subscription"))
             return
         
-        # Проверяем права администратора
-        if not is_admin():
-            if show_restart_admin_dialog(
-                self,
-                tr("messages.admin_required_title"),
-                tr("messages.admin_required_start")
-            ):
-                if not restart_application(self, run_as_admin=True):
-                    self.log(tr("messages.admin_restart_failed"))
-                return
-            else:
-                return
-        
         log_to_file(tr("messages.downloading_config"))
         ok = self.subs.apply_config(self.current_sub_index)
         if not ok:
@@ -1235,19 +1186,6 @@ class MainWindow(QMainWindow):
         """Остановка SingBox"""
         if not self.proc:
             return
-        
-        # Проверяем права администратора перед остановкой
-        if not is_admin():
-            if show_restart_admin_dialog(
-                self,
-                tr("messages.admin_required_title"),
-                tr("messages.admin_required_stop")
-            ):
-                if not restart_application(self, run_as_admin=True):
-                    self.log(tr("messages.admin_restart_failed"))
-                return
-            else:
-                return
         
         self.log(tr("messages.stopping"))
         
@@ -1428,94 +1366,25 @@ class MainWindow(QMainWindow):
             exe_path = sys.executable
         else:
             exe_path = str((Path(__file__).parent / "run_dev.bat").resolve())
-        
-        run_as_admin = self.settings.get("run_as_admin", False)
 
         try:
+            # Удаляем задачу Task Scheduler если она была создана ранее
+            try:
+                subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
+                             capture_output=True, check=False)
+            except Exception:
+                pass
+            
             if enabled:
-                if run_as_admin:
-                    # Используем Task Scheduler для запуска от имени администратора
-                    xml_content = f'''<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <Triggers>
-    <LogonTrigger>
-      <Enabled>true</Enabled>
-    </LogonTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>true</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-    <IdleSettings>
-      <StopOnIdleEnd>false</StopOnIdleEnd>
-      <RestartOnIdle>false</RestartOnIdle>
-    </IdleSettings>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
-    <Hidden>false</Hidden>
-    <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Priority>7</Priority>
-  </Settings>
-  <Actions>
-    <Exec>
-      <Command>"{exe_path}"</Command>
-      <WorkingDirectory>{Path(exe_path).parent}</WorkingDirectory>
-    </Exec>
-  </Actions>
-</Task>'''
-                    xml_file = Path(os.getenv("TEMP")) / f"{task_name}.xml"
-                    xml_file.write_text(xml_content, encoding="utf-16")
-                    try:
-                        # Удаляем старую задачу если есть
-                        subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
-                                     capture_output=True, check=False)
-                        # Создаем новую задачу
-                        result = subprocess.run(["schtasks", "/create", "/tn", task_name, "/xml", str(xml_file), "/f"], 
-                                             check=True, capture_output=True, text=True)
-                        xml_file.unlink()
-                        log_to_file("Автозапуск от имени администратора настроен через Task Scheduler")
-                    except subprocess.CalledProcessError as e:
-                        log_to_file(f"Ошибка создания задачи автозапуска: {e.stderr if e.stderr else str(e)}")
-                        # Fallback: используем реестр с PowerShell
-                        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
-                            ps_command = f'powershell -Command "Start-Process -FilePath \\"{exe_path}\\" -Verb RunAs"'
-                            winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, ps_command)
-                        log_to_file("Автозапуск настроен через реестр (PowerShell)")
-                    except Exception as e:
-                        log_to_file(f"Ошибка настройки автозапуска: {e}")
-                        xml_file.unlink(missing_ok=True)
-                else:
-                    # Обычный автозапуск без прав админа через реестр
-                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
-                        winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
-                    # Удаляем задачу если есть
-                    try:
-                        subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
-                                     capture_output=True, check=False)
-                    except:
-                        pass
+                # Автозапуск через реестр (приложение всегда запускается от администратора благодаря manifest)
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
             else:
                 # Отключаем автозапуск
                 try:
                     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
                         winreg.DeleteValue(key, app_name)
                 except FileNotFoundError:
-                    pass
-                # Удаляем задачу если есть
-                try:
-                    subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
-                                 capture_output=True, check=False)
-                except:
                     pass
         except OSError as e:
             self.log(tr("messages.autostart_error", error=str(e)))
@@ -1534,40 +1403,6 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_autostart.blockSignals(True)
                 self.page_settings.cb_autostart.setChecked(not enabled)
                 self.page_settings.cb_autostart.blockSignals(False)
-    
-    def on_run_as_admin_changed(self, state: int):
-        """Изменение настройки запуска от имени администратора"""
-        enabled = state == Qt.Checked
-        self.settings.set("run_as_admin", enabled)
-        
-        # Если автозапуск включен, обновляем его с новой настройкой
-        if self.settings.get("start_with_windows", False):
-            self.set_autostart(True)
-        
-        # Если включили запуск от имени администратора, предлагаем перезапустить
-        if enabled and not is_admin():
-            if show_restart_admin_dialog(
-                self,
-                tr("messages.restart_required_title"),
-                tr("messages.restart_required_text")
-            ):
-                if not restart_application(self, run_as_admin=True):
-                    self.log(tr("messages.admin_restart_failed"))
-                    # Восстанавливаем состояние чекбокса при ошибке
-                    if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_run_as_admin'):
-                        self.page_settings.cb_run_as_admin.blockSignals(True)
-                        self.page_settings.cb_run_as_admin.setChecked(False)
-                        self.settings.set("run_as_admin", False)
-                        self.page_settings.cb_run_as_admin.blockSignals(False)
-                    return
-                return
-        # Если выключили галочку — не требуем перезапуска. Настройка вступит в силу при следующем старте.
-        
-        # Действия пользователя - в обычные логи
-        if enabled:
-            self.log(tr("messages.run_as_admin_enabled"))
-        else:
-            self.log(tr("messages.run_as_admin_disabled"))
     
     def on_auto_start_singbox_changed(self, state: int):
         """Изменение настройки автозапуска sing-box при запуске приложения"""
@@ -1691,8 +1526,6 @@ class MainWindow(QMainWindow):
         self.update_version_info()
         self.update_app_version_display()
         self.update_big_button_state()
-        self.update_admin_status_label()
-        
         # Обновляем главное окно
         self.setStyleSheet(StyleSheet.global_styles())
         
@@ -1829,8 +1662,6 @@ class MainWindow(QMainWindow):
             processed_labels.add(self.page_home.lbl_version)
         if hasattr(self.page_home, 'lbl_profile'):
             processed_labels.add(self.page_home.lbl_profile)
-        if hasattr(self.page_home, 'lbl_admin_status'):
-            processed_labels.add(self.page_home.lbl_admin_status)
         if hasattr(self.page_home, 'lbl_update_info'):
             processed_labels.add(self.page_home.lbl_update_info)
         
@@ -2017,8 +1848,6 @@ class MainWindow(QMainWindow):
         # Обновляем все чекбоксы
         if hasattr(self.page_settings, 'cb_autostart'):
             self.page_settings.cb_autostart.setStyleSheet(StyleSheet.checkbox())
-        if hasattr(self.page_settings, 'cb_run_as_admin'):
-            self.page_settings.cb_run_as_admin.setStyleSheet(StyleSheet.checkbox())
         if hasattr(self.page_settings, 'cb_auto_start_singbox'):
             self.page_settings.cb_auto_start_singbox.setStyleSheet(StyleSheet.checkbox())
         if hasattr(self.page_settings, 'cb_minimize_to_tray'):
@@ -2154,8 +1983,6 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'page_settings'):
             if hasattr(self.page_settings, 'cb_autostart'):
                 self.page_settings.cb_autostart.setText(tr("settings.autostart"))
-            if hasattr(self.page_settings, 'cb_run_as_admin'):
-                self.page_settings.cb_run_as_admin.setText(tr("settings.run_as_admin"))
             if hasattr(self.page_settings, 'cb_auto_start_singbox'):
                 self.page_settings.cb_auto_start_singbox.setText(tr("settings.auto_start_singbox"))
             if hasattr(self.page_settings, 'cb_minimize_to_tray'):
@@ -2182,7 +2009,6 @@ class MainWindow(QMainWindow):
         self.update_version_info()
         self.update_app_version_display()
         self.update_big_button_state()
-        self.update_admin_status_label()
     
     def _update_nav_button(self, btn: QPushButton, text: str, icon_name: str):
         """Обновляет текст и иконку кнопки навигации"""
@@ -2739,16 +2565,6 @@ if __name__ == "__main__":
             log_to_file("[Startup] Ссылка на MainWindow установлена")
         except Exception as e:
             log_to_file(f"[Startup Warning] Ошибка установки ссылки на MainWindow: {e}")
-        
-        # Проверяем настройку run_as_admin при запуске
-        try:
-            run_as_admin_setting = win.settings.get("run_as_admin", False)
-            if run_as_admin_setting and not is_admin():
-                log_to_file("[Startup] Настройка 'run_as_admin' включена, но приложение не запущено от админа. Перезапуск...")
-                if not restart_application(win, run_as_admin=True):
-                    log_to_file("[Startup] Не удалось перезапустить от имени администратора")
-        except Exception as e:
-            log_to_file(f"[Startup Warning] Ошибка проверки run_as_admin: {e}")
         
         # Устанавливаем поведение закрытия окна в зависимости от настройки трея
         try:

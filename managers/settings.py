@@ -18,7 +18,6 @@ class SettingsManager:
         self.data = {
             "auto_update_minutes": 90,
             "start_with_windows": False,
-            "run_as_admin": False,
             "auto_start_singbox": False,  # Автозапуск sing-box при запуске приложения
             "minimize_to_tray": True,  # Сворачивать в трей (по умолчанию включено)
             "language": "",  # Пустая строка означает, что язык не выбран

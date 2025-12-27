@@ -699,15 +699,6 @@ class DownloadDialog(BaseDialog):
             self.btn_download.setText(tr("download.download"))
 
 
-def show_restart_admin_dialog(parent: QWidget, title: str, message: str) -> bool:
-    """Диалог для перезапуска от имени администратора"""
-    return show_confirm_dialog(
-        parent, title, message,
-        yes_text=tr("messages.restart_yes"),
-        no_text=tr("download.cancel")
-    )
-
-
 def show_kill_all_confirm_dialog(parent: QWidget, title: str, message: str) -> bool:
     """Диалог для подтверждения остановки всех процессов"""
     return show_confirm_dialog(
