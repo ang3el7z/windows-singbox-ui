@@ -1,4 +1,4 @@
-# 🎉 SingBox-UI v2.0.7
+# 🎉 SingBox-UI v2.1.0
 
 ## 🔄 Updater Improvements
 
@@ -33,5 +33,5 @@
 
 ---
 
-**Full Changelog**: https://github.com/ang3el7z/windows-singbox-ui/compare/v2.0.6...v2.0.7
+**Full Changelog**: https://github.com/ang3el7z/windows-singbox-ui/compare/v2.0.6...v2.1.0
 
