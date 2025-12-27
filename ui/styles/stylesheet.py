@@ -16,7 +16,7 @@ class StyleSheet:
         Генерирует стиль кнопки
         
         Args:
-            variant: Вариант кнопки (default, primary, secondary, danger)
+            variant: Вариант кнопки (default, primary, secondary, danger, warning)
             size: Размер (small, medium, large)
             full_width: Занимать всю ширину
         """
@@ -43,6 +43,12 @@ class StyleSheet:
                 'bg': theme.get_color('error'),
                 'bg_hover': theme.get_color('error'),  # Можно улучшить, добавив error_hover в темы
                 'text': theme.get_color('text_primary'),
+                'border': 'none',
+            },
+            'warning': {
+                'bg': theme.get_color('warning'),
+                'bg_hover': theme.get_color('warning'),  # Можно улучшить, добавив warning_hover в темы
+                'text': theme.get_color('background_primary'),
                 'border': 'none',
             },
         }
@@ -75,6 +81,16 @@ class StyleSheet:
         }}
         QPushButton:pressed {{
             background-color: {variant_style['bg_hover']};
+            opacity: 0.9;
+        }}
+        QPushButton:checked {{
+            background-color: {variant_style['bg'] if variant in ('warning', 'danger') else theme.get_color('accent')};
+            color: {variant_style['text'] if variant in ('warning', 'danger') else theme.get_color('background_primary')};
+            border: none;
+            font-weight: {theme.get_font('weight_semibold')};
+        }}
+        QPushButton:checked:hover {{
+            background-color: {variant_style['bg_hover'] if variant in ('warning', 'danger') else theme.get_color('accent_hover')};
             opacity: 0.9;
         }}
         QPushButton:disabled {{

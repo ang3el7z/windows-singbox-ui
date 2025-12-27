@@ -92,7 +92,7 @@ class LogsWindow(QDialog):
         self.btn_logs.clicked.connect(lambda: self._switch_mode("logs"))
         buttons_row.addWidget(self.btn_logs)
         
-        self.btn_debug_logs = Button(tr("settings.debug_logs"), variant="secondary")
+        self.btn_debug_logs = Button(tr("settings.debug_logs"), variant="danger")
         self.btn_debug_logs.setCheckable(True)
         self.btn_debug_logs.clicked.connect(lambda: self._switch_mode("debug"))
         buttons_row.addWidget(self.btn_debug_logs)
@@ -159,8 +159,11 @@ class LogsWindow(QDialog):
         # Если debug режим выключен и выбран режим debug - переключаемся на logs
         if not is_debug and self.current_mode == "debug":
             self.current_mode = "logs"
-            self.btn_debug_logs.setChecked(False)
-            self.btn_logs.setChecked(True)
+        
+        # Обновляем checked состояние кнопок для визуального отображения активного режима
+        self.btn_logs.setChecked(self.current_mode == "logs")
+        self.btn_debug_logs.setChecked(self.current_mode == "debug")
+        self.btn_singbox_logs.setChecked(self.current_mode == "singbox")
         
         # Получаем логи в зависимости от выбранного режима
         if self.current_mode == "logs":
