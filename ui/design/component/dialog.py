@@ -12,7 +12,7 @@ from ui.design.component.line_edit import LineEdit
 from ui.design.component.progress_bar import ProgressBar
 from ui.design.component.combo_box import ComboBox
 from utils.i18n import tr, get_available_languages, get_language_name
-from config.paths import ACE_EDITOR_DIR
+from config.paths import ACE_EDITOR_DIR, SOURCE_RESOURCES_DIR
 import json
 import sys
 from pathlib import Path
@@ -20,7 +20,14 @@ from pathlib import Path
 
 def get_ace_editor_url(filename: str) -> str:
     """Получает URL для локального файла Ace Editor"""
+    # Сначала проверяем в data/resources/web/ace (для собранного приложения)
     ace_file = ACE_EDITOR_DIR / filename
+    # Если не найдено, проверяем в исходниках (для разработки)
+    if not ace_file.exists():
+        source_ace_file = SOURCE_RESOURCES_DIR / "web" / "ace" / filename
+        if source_ace_file.exists():
+            ace_file = source_ace_file
+    
     if ace_file.exists():
         # Используем file:// протокол для локальных файлов
         # QUrl.fromLocalFile автоматически обрабатывает пути для всех платформ
