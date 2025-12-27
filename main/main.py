@@ -363,6 +363,9 @@ class MainWindow(QMainWindow):
             self.page_profile.refresh_subscriptions()
         if hasattr(self, 'update_big_button_state'):
             self.update_big_button_state()
+        # Обновляем информацию о профиле сразу после загрузки подписок
+        # чтобы избежать задержки в отображении выбранного профиля
+        self.update_profile_info()
     
     def _on_version_checked(self, version):
         """Обработка проверенной версии sing-box"""
@@ -385,49 +388,9 @@ class MainWindow(QMainWindow):
     
     def _on_profile_info_loaded(self, data):
         """Обработка загруженной информации о профиле"""
-        if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_profile'):
-            return
-        running_sub = data.get('running_sub')
-        selected_sub = data.get('selected_sub')
-        
-        from ui.styles import theme
-        accent_color = theme.get_color('accent')
-        profile_style = f"color: {accent_color}; background-color: transparent; border: none; padding: 0px;"
-        
-        if running_sub and selected_sub:
-            if self.running_sub_index == self.current_sub_index:
-                self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-                self.page_home.lbl_profile.setStyleSheet(profile_style)
-            else:
-                text = f"{tr('home.current_profile', name=running_sub.get('name', tr('profile.unknown')))}\n{tr('home.selected_profile', name=selected_sub.get('name', tr('profile.unknown')))}"
-                self.page_home.lbl_profile.setText(text)
-                self.page_home.lbl_profile.setStyleSheet(profile_style)
-                self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
-        elif running_sub:
-            self.page_home.lbl_profile.setText(tr("home.current_profile", name=running_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet(profile_style)
-            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
-        elif selected_sub:
-            self.page_home.lbl_profile.setText(tr("home.selected_profile", name=selected_sub.get("name", tr("profile.unknown"))))
-            self.page_home.lbl_profile.setStyleSheet(profile_style)
-            self.page_home.lbl_profile.setCursor(Qt.ArrowCursor)
-        else:
-            from ui.styles import theme
-            warning_color = theme.get_color('warning')
-            self.page_home.lbl_profile.setText(tr("home.profile_not_selected_click"))
-            self.page_home.lbl_profile.setStyleSheet(f"color: {warning_color}; background-color: transparent; border: none; padding: 0px;")
-            self.page_home.lbl_profile.setCursor(Qt.PointingHandCursor)
-            if not hasattr(self.page_home.lbl_profile, '_original_mousePressEvent'):
-                self.page_home.lbl_profile._original_mousePressEvent = self.page_home.lbl_profile.mousePressEvent
-            
-            def handle_click(event):
-                if event.button() == Qt.LeftButton:
-                    self.switch_page(0)
-                else:
-                    if hasattr(self.page_home.lbl_profile, '_original_mousePressEvent') and self.page_home.lbl_profile._original_mousePressEvent:
-                        self.page_home.lbl_profile._original_mousePressEvent(event)
-            
-            self.page_home.lbl_profile.mousePressEvent = handle_click
+        # Используем update_profile_info() для обновления UI, чтобы избежать дублирования логики
+        # и гарантировать, что UI обновляется сразу после загрузки профилей
+        self.update_profile_info()
     
     def _on_cleanup_finished(self):
         """Очистка логов завершена"""
@@ -861,17 +824,16 @@ class MainWindow(QMainWindow):
         running_sub = None
         selected_sub = None
         
+        # Проверяем, есть ли профили в данных (не зависим от UI списка)
+        profiles_count = len(self.subs.data.get("profiles", []))
+        
         # Получаем запущенный профиль
-        if running and self.running_sub_index >= 0:
-            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
-                if self.page_profile.sub_list.count() > 0:
-                    running_sub = self.subs.get(self.running_sub_index)
+        if running and self.running_sub_index >= 0 and profiles_count > 0:
+            running_sub = self.subs.get(self.running_sub_index)
         
         # Получаем выбранный профиль
-        if self.current_sub_index >= 0:
-            if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
-                if self.page_profile.sub_list.count() > 0:
-                    selected_sub = self.subs.get(self.current_sub_index)
+        if self.current_sub_index >= 0 and profiles_count > 0:
+            selected_sub = self.subs.get(self.current_sub_index)
         
         # Формируем текст
         from ui.styles import theme

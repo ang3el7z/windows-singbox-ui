@@ -70,3 +70,4 @@ class BaseCard(QWidget):
 
 
 
+
