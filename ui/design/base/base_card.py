@@ -67,3 +67,4 @@ class BaseCard(QWidget):
         self.update()
 
 
+

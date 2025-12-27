@@ -123,3 +123,4 @@ class BaseTitleBar(QWidget):
         super().mouseReleaseEvent(event)
 
 
+

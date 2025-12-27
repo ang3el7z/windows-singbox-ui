@@ -1,5 +1,13 @@
 # 🎉 SingBox-UI v2.0.5
 
+## ✨ New Features
+
+- 📝 **Sing-box logs**: Added logging functionality for sing-box process
+  - Logs are automatically captured from stdout/stderr
+  - Logs are saved to file with timestamps
+  - Real-time log reading in background thread
+  - Support for multiple encodings (UTF-8, CP1251, Latin1)
+
 ## 🎨 UI Improvements
 
 ### ✨ Home Page Enhancements
