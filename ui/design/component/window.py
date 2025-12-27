@@ -86,18 +86,18 @@ class LogsWindow(QDialog):
         buttons_row = QHBoxLayout()
         buttons_row.setSpacing(12)
         
-        self.btn_logs = Button(tr("settings.logs"), variant="secondary")
+        self.btn_logs = Button(tr("settings.logs_window_application"), variant="secondary")
         self.btn_logs.setCheckable(True)
         self.btn_logs.setChecked(True)
         self.btn_logs.clicked.connect(lambda: self._switch_mode("logs"))
         buttons_row.addWidget(self.btn_logs)
         
-        self.btn_debug_logs = Button(tr("settings.debug_logs"), variant="danger")
+        self.btn_debug_logs = Button(tr("settings.logs_window_debug"), variant="danger")
         self.btn_debug_logs.setCheckable(True)
         self.btn_debug_logs.clicked.connect(lambda: self._switch_mode("debug"))
         buttons_row.addWidget(self.btn_debug_logs)
         
-        self.btn_singbox_logs = Button(tr("settings.singbox_logs"), variant="secondary")
+        self.btn_singbox_logs = Button(tr("settings.logs_window_singbox"), variant="secondary")
         self.btn_singbox_logs.setCheckable(True)
         self.btn_singbox_logs.clicked.connect(lambda: self._switch_mode("singbox"))
         buttons_row.addWidget(self.btn_singbox_logs)
@@ -251,9 +251,9 @@ class LogsWindow(QDialog):
         """Обновление текстов в окне при смене языка"""
         self.setWindowTitle(tr("settings.logs"))
         if hasattr(self, 'btn_logs'):
-            self.btn_logs.setText(tr("settings.logs"))
+            self.btn_logs.setText(tr("settings.logs_window_application"))
         if hasattr(self, 'btn_debug_logs'):
-            self.btn_debug_logs.setText(tr("settings.debug_logs"))
+            self.btn_debug_logs.setText(tr("settings.logs_window_debug"))
         if hasattr(self, 'btn_singbox_logs'):
-            self.btn_singbox_logs.setText(tr("settings.singbox_logs"))
+            self.btn_singbox_logs.setText(tr("settings.logs_window_singbox"))
 
