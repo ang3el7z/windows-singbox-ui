@@ -2,7 +2,7 @@
 from enum import Enum
 from typing import Optional, Tuple, Callable, Dict, Any
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QProgressBar, QFileDialog, QVBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
 from ui.design.base.base_dialog import BaseDialog
@@ -12,7 +12,23 @@ from ui.design.component.line_edit import LineEdit
 from ui.design.component.progress_bar import ProgressBar
 from ui.design.component.combo_box import ComboBox
 from utils.i18n import tr, get_available_languages, get_language_name
+from config.paths import ACE_EDITOR_DIR
 import json
+import sys
+from pathlib import Path
+
+
+def get_ace_editor_url(filename: str) -> str:
+    """Получает URL для локального файла Ace Editor"""
+    ace_file = ACE_EDITOR_DIR / filename
+    if ace_file.exists():
+        # Используем file:// протокол для локальных файлов
+        # QUrl.fromLocalFile автоматически обрабатывает пути для всех платформ
+        url = QUrl.fromLocalFile(str(ace_file.absolute())).toString()
+        return url
+    else:
+        # Fallback на CDN если файл не найден
+        return f"https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/src-min-noconflict/{filename}"
 
 
 class DialogType(Enum):
@@ -304,6 +320,7 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
 def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, Any]], Optional[str], bool]:
     """
     Показывает диалог добавления профиля с выбором типа (подписка или конфиг)
+    Для конфига используется Ace Editor для вставки содержимого
     
     Args:
         parent: Родительский виджет
@@ -313,8 +330,16 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
         Для подписки: (name, url, None, "subscription", ok)
         Для конфига: (name, None, config_dict, "config", ok)
     """
+    try:
+        from PyQt5.QtWebEngineWidgets import QWebEngineView
+        HAS_WEBENGINE = True
+    except ImportError:
+        HAS_WEBENGINE = False
+        from PyQt5.QtWidgets import QTextEdit
+    
     dialog = BaseDialog(parent, tr("profile.add_profile_dialog_title"))
-    dialog.setMinimumWidth(480)
+    dialog.setMinimumWidth(600)
+    dialog.setMinimumHeight(500)
     
     dialog.setStyleSheet(dialog.styleSheet() + StyleSheet.input())
     
@@ -346,21 +371,141 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
     url_input.setPlaceholderText("https://...")
     dialog.content_layout.addWidget(url_input)
     
-    # Кнопка загрузки файла (для конфига)
-    file_button_layout = QHBoxLayout()
-    file_button_layout.setSpacing(8)
+    # Редактор конфига (для config типа)
+    config_label = Label(tr("profile.config_content"), variant="default", size="medium")
+    config_label.setStyleSheet(config_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(config_label)
     
-    file_path_label = Label(tr("profile.config_file"), variant="secondary", size="small")
-    file_button_layout.addWidget(file_path_label, 1)
+    # Контейнер для редактора конфига
+    config_container = QWidget()
+    config_layout = QVBoxLayout(config_container)
+    config_layout.setContentsMargins(0, 0, 0, 0)
+    config_layout.setSpacing(0)
     
-    btn_load_file = Button(tr("profile.load_file"), variant="secondary")
-    file_button_layout.addWidget(btn_load_file)
+    editor_content = {"value": ""}
     
-    file_path_container = QWidget()
-    file_path_container.setLayout(file_button_layout)
-    dialog.content_layout.addWidget(file_path_container)
+    if HAS_WEBENGINE:
+        config_editor = QWebEngineView()
+        config_editor.setMinimumHeight(300)
+        
+        # Пустой JSON для начала
+        initial_json = "{\n  \n}"
+        editor_content["value"] = initial_json
+        config_json_escaped = json.dumps(initial_json)
+        
+        # Получаем URL для локальных файлов Ace Editor
+        ace_js_url = get_ace_editor_url("ace.js")
+        mode_json5_url = get_ace_editor_url("mode-json5.js")
+        theme_monokai_url = get_ace_editor_url("theme-monokai.js")
+        worker_json_url = get_ace_editor_url("worker-json.js")
+        ext_language_tools_url = get_ace_editor_url("ext-language_tools.js")
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Ace Editor</title>
+            <script src="{ace_js_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{mode_json5_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{theme_monokai_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{ext_language_tools_url}" type="text/javascript" charset="utf-8"></script>
+            <style>
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    background-color: {theme.get_color('background_primary')};
+                    color: {theme.get_color('text_primary')};
+                }}
+                #editor {{
+                    width: 100%;
+                    height: 100%;
+                }}
+            </style>
+        </head>
+        <body>
+            <div id="editor"></div>
+            <script>
+                var editor = ace.edit("editor");
+                editor.setTheme("ace/theme/monokai");
+                editor.session.setMode("ace/mode/json5");
+                editor.setValue({config_json_escaped});
+                editor.setOptions({{
+                    fontSize: 14,
+                    tabSize: 2,
+                    useSoftTabs: true,
+                    wrap: true,
+                    enableBasicAutocompletion: true,
+                    enableSnippets: true,
+                    enableLiveAutocompletion: true
+                }});
+                
+                // Настраиваем воркер для валидации JSON
+                editor.session.setUseWorker(true);
+                editor.session.setWorkerUrl("{worker_json_url}");
+                
+                editor.on("change", function() {{
+                    window.editorValue = editor.getValue();
+                }});
+                
+                window.editorValue = editor.getValue();
+                
+                window.getEditorValue = function() {{
+                    return window.editorValue || editor.getValue();
+                }};
+            </script>
+        </body>
+        </html>
+        """
+        
+        config_editor.setHtml(html_content)
+        config_layout.addWidget(config_editor)
+    else:
+        config_editor = QTextEdit()
+        config_editor.setMinimumHeight(300)
+        config_editor.setPlainText("{\n  \n}")
+        config_editor.setFont(QFont("Consolas", 10))
+        config_layout.addWidget(config_editor)
     
-    loaded_config = {"data": None}
+    config_container.setLayout(config_layout)
+    dialog.content_layout.addWidget(config_container, 1)
+    
+    def get_config_content():
+        if HAS_WEBENGINE:
+            result_container = {"value": None, "ready": False}
+            
+            def callback(value):
+                result_container["value"] = value
+                result_container["ready"] = True
+            
+            config_editor.page().runJavaScript("window.getEditorValue()", callback)
+            
+            from PyQt5.QtCore import QTimer, QEventLoop
+            loop = QEventLoop()
+            timer = QTimer()
+            timer.timeout.connect(loop.quit)
+            timer.setSingleShot(True)
+            timer.start(1000)
+            
+            check_timer = QTimer()
+            def check_ready():
+                if result_container["ready"]:
+                    loop.quit()
+            check_timer.timeout.connect(check_ready)
+            check_timer.start(50)
+            
+            loop.exec_()
+            timer.stop()
+            check_timer.stop()
+            
+            if result_container["value"] is not None:
+                editor_content["value"] = result_container["value"]
+                return result_container["value"]
+            return editor_content["value"] if editor_content["value"] else ""
+        else:
+            text = config_editor.toPlainText()
+            editor_content["value"] = text
+            return text
     
     def on_type_changed(index: int):
         """Обработка изменения типа профиля"""
@@ -368,36 +513,15 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
         if profile_type == "subscription":
             url_label.show()
             url_input.show()
-            file_path_container.hide()
+            config_label.hide()
+            config_container.hide()
         else:  # config
             url_label.hide()
             url_input.hide()
-            file_path_container.show()
-    
-    def on_load_file():
-        """Загрузка конфига из файла"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            dialog,
-            tr("profile.select_config_file"),
-            "",
-            "JSON Files (*.json);;All Files (*)"
-        )
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    loaded_config["data"] = config_data
-                    import os
-                    file_path_label.setText(tr("profile.config_file_loaded", file=os.path.basename(file_path)))
-                    file_path_label.setStyleSheet(file_path_label.styleSheet() + f"color: {theme.get_color('success')};")
-            except Exception as e:
-                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.config_load_error", error=str(e)))
-                loaded_config["data"] = None
-                file_path_label.setText(tr("profile.config_file"))
-                file_path_label.setStyleSheet(file_path_label.styleSheet().replace(f"color: {theme.get_color('success')};", ""))
+            config_label.show()
+            config_container.show()
     
     type_combo.currentIndexChanged.connect(on_type_changed)
-    btn_load_file.clicked.connect(on_load_file)
     
     # Инициализация: показываем поля для подписки
     on_type_changed(0)
@@ -431,10 +555,21 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
                 return
             dialog.accept()
         else:  # config
-            if not loaded_config["data"]:
-                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.load_config_first"))
-                return
-            dialog.accept()
+            try:
+                config_text = get_config_content()
+                if not config_text or config_text.strip() == "" or config_text.strip() == "{}":
+                    show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.load_config_first"))
+                    return
+                # Парсим JSON5/JSON
+                try:
+                    import json5
+                    config_data = json5.loads(config_text)
+                except ImportError:
+                    config_data = json.loads(config_text)
+                dialog._config_data = config_data
+                dialog.accept()
+            except Exception as e:
+                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.invalid_json") + f": {str(e)}")
     
     btn_add.clicked.connect(on_add_clicked)
     btn_layout.addWidget(btn_add)
@@ -442,23 +577,6 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
     dialog.content_layout.addLayout(btn_layout)
     
     name_input.setFocus()
-    
-    def on_enter():
-        if profile_type == "subscription":
-            if name_input.text().strip() and url_input.text().strip():
-                on_add_clicked()
-        else:
-            if name_input.text().strip() and loaded_config["data"]:
-                on_add_clicked()
-    
-    def on_name_enter():
-        if type_combo.currentData() == "subscription":
-            url_input.setFocus()
-        else:
-            on_enter()
-    
-    name_input.returnPressed.connect(on_name_enter)
-    url_input.returnPressed.connect(on_enter)
     
     result = dialog.exec_()
     if result == BaseDialog.Accepted:
@@ -470,7 +588,18 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
             if name and url:
                 return name, url, None, "subscription", True
         else:  # config
-            config = loaded_config["data"]
+            config = getattr(dialog, '_config_data', None)
+            if not config:
+                try:
+                    config_text = get_config_content()
+                    if config_text:
+                        try:
+                            import json5
+                            config = json5.loads(config_text)
+                        except ImportError:
+                            config = json.loads(config_text)
+                except:
+                    pass
             if name and config:
                 return name, None, config, "config", True
     
@@ -586,3 +715,330 @@ def show_kill_all_success_dialog(parent: QWidget, title: str, message: str) -> b
     """Диалог для уведомления об успешной остановке процессов"""
     return show_info_dialog(parent, title, message, success=True)
 
+
+def show_edit_profile_dialog(parent: QWidget, profile: Dict[str, Any]) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, Any]], Optional[str], bool]:
+    """
+    Показывает диалог редактирования профиля
+    
+    Args:
+        parent: Родительский виджет
+        profile: Словарь с данными профиля (name, type, url или config)
+    
+    Returns:
+        Кортеж (name, url, config, profile_type, был ли нажат OK)
+        Для подписки: (name, url, None, "subscription", ok)
+        Для конфига: (name, None, config_dict, "config", ok)
+    """
+    try:
+        from PyQt5.QtWebEngineWidgets import QWebEngineView
+        from PyQt5.QtCore import QUrl
+        HAS_WEBENGINE = True
+    except ImportError:
+        HAS_WEBENGINE = False
+        # Fallback на QTextEdit если WebEngine недоступен
+        from PyQt5.QtWidgets import QTextEdit
+    
+    from managers.subscriptions import SubscriptionManager
+    
+    dialog = BaseDialog(parent, tr("profile.edit_profile_dialog_title"))
+    dialog.setMinimumWidth(600)
+    dialog.setMinimumHeight(500)
+    
+    dialog.setStyleSheet(dialog.styleSheet() + StyleSheet.input())
+    
+    # Тип профиля
+    type_label = Label(tr("profile.type"), variant="default", size="medium")
+    type_label.setStyleSheet(type_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(type_label)
+    
+    type_combo = ComboBox()
+    type_combo.addItem(tr("profile.type_subscription"), "subscription")
+    type_combo.addItem(tr("profile.type_config"), "config")
+    
+    # Устанавливаем текущий тип
+    current_type = profile.get("type", SubscriptionManager.PROFILE_TYPE_SUBSCRIPTION)
+    if current_type == SubscriptionManager.PROFILE_TYPE_SUBSCRIPTION:
+        type_combo.setCurrentIndex(0)
+    else:
+        type_combo.setCurrentIndex(1)
+    
+    dialog.content_layout.addWidget(type_combo)
+    
+    # Название
+    name_label = Label(tr("profile.name"), variant="default", size="medium")
+    name_label.setStyleSheet(name_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(name_label)
+    
+    name_input = LineEdit()
+    name_input.setText(profile.get("name", ""))
+    dialog.content_layout.addWidget(name_input)
+    
+    # URL (для подписки)
+    url_label = Label(tr("profile.url"), variant="default", size="medium")
+    url_label.setStyleSheet(url_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(url_label)
+    
+    url_input = LineEdit()
+    url_input.setText(profile.get("url", ""))
+    url_input.setPlaceholderText("https://...")
+    dialog.content_layout.addWidget(url_input)
+    
+    # Редактор конфига (для config типа)
+    config_label = Label(tr("profile.config_content"), variant="default", size="medium")
+    config_label.setStyleSheet(config_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(config_label)
+    
+    # Контейнер для редактора конфига
+    config_container = QWidget()
+    config_layout = QVBoxLayout(config_container)
+    config_layout.setContentsMargins(0, 0, 0, 0)
+    config_layout.setSpacing(0)
+    
+    # Переменная для хранения содержимого редактора
+    editor_content = {"value": ""}
+    
+    if HAS_WEBENGINE:
+        # Используем Ace Editor через QWebEngineView
+        config_editor = QWebEngineView()
+        config_editor.setMinimumHeight(300)
+        
+        # Получаем текущий конфиг
+        current_config = profile.get("config", {})
+        config_json = json.dumps(current_config, ensure_ascii=False, indent=2)
+        editor_content["value"] = config_json
+        
+        # Экранируем JSON для вставки в JavaScript
+        config_json_escaped = json.dumps(config_json)
+        
+        # Получаем URL для локальных файлов Ace Editor
+        ace_js_url = get_ace_editor_url("ace.js")
+        mode_json5_url = get_ace_editor_url("mode-json5.js")
+        theme_monokai_url = get_ace_editor_url("theme-monokai.js")
+        worker_json_url = get_ace_editor_url("worker-json.js")
+        ext_language_tools_url = get_ace_editor_url("ext-language_tools.js")
+        
+        # Создаем HTML с Ace Editor
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Ace Editor</title>
+            <script src="{ace_js_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{mode_json5_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{theme_monokai_url}" type="text/javascript" charset="utf-8"></script>
+            <script src="{ext_language_tools_url}" type="text/javascript" charset="utf-8"></script>
+            <style>
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    background-color: {theme.get_color('background_primary')};
+                    color: {theme.get_color('text_primary')};
+                }}
+                #editor {{
+                    width: 100%;
+                    height: 100%;
+                }}
+            </style>
+        </head>
+        <body>
+            <div id="editor"></div>
+            <script>
+                var editor = ace.edit("editor");
+                editor.setTheme("ace/theme/monokai");
+                editor.session.setMode("ace/mode/json5");
+                editor.setValue({config_json_escaped});
+                editor.setOptions({{
+                    fontSize: 14,
+                    tabSize: 2,
+                    useSoftTabs: true,
+                    wrap: true,
+                    enableBasicAutocompletion: true,
+                    enableSnippets: true,
+                    enableLiveAutocompletion: true
+                }});
+                
+                // Настраиваем воркер для валидации JSON
+                editor.session.setUseWorker(true);
+                editor.session.setWorkerUrl("{worker_json_url}");
+                
+                // Сохраняем значение при каждом изменении
+                editor.on("change", function() {{
+                    window.editorValue = editor.getValue();
+                }});
+                
+                // Инициализируем значение
+                window.editorValue = editor.getValue();
+                
+                // Функция для получения содержимого
+                window.getEditorValue = function() {{
+                    return window.editorValue || editor.getValue();
+                }};
+            </script>
+        </body>
+        </html>
+        """
+        
+        config_editor.setHtml(html_content)
+        config_layout.addWidget(config_editor)
+    else:
+        # Fallback на QTextEdit
+        from PyQt5.QtWidgets import QTextEdit
+        config_editor = QTextEdit()
+        config_editor.setMinimumHeight(300)
+        current_config = profile.get("config", {})
+        config_json = json.dumps(current_config, ensure_ascii=False, indent=2)
+        config_editor.setPlainText(config_json)
+        config_editor.setFont(QFont("Consolas", 10))
+        config_layout.addWidget(config_editor)
+    
+    config_container.setLayout(config_layout)
+    dialog.content_layout.addWidget(config_container, 1)
+    
+    # Функция для получения содержимого редактора
+    def get_config_content():
+        if HAS_WEBENGINE:
+            # Используем JavaScript для получения содержимого
+            # Сохраняем результат в переменную через JavaScript
+            result_container = {"value": None, "ready": False}
+            
+            def callback(value):
+                result_container["value"] = value
+                result_container["ready"] = True
+            
+            # Получаем значение из редактора
+            config_editor.page().runJavaScript("window.getEditorValue()", callback)
+            
+            # Ждем результат с таймаутом (максимум 1 секунда)
+            from PyQt5.QtCore import QTimer, QEventLoop
+            loop = QEventLoop()
+            timer = QTimer()
+            timer.timeout.connect(loop.quit)
+            timer.setSingleShot(True)
+            timer.start(1000)  # Даем время на выполнение JS
+            
+            # Проверяем каждые 50мс, готов ли результат
+            check_timer = QTimer()
+            def check_ready():
+                if result_container["ready"]:
+                    loop.quit()
+            check_timer.timeout.connect(check_ready)
+            check_timer.start(50)
+            
+            loop.exec_()
+            timer.stop()
+            check_timer.stop()
+            
+            if result_container["value"] is not None:
+                editor_content["value"] = result_container["value"]
+                return result_container["value"]
+            # Fallback на сохраненное значение
+            return editor_content["value"] if editor_content["value"] else ""
+        else:
+            text = config_editor.toPlainText()
+            editor_content["value"] = text
+            return text
+    
+    def on_type_changed(index: int):
+        """Обработка изменения типа профиля"""
+        profile_type = type_combo.itemData(index)
+        if profile_type == "subscription":
+            url_label.show()
+            url_input.show()
+            config_label.hide()
+            config_container.hide()
+        else:  # config
+            url_label.hide()
+            url_input.hide()
+            config_label.show()
+            config_container.show()
+    
+    type_combo.currentIndexChanged.connect(on_type_changed)
+    
+    # Инициализация: показываем поля в зависимости от типа
+    if current_type == SubscriptionManager.PROFILE_TYPE_SUBSCRIPTION:
+        on_type_changed(0)
+    else:
+        on_type_changed(1)
+    
+    btn_layout = QHBoxLayout()
+    btn_layout.setSpacing(12)
+    
+    btn_cancel = Button(tr("download.cancel"), variant="default")
+    btn_cancel.setStyleSheet(StyleSheet.dialog_button(variant="cancel"))
+    btn_cancel.clicked.connect(dialog.reject)
+    btn_layout.addWidget(btn_cancel)
+    
+    btn_layout.addStretch()
+    
+    btn_save = Button(tr("messages.ok"), variant="default")
+    btn_save.setDefault(True)
+    btn_save.setStyleSheet(StyleSheet.dialog_button(variant="confirm"))
+    
+    def on_save_clicked():
+        name = name_input.text().strip()
+        profile_type = type_combo.currentData()
+        
+        if not name:
+            show_info_dialog(dialog, tr("profile.edit_profile_dialog_title"), tr("profile.fill_all_fields"))
+            return
+        
+        if profile_type == "subscription":
+            url = url_input.text().strip()
+            if not url:
+                show_info_dialog(dialog, tr("profile.edit_profile_dialog_title"), tr("profile.fill_all_fields"))
+                return
+            dialog.accept()
+        else:  # config
+            try:
+                config_text = get_config_content()
+                if not config_text:
+                    show_info_dialog(dialog, tr("profile.edit_profile_dialog_title"), tr("profile.load_config_first"))
+                    return
+                # Парсим JSON5/JSON
+                try:
+                    import json5
+                    config_data = json5.loads(config_text)
+                except ImportError:
+                    # Fallback на обычный JSON если json5 недоступен
+                    config_data = json.loads(config_text)
+                # Сохраняем в переменную для возврата
+                dialog._config_data = config_data
+                dialog.accept()
+            except Exception as e:
+                show_info_dialog(dialog, tr("profile.edit_profile_dialog_title"), tr("profile.invalid_json") + f": {str(e)}")
+                return
+    
+    btn_save.clicked.connect(on_save_clicked)
+    btn_layout.addWidget(btn_save)
+    
+    dialog.content_layout.addLayout(btn_layout)
+    
+    result = dialog.exec_()
+    if result == BaseDialog.Accepted:
+        name = name_input.text().strip()
+        profile_type = type_combo.currentData()
+        
+        if profile_type == "subscription":
+            url = url_input.text().strip()
+            if name and url:
+                return name, url, None, "subscription", True
+        else:  # config
+            config = getattr(dialog, '_config_data', None)
+            if not config:
+                # Пробуем получить из редактора еще раз
+                try:
+                    config_text = get_config_content()
+                    if config_text:
+                        try:
+                            import json5
+                            config = json5.loads(config_text)
+                        except ImportError:
+                            # Fallback на обычный JSON если json5 недоступен
+                            config = json.loads(config_text)
+                except:
+                    pass
+            if name and config:
+                return name, None, config, "config", True
+    
+    return None, None, None, None, False

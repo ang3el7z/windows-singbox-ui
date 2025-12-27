@@ -50,7 +50,7 @@ class ProfilePage(BasePage):
         btn_row.setSpacing(8)
         self.btn_add_sub = Button(tr("profile.add"), variant="secondary")
         self.btn_del_sub = Button(tr("profile.delete"), variant="secondary")
-        self.btn_rename_sub = Button(tr("profile.rename"), variant="secondary")
+        self.btn_rename_sub = Button(tr("profile.edit"), variant="secondary")
         
         # Стиль кнопок без подложек, просто с фоном и границей
         button_style = f"""
@@ -86,7 +86,7 @@ class ProfilePage(BasePage):
         
         self.btn_add_sub.clicked.connect(self.main_window.on_add_sub)
         self.btn_del_sub.clicked.connect(self.main_window.on_del_sub)
-        self.btn_rename_sub.clicked.connect(self.main_window.on_rename_sub)
+        self.btn_rename_sub.clicked.connect(self.main_window.on_edit_sub)
         
         layout.addLayout(btn_row)
         self._layout.addWidget(card)

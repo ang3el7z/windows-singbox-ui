@@ -37,7 +37,8 @@
     "title": "配置文件",
     "add": "添加",
     "delete": "删除",
-    "rename": "重命名",
+    "rename": "编辑",
+    "edit": "编辑",
     "test": "测试",
     "add_subscription": "新订阅",
     "add_subscription_dialog_title": "添加订阅",
@@ -67,7 +68,11 @@
     "load_file": "选择文件",
     "select_config_file": "选择配置文件",
     "config_load_error": "加载配置错误：{error}",
-    "load_config_first": "请先加载配置文件"
+    "load_config_first": "请先加载配置文件",
+    "edit_profile_dialog_title": "编辑配置文件",
+    "config_content": "配置内容（JSON5）：",
+    "invalid_json": "错误：无效的 JSON",
+    "profile_updated": "配置文件\"{name}\"已更新"
   },
   "settings": {
     "title": "设置",

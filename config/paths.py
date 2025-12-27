@@ -36,6 +36,10 @@ LOG_DIR = DATA_DIR / "logs"
 LOCALES_DIR = DATA_DIR / "locales"
 THEMES_DIR = DATA_DIR / "themes"
 
+# Ресурсы (для разработки)
+RESOURCES_DIR = ROOT / "resources"
+ACE_EDITOR_DIR = RESOURCES_DIR / "web" / "ace"
+
 # Файлы
 PROFILE_FILE = DATA_DIR / ".profile"
 SETTINGS_FILE = DATA_DIR / ".settings"

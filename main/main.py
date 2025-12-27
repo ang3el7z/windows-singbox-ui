@@ -121,6 +121,7 @@ from ui.design.component import (
     show_input_dialog,
     show_add_subscription_dialog,
     show_add_profile_dialog,
+    show_edit_profile_dialog,
     show_language_selection_dialog,
     show_restart_admin_dialog,
     show_kill_all_confirm_dialog,
@@ -639,8 +640,8 @@ class MainWindow(QMainWindow):
             self.update_big_button_state()
             self.log(tr("profile.removed", name=sub['name']))
 
-    def on_rename_sub(self):
-        """Переименование подписки"""
+    def on_edit_sub(self):
+        """Редактирование профиля"""
         if not hasattr(self, 'page_profile') or not hasattr(self.page_profile, 'sub_list'):
             return
         row = self.page_profile.sub_list.currentRow()
@@ -648,28 +649,40 @@ class MainWindow(QMainWindow):
             return
         if row >= self.page_profile.sub_list.count():
             return
-        sub = self.subs.get(row)
-        if not sub:
+        profile = self.subs.get(row)
+        if not profile:
             return
         
-        # Диалог для ввода нового имени
-        new_name, ok = show_input_dialog(
-            self,
-            tr("profile.rename_subscription"),
-            tr("profile.rename_confirm", name=sub['name']),
-            text=sub['name']
-        )
+        # Сохраняем текущий выбранный профиль
+        saved_index = self.current_sub_index
         
-        if ok and new_name.strip():
-            old_name = sub['name']
-            sub['name'] = new_name.strip()
-            self.subs.save()
+        # Диалог редактирования профиля
+        name, url, config, profile_type, ok = show_edit_profile_dialog(self, profile)
+        
+        if ok and name:
+            old_name = profile.get("name", "")
+            # Обновляем профиль
+            self.subs.update_profile(row, name=name, profile_type=profile_type, url=url, config=config)
+            
+            # Если это был запущенный профиль и мы изменили конфиг, нужно перезапустить
+            was_running = self.running_sub_index == row
+            if was_running and profile_type == SubscriptionManager.PROFILE_TYPE_CONFIG and config:
+                # Применяем новый конфиг
+                if self.subs.apply_config(row):
+                    # Перезапускаем sing-box если он запущен
+                    if self.proc and self.proc.poll() is None:
+                        self.stop_singbox()
+                        # Не запускаем автоматически, пользователь сам запустит
+                        self.log(tr("profile.profile_updated", name=name) + " " + tr("messages.stopping"))
+            
             self.refresh_subscriptions_ui()
             # Восстанавливаем выбор
             if self.page_profile.sub_list.count() > 0 and 0 <= row < self.page_profile.sub_list.count():
                 self.page_profile.sub_list.setCurrentRow(row)
                 self.current_sub_index = row
-            self.log(tr("profile.renamed", old_name=old_name, new_name=new_name.strip()))
+            else:
+                self.current_sub_index = saved_index
+            self.log(tr("profile.profile_updated", name=name))
     
     def on_test_sub(self):
         """Тест подписки"""

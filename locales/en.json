@@ -37,7 +37,8 @@
     "title": "Profiles",
     "add": "Add",
     "delete": "Delete",
-    "rename": "Rename",
+    "rename": "Edit",
+    "edit": "Edit",
     "test": "Test",
     "add_subscription": "New Subscription",
     "add_subscription_dialog_title": "Add Subscription",
@@ -67,7 +68,11 @@
     "load_file": "Select File",
     "select_config_file": "Select config file",
     "config_load_error": "Error loading config: {error}",
-    "load_config_first": "Please load a config file first"
+    "load_config_first": "Please load a config file first",
+    "edit_profile_dialog_title": "Edit Profile",
+    "config_content": "Config content (JSON5):",
+    "invalid_json": "Error: invalid JSON",
+    "profile_updated": "Profile '{name}' updated"
   },
   "settings": {
     "title": "Settings",

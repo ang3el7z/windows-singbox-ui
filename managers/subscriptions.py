@@ -118,6 +118,36 @@ class SubscriptionManager:
             profiles.pop(index)
             self.save()
     
+    def update_profile(self, index: int, name: str = None, profile_type: str = None, url: str = None, config: Dict[str, Any] = None):
+        """Обновить профиль по индексу"""
+        profile = self.get(index)
+        if not profile:
+            return False
+        
+        if name is not None:
+            profile["name"] = name
+        
+        if profile_type is not None:
+            profile["type"] = profile_type
+            # При смене типа очищаем неактуальные поля
+            if profile_type == self.PROFILE_TYPE_SUBSCRIPTION:
+                profile.pop("config", None)
+                if url is not None:
+                    profile["url"] = url
+            elif profile_type == self.PROFILE_TYPE_CONFIG:
+                profile.pop("url", None)
+                if config is not None:
+                    profile["config"] = config
+        else:
+            # Если тип не меняется, обновляем соответствующие поля
+            if profile.get("type") == self.PROFILE_TYPE_SUBSCRIPTION and url is not None:
+                profile["url"] = url
+            elif profile.get("type") == self.PROFILE_TYPE_CONFIG and config is not None:
+                profile["config"] = config
+        
+        self.save()
+        return True
+    
     def download_config(self, index: int) -> bool:
         """Скачать конфиг из подписки (только для типа subscription)"""
         profile = self.get(index)

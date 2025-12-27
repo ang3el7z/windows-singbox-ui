@@ -37,7 +37,8 @@
     "title": "Профили",
     "add": "Добавить",
     "delete": "Удалить",
-    "rename": "Переименовать",
+    "rename": "Редактировать",
+    "edit": "Редактировать",
     "test": "Тест",
     "add_subscription": "Новая подписка",
     "add_subscription_dialog_title": "Добавление подписки",
@@ -67,7 +68,11 @@
     "load_file": "Выбрать файл",
     "select_config_file": "Выберите файл конфига",
     "config_load_error": "Ошибка загрузки конфига: {error}",
-    "load_config_first": "Пожалуйста, сначала загрузите файл конфига"
+    "load_config_first": "Пожалуйста, сначала загрузите файл конфига",
+    "edit_profile_dialog_title": "Редактирование профиля",
+    "config_content": "Содержимое конфига (JSON5):",
+    "invalid_json": "Ошибка: невалидный JSON",
+    "profile_updated": "Профиль '{name}' обновлен"
   },
   "settings": {
     "title": "Настройки",
