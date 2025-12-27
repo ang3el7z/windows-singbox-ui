@@ -1,15 +1,119 @@
 """Управление процессом sing-box"""
 import subprocess
 import sys
+import io
 from pathlib import Path
 from typing import Optional
 from PyQt5.QtCore import QThread, pyqtSignal
-from config.paths import CORE_EXE, CONFIG_FILE, CORE_DIR
+from config.paths import CORE_EXE, CONFIG_FILE, CORE_DIR, SINGBOX_CORE_LOG_FILE
+
+
+class SingBoxLogReaderThread(QThread):
+    """Поток для чтения логов из stdout/stderr процесса sing-box"""
+    log_line = pyqtSignal(str)  # Сигнал с новой строкой лога
+    
+    def __init__(self, process: subprocess.Popen, log_file: Path):
+        """
+        Инициализация потока чтения логов
+        
+        Args:
+            process: Процесс sing-box
+            log_file: Путь к файлу для сохранения логов
+        """
+        super().__init__()
+        self.process = process
+        self.log_file = log_file
+        self.running = True
+        self.write_enabled = False  # По умолчанию не пишем логи (экономия ресурсов)
+        
+        # Убеждаемся что папка существует
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    def run(self) -> None:
+        """Чтение логов из процесса"""
+        try:
+            if not self.process.stdout:
+                return
+            
+            # Читаем логи построчно
+            while self.running and self.process.poll() is None:
+                try:
+                    # Читаем байты
+                    line_bytes = self.process.stdout.readline()
+                    if not line_bytes:
+                        # Если строка пустая, процесс может завершиться или нет данных
+                        self.msleep(100)
+                        continue
+                    
+                    # Декодируем в строку
+                    try:
+                        line = line_bytes.decode('utf-8', errors='replace').rstrip()
+                    except Exception:
+                        # Если не удалось декодировать, пробуем другие кодировки
+                        try:
+                            line = line_bytes.decode('cp1251', errors='replace').rstrip()
+                        except Exception:
+                            line = line_bytes.decode('latin1', errors='replace').rstrip()
+                    
+                    if line and self.write_enabled:
+                        self._write_log_line(line)
+                    
+                    # Небольшая задержка, чтобы не нагружать CPU слишком сильно
+                    self.msleep(10)
+                
+                except Exception as e:
+                    # Если произошла ошибка чтения, проверяем, не завершился ли процесс
+                    if self.process.poll() is not None:
+                        break
+                    # Небольшая задержка перед повторной попыткой
+                    self.msleep(100)
+        
+        except Exception as e:
+            # Импортируем log_to_file если доступен
+            try:
+                from utils.logger import log_to_file
+                log_to_file(f"Ошибка при чтении логов sing-box: {e}")
+            except ImportError:
+                pass
+    
+    def _write_log_line(self, line: str):
+        """Записать строку лога в файл и отправить сигнал"""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_line = f"[{timestamp}] {line}"
+        
+        # Записываем в файл
+        try:
+            with self.log_file.open("a", encoding="utf-8") as f:
+                f.write(formatted_line + "\n")
+        except Exception:
+            pass
+        
+        # Отправляем сигнал (не используется сейчас, но может пригодиться)
+        # self.log_line.emit(formatted_line)
+    
+    def pause(self):
+        """Приостановка записи логов (чтение продолжается, но не записывается в файл)"""
+        self.write_enabled = False
+    
+    def resume(self):
+        """Возобновление записи логов"""
+        self.write_enabled = True
+        # Очищаем файл при возобновлении, чтобы начать с чистого листа
+        try:
+            self.log_file.write_text("", encoding="utf-8")
+        except Exception:
+            pass
+    
+    def stop(self):
+        """Остановка чтения логов"""
+        self.running = False
+        self.write_enabled = False
 
 
 class StartSingBoxThread(QThread):
     """Поток для запуска SingBox без блокировки UI"""
-    finished = pyqtSignal(object)  # subprocess.Popen
+    finished = pyqtSignal(object, object)  # (subprocess.Popen, SingBoxLogReaderThread)
     error = pyqtSignal(str)
     
     def __init__(self, core_exe: Path, config_file: Path, core_dir: Path):
@@ -36,14 +140,20 @@ class StartSingBoxThread(QThread):
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 startupinfo.wShowWindow = subprocess.SW_HIDE
             
+            # Перенаправляем stdout и stderr в pipe для чтения логов
             proc = subprocess.Popen(
                 [str(self.core_exe), "run", "-c", str(self.config_file)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Объединяем stderr с stdout
                 cwd=str(self.core_dir),
                 startupinfo=startupinfo,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                bufsize=0,  # Небуферизованный режим для немедленного чтения
             )
+            
+            # Создаем поток для чтения логов
+            log_reader = SingBoxLogReaderThread(proc, SINGBOX_CORE_LOG_FILE)
+            log_reader.start()
             
             # Небольшая задержка, чтобы процесс успел запуститься
             import time
@@ -52,9 +162,11 @@ class StartSingBoxThread(QThread):
             # Проверяем, что процесс все еще запущен
             if proc.poll() is None:
                 # Процесс запущен успешно
-                self.finished.emit(proc)
+                self.finished.emit(proc, log_reader)
             else:
                 # Процесс завершился сразу после запуска
+                log_reader.stop()
+                log_reader.wait(1000)  # Ждем остановки потока чтения логов
                 returncode = proc.returncode if proc.returncode is not None else -1
                 self.error.emit(f"Процесс завершился сразу после запуска с кодом {returncode}")
         except Exception as e:

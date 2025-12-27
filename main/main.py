@@ -192,6 +192,7 @@ class MainWindow(QMainWindow):
         set_language(language)
 
         self.proc: subprocess.Popen | None = None
+        self.singbox_log_reader_thread = None  # Поток для чтения логов sing-box
         self.current_sub_index: int = -1  # -1 означает что профиль не выбран
         self.running_sub_index: int = -1  # Индекс запущенного профиля (-1 если не запущен)
         self.cached_latest_version = None  # Кэш последней версии
@@ -1210,9 +1211,10 @@ class MainWindow(QMainWindow):
         self.start_thread.error.connect(self.on_singbox_start_error)
         self.start_thread.start()
     
-    def on_singbox_started(self, proc):
+    def on_singbox_started(self, proc, log_reader_thread=None):
         """Обработка успешного запуска SingBox"""
         self.proc = proc
+        self.singbox_log_reader_thread = log_reader_thread
         # Проверяем, что процесс действительно запущен
         if proc is not None and proc.poll() is None:
             self.running_sub_index = self.current_sub_index  # Запоминаем запущенный профиль
@@ -1220,10 +1222,14 @@ class MainWindow(QMainWindow):
             self.update_profile_info()
         else:
             # Процесс завершился сразу после запуска
+            if log_reader_thread:
+                log_reader_thread.stop()
+                log_reader_thread.wait(1000)
             if proc:
                 code = proc.returncode if proc.returncode is not None else -1
                 self.log(tr("messages.stopped", code=code))
             self.proc = None
+            self.singbox_log_reader_thread = None
             self.running_sub_index = -1
         self.update_big_button_state()
     
@@ -1231,6 +1237,7 @@ class MainWindow(QMainWindow):
         """Обработка ошибки запуска SingBox"""
         self.log(tr("messages.start_error", error=error_msg))
         self.proc = None
+        self.singbox_log_reader_thread = None
         self.running_sub_index = -1
         self.update_big_button_state()
         self.update_profile_info()
@@ -1254,6 +1261,13 @@ class MainWindow(QMainWindow):
                 return
         
         self.log(tr("messages.stopping"))
+        
+        # Останавливаем поток чтения логов
+        if self.singbox_log_reader_thread:
+            self.singbox_log_reader_thread.stop()
+            self.singbox_log_reader_thread.wait(1000)
+            self.singbox_log_reader_thread = None
+        
         try:
             self.proc.terminate()
             self.proc.wait(timeout=5)
@@ -1296,6 +1310,11 @@ class MainWindow(QMainWindow):
         if self.proc and self.proc.poll() is not None:
             code = self.proc.returncode
             self.log(tr("messages.stopped", code=code))
+            # Останавливаем поток чтения логов
+            if self.singbox_log_reader_thread:
+                self.singbox_log_reader_thread.stop()
+                self.singbox_log_reader_thread.wait(1000)
+                self.singbox_log_reader_thread = None
             self.proc = None
             self.update_big_button_state()
 
@@ -2272,6 +2291,11 @@ class MainWindow(QMainWindow):
         """Остановка всех процессов SingBox"""
         # Останавливаем текущий процесс, если он запущен
         if self.proc:
+            # Останавливаем поток чтения логов
+            if self.singbox_log_reader_thread:
+                self.singbox_log_reader_thread.stop()
+                self.singbox_log_reader_thread.wait(1000)
+                self.singbox_log_reader_thread = None
             try:
                 self.proc.terminate()
                 self.proc.wait(timeout=2)

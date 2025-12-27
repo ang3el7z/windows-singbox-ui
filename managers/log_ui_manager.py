@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
-from config.paths import LOG_FILE, DEBUG_LOG_FILE
+from config.paths import LOG_FILE, DEBUG_LOG_FILE, SINGBOX_CORE_LOG_FILE
 from utils.logger import log_to_file
 
 if TYPE_CHECKING:
@@ -129,6 +129,29 @@ class LogUIManager:
             Строка с debug логами
         """
         return self._get_logs_from_file(DEBUG_LOG_FILE)
+    
+    def load_singbox_logs(self, singbox_logs_widget: Optional['QTextEdit'] = None) -> None:
+        """
+        Загрузка логов sing-box из singbox-core.log в виджет
+        
+        Args:
+            singbox_logs_widget: Виджет для отображения логов sing-box (если None, используется page_settings.singbox_logs)
+        """
+        if singbox_logs_widget is None:
+            if not hasattr(self.main_window, 'page_settings') or not hasattr(self.main_window.page_settings, 'singbox_logs'):
+                return
+            singbox_logs_widget = self.main_window.page_settings.singbox_logs
+        
+        self._load_logs_from_file(singbox_logs_widget, SINGBOX_CORE_LOG_FILE)
+    
+    def get_singbox_logs(self) -> str:
+        """
+        Получение логов sing-box из singbox-core.log в виде строки
+        
+        Returns:
+            Строка с логами sing-box
+        """
+        return self._get_logs_from_file(SINGBOX_CORE_LOG_FILE)
     
     def refresh_logs(self, current_page_index: int = None) -> None:
         """

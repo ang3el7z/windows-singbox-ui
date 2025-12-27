@@ -43,6 +43,7 @@ CORE_EXE = CORE_DIR / "sing-box.exe"
 CONFIG_FILE = DATA_DIR / "config.json"
 LOG_FILE = LOG_DIR / "singbox.log"
 DEBUG_LOG_FILE = LOG_DIR / "debug.log"
+SINGBOX_CORE_LOG_FILE = LOG_DIR / "singbox-core.log"
 
 
 def ensure_dirs():

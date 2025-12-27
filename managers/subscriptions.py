@@ -91,23 +91,27 @@ class SubscriptionManager:
             r = requests.get(url, timeout=20)
             r.raise_for_status()
             
-            # Проверяем что это валидный JSON
+            # Проверяем что это валидный JSON и форматируем его
             try:
                 content = r.content
                 # Пробуем декодировать как текст для проверки JSON
                 text_content = content.decode('utf-8')
-                import json
-                json.loads(text_content)  # Проверка валидности JSON
+                # Парсим JSON для проверки валидности
+                config_data = json.loads(text_content)
+                # Форматируем JSON с отступами для красивого отображения
+                formatted_content = json.dumps(config_data, ensure_ascii=False, indent=2)
+                # Сохраняем отформатированный конфиг
+                CONFIG_FILE.write_text(formatted_content, encoding='utf-8')
+                log_to_file(f"Конфиг сохранен в: {CONFIG_FILE}")
+                log_to_file(f"Размер файла: {CONFIG_FILE.stat().st_size} байт")
+                return True
             except (UnicodeDecodeError, json.JSONDecodeError) as e:
                 log_to_file(f"Ошибка валидации конфига: {e}")
-                # Все равно сохраняем, может быть это не JSON
-                pass
-            
-            # Сохраняем конфиг
-            CONFIG_FILE.write_bytes(content)
-            log_to_file(f"Конфиг сохранен в: {CONFIG_FILE}")
-            log_to_file(f"Размер файла: {CONFIG_FILE.stat().st_size} байт")
-            return True
+                # Если JSON невалидный, сохраняем как есть (может быть это не JSON)
+                CONFIG_FILE.write_bytes(content)
+                log_to_file(f"Конфиг сохранен в: {CONFIG_FILE} (без форматирования)")
+                log_to_file(f"Размер файла: {CONFIG_FILE.stat().st_size} байт")
+                return True
         except Exception as e:
             log_to_file(f"download_config error: {e}")
             return False

@@ -72,6 +72,7 @@
     "kill_all": "Убить все процессы",
     "logs": "Логи",
     "debug_logs": "Отладочные логи",
+    "singbox_logs": "Sing-box",
     "allow_multiple_processes": "Разрешить несколько процессов",
     "debug_mode": "Режим отладки",
     "debug_mode_activate_hint": "Нажмите ещё один раз, чтобы активировать режим разработчика",
