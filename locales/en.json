@@ -180,6 +180,7 @@
     "progress_updating_files": "Updating files...",
     "progress_updating_locales": "Updating localization files...",
     "progress_updating_themes": "Updating theme files...",
+    "progress_updating_ace": "Updating Ace Editor...",
     "progress_merging_settings": "Merging settings...",
     "progress_cleaning": "Cleaning up temporary files...",
     "progress_starting": "Starting application...",

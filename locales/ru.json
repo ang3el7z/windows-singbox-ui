@@ -180,6 +180,7 @@
     "progress_updating_files": "Обновление файлов...",
     "progress_updating_locales": "Обновление файлов локализации...",
     "progress_updating_themes": "Обновление файлов тем...",
+    "progress_updating_ace": "Обновление Ace Editor...",
     "progress_merging_settings": "Объединение настроек...",
     "progress_cleaning": "Очистка временных файлов...",
     "progress_starting": "Запуск приложения...",
