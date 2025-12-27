@@ -65,9 +65,6 @@ class LogsWindow(QDialog):
         
         # Загружаем логи при открытии
         self._update_logs()
-        
-        # Управляем потоком чтения логов sing-box
-        self._update_singbox_log_reader_state()
     
     def _build_ui(self):
         """Построение UI окна"""
@@ -144,10 +141,6 @@ class LogsWindow(QDialog):
         self.btn_logs.setChecked(mode == "logs")
         self.btn_debug_logs.setChecked(mode == "debug")
         self.btn_singbox_logs.setChecked(mode == "singbox")
-        
-        # Управляем потоком чтения логов sing-box в зависимости от режима
-        self._update_singbox_log_reader_state()
-        
         self._update_logs()
     
     def _update_logs(self):
@@ -231,28 +224,10 @@ class LogsWindow(QDialog):
             scrollbar = self.logs_text.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
     
-    def _update_singbox_log_reader_state(self):
-        """Управление состоянием потока чтения логов sing-box"""
-        # Получаем поток чтения логов из main_window
-        log_reader = getattr(self.main_window, 'singbox_log_reader_thread', None)
-        
-        if log_reader and hasattr(log_reader, 'resume') and hasattr(log_reader, 'pause'):
-            # Если выбрана секция Sing-box и окно видимо - включаем запись логов
-            if self.current_mode == "singbox" and self.isVisible():
-                log_reader.resume()
-            else:
-                # Иначе отключаем запись (но не останавливаем поток полностью)
-                log_reader.pause()
-    
     def closeEvent(self, event):
         """Обработка закрытия окна"""
         self.update_timer.stop()
         self.autoscroll_reset_timer.stop()
-        
-        # Останавливаем запись логов sing-box при закрытии окна
-        log_reader = getattr(self.main_window, 'singbox_log_reader_thread', None)
-        if log_reader and hasattr(log_reader, 'pause'):
-            log_reader.pause()
         
         # Отправляем сигнал finished для очистки ссылки в settings_page
         # Используем QDialog.Rejected, так как окно закрывается пользователем
@@ -265,9 +240,6 @@ class LogsWindow(QDialog):
         # Убеждаемся, что окно видимо и активировано при показе
         self.raise_()
         self.activateWindow()
-        
-        # Обновляем состояние потока чтения логов при показе окна
-        self._update_singbox_log_reader_state()
     
     def refresh_texts(self):
         """Обновление текстов в окне при смене языка"""

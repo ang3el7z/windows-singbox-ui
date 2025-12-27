@@ -23,10 +23,15 @@ class SingBoxLogReaderThread(QThread):
         self.process = process
         self.log_file = log_file
         self.running = True
-        self.write_enabled = False  # По умолчанию не пишем логи (экономия ресурсов)
         
         # Убеждаемся что папка существует
         log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Очищаем файл при старте
+        try:
+            log_file.write_text("", encoding="utf-8")
+        except Exception:
+            pass
     
     def run(self) -> None:
         """Чтение логов из процесса"""
@@ -54,7 +59,7 @@ class SingBoxLogReaderThread(QThread):
                         except Exception:
                             line = line_bytes.decode('latin1', errors='replace').rstrip()
                     
-                    if line and self.write_enabled:
+                    if line:
                         self._write_log_line(line)
                     
                     # Небольшая задержка, чтобы не нагружать CPU слишком сильно
@@ -88,23 +93,9 @@ class SingBoxLogReaderThread(QThread):
         except Exception:
             pass
     
-    def pause(self):
-        """Приостановка записи логов (чтение продолжается, но не записывается в файл)"""
-        self.write_enabled = False
-    
-    def resume(self):
-        """Возобновление записи логов"""
-        self.write_enabled = True
-        # Очищаем файл при возобновлении, чтобы начать с чистого листа
-        try:
-            self.log_file.write_text("", encoding="utf-8")
-        except Exception:
-            pass
-    
     def stop(self):
         """Остановка чтения логов"""
         self.running = False
-        self.write_enabled = False
 
 
 class StartSingBoxThread(QThread):
