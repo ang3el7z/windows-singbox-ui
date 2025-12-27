@@ -25,6 +25,16 @@
 - ✅ Fixed autostart complexity (simplified to registry-only approach)
 - ✅ Removed unnecessary administrator permission checks
 
+## ✨ New Features
+
+- **Enhanced kill all processes**: Added `isAll` parameter to `kill_all_processes()` function
+  - When `isAll=True` (used by "Kill all" button): performs full cleanup
+    - Stops all sing-box processes
+    - Disables application autostart
+    - Disables sing-box autostart
+    - Updates UI checkboxes
+  - When `isAll=False` (used by normal app quit/close): only stops processes, preserves autostart settings
+
 ## 🔧 Technical Improvements
 
 - 🛠️ **Settings cleanup**: Removed `run_as_admin` from SettingsManager
@@ -32,6 +42,7 @@
 - 🛠️ **Autostart refactoring**: Removed Task Scheduler logic, using simple registry approach
 - 🛠️ **Code reduction**: Removed ~200 lines of unnecessary administrator-related code
 - 🛠️ **Localization cleanup**: Removed unused admin-related translation strings
+- 🛠️ **Kill all function enhancement**: Added full cleanup mode with autostart removal
 
 ---
 
