@@ -71,3 +71,4 @@ class BaseCard(QWidget):
 
 
 
+

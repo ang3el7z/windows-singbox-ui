@@ -875,9 +875,6 @@ class MainWindow(QMainWindow):
             
             self.page_home.lbl_profile.mousePressEvent = handle_click
     
-    else:
-            event.ignore()
-    
     def handle_deep_link(self):
         """Обработка deep link для импорта подписки (поддержка sing-box:// и singbox-ui://)"""
         self.deep_link_handler.handle()
@@ -2107,8 +2104,14 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_minimize_to_tray.setChecked(not enabled)
                 self.page_settings.cb_minimize_to_tray.blockSignals(False)
     
-    def kill_all_processes(self):
-        """Остановка всех процессов SingBox"""
+    def kill_all_processes(self, isAll=False):
+        """
+        Остановка всех процессов SingBox
+        
+        Args:
+            isAll: Если True, выполняет полную очистку (убивает процессы, убирает автозапуск)
+                  Если False, только убивает процессы
+        """
         # Останавливаем текущий процесс, если он запущен
         if self.proc:
             # Останавливаем поток чтения логов
@@ -2154,6 +2157,31 @@ class MainWindow(QMainWindow):
             pass
         except Exception:
             pass
+        
+        # Полная очистка при isAll=True
+        if isAll:
+            # Убираем автозапуск приложения
+            try:
+                self.set_autostart(False)
+                self.settings.set("start_with_windows", False)
+                # Обновляем UI чекбокса
+                if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_autostart'):
+                    self.page_settings.cb_autostart.blockSignals(True)
+                    self.page_settings.cb_autostart.setChecked(False)
+                    self.page_settings.cb_autostart.blockSignals(False)
+            except Exception as e:
+                log_to_file(f"Ошибка при отключении автозапуска: {e}")
+            
+            # Убираем автозапуск sing-box
+            try:
+                self.settings.set("auto_start_singbox", False)
+                # Обновляем UI чекбокса
+                if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_auto_start_singbox'):
+                    self.page_settings.cb_auto_start_singbox.blockSignals(True)
+                    self.page_settings.cb_auto_start_singbox.setChecked(False)
+                    self.page_settings.cb_auto_start_singbox.blockSignals(False)
+            except Exception as e:
+                log_to_file(f"Ошибка при отключении автозапуска sing-box: {e}")
     
     def on_kill_all_clicked(self):
         """Обработка нажатия кнопки 'Убить' - полная остановка всех процессов"""
@@ -2163,7 +2191,7 @@ class MainWindow(QMainWindow):
             tr("messages.kill_all_confirm")
         ):
             self.log(tr("messages.killing_all"))
-            self.kill_all_processes()
+            self.kill_all_processes(isAll=True)
             self.update_big_button_state()
             show_kill_all_success_dialog(
                 self,
@@ -2256,7 +2284,7 @@ class MainWindow(QMainWindow):
     
     def quit_application(self):
         """Полное закрытие приложения с остановкой всех процессов"""
-        self.kill_all_processes()
+        self.kill_all_processes(isAll=False)
         self.tray_manager.cleanup()
         if self.local_server:
             self.local_server.close()
@@ -2341,7 +2369,7 @@ class MainWindow(QMainWindow):
                     return
         
         # Если трей режим выключен - закрываем приложение нормально
-        self.kill_all_processes()
+        self.kill_all_processes(isAll=False)
         if hasattr(self, 'local_server') and self.local_server:
             self.local_server.close()
             QLocalServer.removeServer("SingBox-UI-Instance")
