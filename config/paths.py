@@ -37,7 +37,7 @@ LOCALES_DIR = DATA_DIR / "locales"
 THEMES_DIR = DATA_DIR / "themes"
 
 # Файлы
-SUB_FILE = DATA_DIR / ".subscriptions"
+PROFILE_FILE = DATA_DIR / ".profile"
 SETTINGS_FILE = DATA_DIR / ".settings"
 CORE_EXE = CORE_DIR / "sing-box.exe"
 CONFIG_FILE = DATA_DIR / "config.json"

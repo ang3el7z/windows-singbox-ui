@@ -52,10 +52,22 @@
     "test_success": "Subscription works, config.json downloaded.",
     "test_error": "Config download error.",
     "added": "Added subscription: {name}",
+    "added_subscription": "Added subscription: {name}",
+    "added_config": "Added config: {name}",
     "removed": "Removed subscription: {name}",
     "renamed": "Profile '{old_name}' renamed to '{new_name}'",
     "fill_all_fields": "Please fill in all fields",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "add_profile_dialog_title": "Add Profile",
+    "type": "Profile type:",
+    "type_subscription": "Subscription",
+    "type_config": "Config File",
+    "config_file": "No file selected",
+    "config_file_loaded": "Loaded: {file}",
+    "load_file": "Select File",
+    "select_config_file": "Select config file",
+    "config_load_error": "Error loading config: {error}",
+    "load_config_first": "Please load a config file first"
   },
   "settings": {
     "title": "Settings",

@@ -1,7 +1,7 @@
 """Все вариации диалогов - используют BaseDialog из design"""
 from enum import Enum
-from typing import Optional, Tuple, Callable
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QProgressBar
+from typing import Optional, Tuple, Callable, Dict, Any
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QProgressBar, QFileDialog, QVBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.styles import StyleSheet, theme
@@ -10,7 +10,9 @@ from ui.design.component.button import Button
 from ui.design.component.label import Label
 from ui.design.component.line_edit import LineEdit
 from ui.design.component.progress_bar import ProgressBar
+from ui.design.component.combo_box import ComboBox
 from utils.i18n import tr, get_available_languages, get_language_name
+import json
 
 
 class DialogType(Enum):
@@ -299,23 +301,34 @@ def show_language_selection_dialog(parent: Optional[QWidget] = None) -> str:
     return "en"
 
 
-def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[str], bool]:
+def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, Any]], Optional[str], bool]:
     """
-    Показывает диалог добавления подписки с двумя полями ввода
+    Показывает диалог добавления профиля с выбором типа (подписка или конфиг)
     
     Args:
         parent: Родительский виджет
     
     Returns:
-        Кортеж (name, url, был ли нажат OK)
+        Кортеж (name, url, config, profile_type, был ли нажат OK)
+        Для подписки: (name, url, None, "subscription", ok)
+        Для конфига: (name, None, config_dict, "config", ok)
     """
-    # Заголовок в TitleBar должен описывать действие, а не объект
-    dialog = BaseDialog(parent, tr("profile.add_subscription_dialog_title"))
-    dialog.setMinimumWidth(420)
+    dialog = BaseDialog(parent, tr("profile.add_profile_dialog_title"))
+    dialog.setMinimumWidth(480)
     
     dialog.setStyleSheet(dialog.styleSheet() + StyleSheet.input())
     
-    # Убираем дублирование заголовка - он уже в TitleBar
+    # Тип профиля
+    type_label = Label(tr("profile.type"), variant="default", size="medium")
+    type_label.setStyleSheet(type_label.styleSheet() + "margin-top: 8px;")
+    dialog.content_layout.addWidget(type_label)
+    
+    type_combo = ComboBox()
+    type_combo.addItem(tr("profile.type_subscription"), "subscription")
+    type_combo.addItem(tr("profile.type_config"), "config")
+    dialog.content_layout.addWidget(type_combo)
+    
+    # Название
     name_label = Label(tr("profile.name"), variant="default", size="medium")
     name_label.setStyleSheet(name_label.styleSheet() + "margin-top: 8px;")
     dialog.content_layout.addWidget(name_label)
@@ -324,6 +337,7 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
     name_input.setPlaceholderText(tr("profile.name"))
     dialog.content_layout.addWidget(name_input)
     
+    # URL (для подписки)
     url_label = Label(tr("profile.url"), variant="default", size="medium")
     url_label.setStyleSheet(url_label.styleSheet() + "margin-top: 8px;")
     dialog.content_layout.addWidget(url_label)
@@ -331,6 +345,62 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
     url_input = LineEdit()
     url_input.setPlaceholderText("https://...")
     dialog.content_layout.addWidget(url_input)
+    
+    # Кнопка загрузки файла (для конфига)
+    file_button_layout = QHBoxLayout()
+    file_button_layout.setSpacing(8)
+    
+    file_path_label = Label(tr("profile.config_file"), variant="secondary", size="small")
+    file_button_layout.addWidget(file_path_label, 1)
+    
+    btn_load_file = Button(tr("profile.load_file"), variant="secondary")
+    file_button_layout.addWidget(btn_load_file)
+    
+    file_path_container = QWidget()
+    file_path_container.setLayout(file_button_layout)
+    dialog.content_layout.addWidget(file_path_container)
+    
+    loaded_config = {"data": None}
+    
+    def on_type_changed(index: int):
+        """Обработка изменения типа профиля"""
+        profile_type = type_combo.itemData(index)
+        if profile_type == "subscription":
+            url_label.show()
+            url_input.show()
+            file_path_container.hide()
+        else:  # config
+            url_label.hide()
+            url_input.hide()
+            file_path_container.show()
+    
+    def on_load_file():
+        """Загрузка конфига из файла"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            dialog,
+            tr("profile.select_config_file"),
+            "",
+            "JSON Files (*.json);;All Files (*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    loaded_config["data"] = config_data
+                    import os
+                    file_path_label.setText(tr("profile.config_file_loaded", file=os.path.basename(file_path)))
+                    file_path_label.setStyleSheet(file_path_label.styleSheet() + f"color: {theme.get_color('success')};")
+            except Exception as e:
+                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.config_load_error", error=str(e)))
+                loaded_config["data"] = None
+                file_path_label.setText(tr("profile.config_file"))
+                file_path_label.setStyleSheet(file_path_label.styleSheet().replace(f"color: {theme.get_color('success')};", ""))
+    
+    type_combo.currentIndexChanged.connect(on_type_changed)
+    btn_load_file.clicked.connect(on_load_file)
+    
+    # Инициализация: показываем поля для подписки
+    on_type_changed(0)
     
     btn_layout = QHBoxLayout()
     btn_layout.setSpacing(12)
@@ -348,11 +418,23 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
     
     def on_add_clicked():
         name = name_input.text().strip()
-        url = url_input.text().strip()
-        if name and url:
+        profile_type = type_combo.currentData()
+        
+        if not name:
+            show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.fill_all_fields"))
+            return
+        
+        if profile_type == "subscription":
+            url = url_input.text().strip()
+            if not url:
+                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.fill_all_fields"))
+                return
             dialog.accept()
-        else:
-            show_info_dialog(dialog, tr("profile.add_subscription"), tr("profile.fill_all_fields"))
+        else:  # config
+            if not loaded_config["data"]:
+                show_info_dialog(dialog, tr("profile.add_profile_dialog_title"), tr("profile.load_config_first"))
+                return
+            dialog.accept()
     
     btn_add.clicked.connect(on_add_clicked)
     btn_layout.addWidget(btn_add)
@@ -362,18 +444,52 @@ def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Option
     name_input.setFocus()
     
     def on_enter():
-        if name_input.text().strip() and url_input.text().strip():
-            on_add_clicked()
+        if profile_type == "subscription":
+            if name_input.text().strip() and url_input.text().strip():
+                on_add_clicked()
+        else:
+            if name_input.text().strip() and loaded_config["data"]:
+                on_add_clicked()
     
-    name_input.returnPressed.connect(lambda: url_input.setFocus())
+    def on_name_enter():
+        if type_combo.currentData() == "subscription":
+            url_input.setFocus()
+        else:
+            on_enter()
+    
+    name_input.returnPressed.connect(on_name_enter)
     url_input.returnPressed.connect(on_enter)
     
     result = dialog.exec_()
     if result == BaseDialog.Accepted:
         name = name_input.text().strip()
-        url = url_input.text().strip()
-        if name and url:
-            return name, url, True
+        profile_type = type_combo.currentData()
+        
+        if profile_type == "subscription":
+            url = url_input.text().strip()
+            if name and url:
+                return name, url, None, "subscription", True
+        else:  # config
+            config = loaded_config["data"]
+            if name and config:
+                return name, None, config, "config", True
+    
+    return None, None, None, None, False
+
+
+def show_add_subscription_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[str], bool]:
+    """
+    Показывает диалог добавления подписки (для обратной совместимости)
+    
+    Args:
+        parent: Родительский виджет
+    
+    Returns:
+        Кортеж (name, url, был ли нажат OK)
+    """
+    name, url, _, profile_type, ok = show_add_profile_dialog(parent)
+    if ok and profile_type == "subscription":
+        return name, url, True
     return None, None, False
 
 

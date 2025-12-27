@@ -214,7 +214,7 @@ class UpdateThread(QThread):
     def _copy_general_files(self, new_app_dir: Path) -> int:
         """Копирует все файлы, кроме защищенных и обрабатываемых отдельно."""
         protected_paths = {
-            Path("data/.subscriptions"),
+            Path("data/.profile"),
             Path("data/.settings"),
             Path("data/config.json"),
             Path("data/core/sing-box.exe"),

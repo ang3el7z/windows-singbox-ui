@@ -52,10 +52,22 @@
     "test_success": "Подписка работает, config.json загружен.",
     "test_error": "Ошибка загрузки конфига.",
     "added": "Добавлена подписка: {name}",
+    "added_subscription": "Добавлена подписка: {name}",
+    "added_config": "Добавлен конфиг: {name}",
     "removed": "Удалена подписка: {name}",
     "renamed": "Профиль '{old_name}' переименован в '{new_name}'",
     "fill_all_fields": "Пожалуйста, заполните все поля",
-    "unknown": "Неизвестно"
+    "unknown": "Неизвестно",
+    "add_profile_dialog_title": "Добавление профиля",
+    "type": "Тип профиля:",
+    "type_subscription": "Подписка",
+    "type_config": "Готовый конфиг",
+    "config_file": "Файл не выбран",
+    "config_file_loaded": "Загружен: {file}",
+    "load_file": "Выбрать файл",
+    "select_config_file": "Выберите файл конфига",
+    "config_load_error": "Ошибка загрузки конфига: {error}",
+    "load_config_first": "Пожалуйста, сначала загрузите файл конфига"
   },
   "settings": {
     "title": "Настройки",

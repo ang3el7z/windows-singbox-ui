@@ -159,7 +159,11 @@ class DeepLinkHandler:
             name = name[:50]
         
         # Проверяем, нет ли уже такой подписки (сравниваем нормализованные URL)
-        existing_urls = [s.get("url", "").strip() for s in self.main_window.subs.data.get("subscriptions", [])]
+        existing_urls = [
+            p.get("url", "").strip() 
+            for p in self.main_window.subs.data.get("profiles", [])
+            if p.get("type") == "subscription"
+        ]
         if url in existing_urls:
             self.main_window.log(tr("messages.subscription_already_exists"))
             show_info_dialog(

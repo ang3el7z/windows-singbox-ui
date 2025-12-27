@@ -1,6 +1,6 @@
 """Страница профилей"""
 from typing import TYPE_CHECKING, Optional
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidgetItem
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from ui.pages.base_page import BasePage
@@ -92,18 +92,45 @@ class ProfilePage(BasePage):
         self._layout.addWidget(card)
     
     def refresh_subscriptions(self):
-        """Обновление списка подписок"""
+        """Обновление списка профилей с визуальным различием типов"""
         saved_index = self.main_window.current_sub_index
         self.sub_list.clear()
-        for name in self.main_window.subs.list_names():
-            self.sub_list.addItem(name)
+        
+        from utils.icon_helper import icon
+        from managers.subscriptions import SubscriptionManager
+        
+        profiles = self.main_window.subs.data.get("profiles", [])
+        for i, profile in enumerate(profiles):
+            name = profile.get("name", "no-name")
+            profile_type = profile.get("type", SubscriptionManager.PROFILE_TYPE_SUBSCRIPTION)
+            
+            # Создаем элемент списка с иконкой типа
+            item = QListWidgetItem(name)
+            
+            if profile_type == SubscriptionManager.PROFILE_TYPE_SUBSCRIPTION:
+                # Подписка - иконка обновления
+                icon_item = icon("mdi.sync", color=theme.get_color('accent'))
+            else:
+                # Готовый конфиг - иконка файла
+                icon_item = icon("mdi.file-document", color=theme.get_color('text_secondary'))
+            
+            if icon_item:
+                item.setIcon(icon_item.icon())
+            
+            self.sub_list.addItem(item)
+        
         if self.sub_list.count() > 0:
             if 0 <= saved_index < self.sub_list.count():
                 self.sub_list.setCurrentRow(saved_index)
                 self.main_window.current_sub_index = saved_index
             else:
+                # Если сохраненный индекс невалидный, выбираем первый профиль
                 self.sub_list.setCurrentRow(0)
                 self.main_window.current_sub_index = 0
+                # Сохраняем исправленный индекс в настройках
+                self.main_window.settings.set("current_sub_index", 0)
         else:
             self.main_window.current_sub_index = -1
+            # Сохраняем -1 если профилей нет
+            self.main_window.settings.set("current_sub_index", -1)
 

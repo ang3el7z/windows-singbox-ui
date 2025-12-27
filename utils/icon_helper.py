@@ -19,6 +19,8 @@ MDI_ICONS = {
     "mdi.home": "\U000f02dc",  # home (U+0F02DC)
     "mdi.account": "\U000f0004",  # account (U+0F0004)
     "mdi.cog": "\U000f0493",  # cog (U+0F0493)
+    "mdi.sync": "\U000f04e6",  # sync (U+0F04E6)
+    "mdi.file-document": "\U000f0219",  # file-document (U+0F0219)
 }
 
 # Имя шрифта Material Design Icons

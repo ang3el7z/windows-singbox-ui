@@ -120,6 +120,7 @@ from ui.design.component import (
     show_confirm_dialog,
     show_input_dialog,
     show_add_subscription_dialog,
+    show_add_profile_dialog,
     show_language_selection_dialog,
     show_restart_admin_dialog,
     show_kill_all_confirm_dialog,
@@ -193,7 +194,8 @@ class MainWindow(QMainWindow):
 
         self.proc: subprocess.Popen | None = None
         self.singbox_log_reader_thread = None  # Поток для чтения логов sing-box
-        self.current_sub_index: int = -1  # -1 означает что профиль не выбран
+        # Загружаем сохраненный индекс выбранного профиля из настроек
+        self.current_sub_index: int = self.settings.get("current_sub_index", -1)
         self.running_sub_index: int = -1  # Индекс запущенного профиля (-1 если не запущен)
         self.cached_latest_version = None  # Кэш последней версии
         self.version_check_failed_count = 0  # Счетчик неудачных проверок
@@ -571,23 +573,33 @@ class MainWindow(QMainWindow):
             self.current_sub_index = -1
         else:
             self.current_sub_index = row
+        # Сохраняем выбранный индекс в настройках
+        self.settings.set("current_sub_index", self.current_sub_index)
         self.update_profile_info()
         self.update_big_button_state()
 
     def on_add_sub(self):
-        """Добавление подписки"""
-        name, url, ok = show_add_subscription_dialog(self)
-        if ok and name and url:
+        """Добавление профиля (подписка или готовый конфиг)"""
+        name, url, config, profile_type, ok = show_add_profile_dialog(self)
+        if ok and name:
             # Сохраняем текущий выбранный профиль
             saved_index = self.current_sub_index
-            self.subs.add(name, url)
+            
+            if profile_type == "subscription" and url:
+                self.subs.add_subscription(name, url)
+                self.log(tr("profile.added_subscription", name=name))
+            elif profile_type == "config" and config:
+                self.subs.add_config(name, config)
+                self.log(tr("profile.added_config", name=name))
+            else:
+                return
+            
             self.refresh_subscriptions_ui()
             # Восстанавливаем выбор профиля
             if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
                 if saved_index >= 0 and saved_index < self.page_profile.sub_list.count():
                     self.page_profile.sub_list.setCurrentRow(saved_index)
                 self.current_sub_index = saved_index
-            self.log(tr("profile.added", name=name))
 
     def on_del_sub(self):
         """Удаление подписки"""
@@ -613,6 +625,8 @@ class MainWindow(QMainWindow):
                 self.current_sub_index -= 1
             elif row == self.current_sub_index:
                 self.current_sub_index = -1
+            # Сохраняем обновленный индекс в настройках
+            self.settings.set("current_sub_index", self.current_sub_index)
             
             if was_running:
                 self.running_sub_index = -1
@@ -675,7 +689,7 @@ class MainWindow(QMainWindow):
         self.log(tr("profile.test_loading"))
         
         try:
-            ok = self.subs.download_config(row)
+            ok = self.subs.apply_config(row)
             if ok:
                 self.log(tr("profile.test_success"))
                 # Показываем успешное сообщение
@@ -1195,7 +1209,7 @@ class MainWindow(QMainWindow):
                 return
         
         log_to_file(tr("messages.downloading_config"))
-        ok = self.subs.download_config(self.current_sub_index)
+        ok = self.subs.apply_config(self.current_sub_index)
         if not ok:
             self.log(tr("messages.config_error"))
             return
@@ -1282,7 +1296,7 @@ class MainWindow(QMainWindow):
         self.update_profile_info()
 
     def auto_update_config(self):
-        """Автообновление конфига"""
+        """Автообновление конфига (только для подписок)"""
         # Проверяем, запущен ли sing-box ПЕРЕД началом обновления
         if not self.proc or self.proc.poll() is not None:
             # sing-box не запущен - автообновление не работает
@@ -1291,6 +1305,11 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'page_profile') or not hasattr(self.page_profile, 'sub_list'):
             return
         if self.current_sub_index < 0 or self.page_profile.sub_list.count() == 0:
+            return
+        
+        # Проверяем, является ли текущий профиль подпиской
+        if not self.subs.is_subscription(self.current_sub_index):
+            # Для готовых конфигов автообновление не работает
             return
         
         log_to_file(tr("messages.auto_update"))
