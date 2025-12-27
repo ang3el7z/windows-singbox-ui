@@ -75,15 +75,11 @@ class SingBoxLogReaderThread(QThread):
                 pass
     
     def _write_log_line(self, line: str):
-        """Записать строку лога в файл"""
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_line = f"[{timestamp}] {line}"
-        
-        # Записываем в файл
+        """Записать строку лога в файл (как есть, без преобразований)"""
+        # Записываем логи SingBox такими, какие они есть от процесса
         try:
             with self.log_file.open("a", encoding="utf-8") as f:
-                f.write(formatted_line + "\n")
+                f.write(line + "\n")
         except Exception:
             pass
     

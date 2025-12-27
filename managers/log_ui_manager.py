@@ -69,11 +69,13 @@ class LogUIManager:
             with log_file.open("r", encoding="utf-8") as f:
                 content = f.read()
                 # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
+                # Также обрабатываем формат [12:00:00] (для логов SingBox)
                 lines = content.split('\n')
                 formatted_lines = []
                 for line in lines:
                     # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
                     line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+                    # Логи SingBox уже в формате [HH:MM:SS], оставляем как есть
                     if line.strip():  # Пропускаем пустые строки
                         formatted_lines.append(line)
                 formatted_content = '\n'.join(formatted_lines)
@@ -101,11 +103,13 @@ class LogUIManager:
             with log_file.open("r", encoding="utf-8") as f:
                 content = f.read()
                 # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
+                # Также обрабатываем формат [12:00:00] (для логов SingBox)
                 lines = content.split('\n')
                 formatted_lines = []
                 for line in lines:
                     # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
                     line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+                    # Логи SingBox уже в формате [HH:MM:SS], оставляем как есть
                     if line.strip():  # Пропускаем пустые строки
                         formatted_lines.append(line)
                 return '\n'.join(formatted_lines)

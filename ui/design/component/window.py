@@ -146,18 +146,21 @@ class LogsWindow(QDialog):
     def _update_logs(self):
         """Обновление логов"""
         is_debug = self.main_window.settings.get("isDebug", False)
+        
+        # Кнопка "Логи приложения" всегда видна
+        self.btn_logs.setVisible(True)
+        
+        # Кнопка "Дебаг логи" видна только если включен debug режим
         self.btn_debug_logs.setVisible(is_debug)
         
-        # Логика для скрытия/показа кнопки "Logs"
-        if is_debug:
-            self.btn_logs.setVisible(True)
-        else:
-            # Если режим отладки выключен, но выбран режим logs - переключаемся на singbox
-            if self.current_mode == "logs":
-                self.current_mode = "singbox"
-                self.btn_logs.setChecked(False)
-                self.btn_singbox_logs.setChecked(True)
-            self.btn_logs.setVisible(False)
+        # Кнопка "Логи Singbox" всегда видна
+        self.btn_singbox_logs.setVisible(True)
+        
+        # Если debug режим выключен и выбран режим debug - переключаемся на logs
+        if not is_debug and self.current_mode == "debug":
+            self.current_mode = "logs"
+            self.btn_debug_logs.setChecked(False)
+            self.btn_logs.setChecked(True)
         
         # Получаем логи в зависимости от выбранного режима
         if self.current_mode == "logs":
