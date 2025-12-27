@@ -26,12 +26,6 @@ class SingBoxLogReaderThread(QThread):
         
         # Убеждаемся что папка существует
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Очищаем файл при старте
-        try:
-            log_file.write_text("", encoding="utf-8")
-        except Exception:
-            pass
     
     def run(self) -> None:
         """Чтение логов из процесса"""

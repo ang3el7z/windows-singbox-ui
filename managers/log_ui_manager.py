@@ -189,7 +189,7 @@ class LogUIManager:
                     # Если дата некорректная, считаем что нужно очистить
                     pass
             
-            # Полностью очищаем оба файла логов (singbox.log и singbox-debug.log)
+            # Полностью очищаем все файлы логов (singbox.log, debug.log и singbox-core.log)
             if LOG_FILE.exists():
                 try:
                     # Получаем размер файла для информации
@@ -209,6 +209,16 @@ class LogUIManager:
                     self.main_window._log_version_debug(f"[Log Cleanup] debug.log очищен (было {file_size} байт)")
                 except Exception as e:
                     self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке debug.log: {e}")
+            
+            if SINGBOX_CORE_LOG_FILE.exists():
+                try:
+                    # Получаем размер файла для информации
+                    file_size = SINGBOX_CORE_LOG_FILE.stat().st_size
+                    # Полностью очищаем файл
+                    SINGBOX_CORE_LOG_FILE.write_text("", encoding="utf-8")
+                    self.main_window._log_version_debug(f"[Log Cleanup] singbox-core.log очищен (было {file_size} байт)")
+                except Exception as e:
+                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox-core.log: {e}")
             
             # Сохраняем дату последней очистки
             self.main_window.settings.data["last_log_cleanup"] = now.isoformat()
