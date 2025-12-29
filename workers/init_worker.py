@@ -98,7 +98,7 @@ class InitOperationsWorker(BaseWorker):
             return
         try:
             from datetime import datetime
-            from config.paths import DEBUG_LOG_FILE, LOG_FILE
+            from config.paths import LOG_FILE
             last_cleanup = self.settings_manager.get("last_log_cleanup", None)
             now = datetime.now()
             
@@ -115,12 +115,6 @@ class InitOperationsWorker(BaseWorker):
             if LOG_FILE.exists():
                 try:
                     LOG_FILE.write_text("", encoding="utf-8")
-                except Exception:
-                    pass
-            
-            if DEBUG_LOG_FILE.exists():
-                try:
-                    DEBUG_LOG_FILE.write_text("", encoding="utf-8")
                 except Exception:
                     pass
             

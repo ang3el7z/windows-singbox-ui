@@ -112,43 +112,6 @@ class SettingsPage(BasePage):
         self.cb_minimize_to_tray.setFont(QFont("Segoe UI", 13))
         settings_layout.addWidget(self.cb_minimize_to_tray)
         
-        # Дебаг настройка (появляется только в дебаг режиме)
-        self.cb_allow_multiple = CheckBox(tr("settings.allow_multiple_processes"))
-        self.cb_allow_multiple.setChecked(self.main_window.settings.get("allow_multiple_processes", True))
-        self.cb_allow_multiple.stateChanged.connect(self.main_window.on_allow_multiple_changed)
-        self.cb_allow_multiple.setFont(QFont("Segoe UI", 13))
-        # Создаем rgba для error light (можно улучшить, добавив error_light в темы)
-        error_color = theme.get_color('error')
-        error_hex = error_color.lstrip('#')
-        error_r = int(error_hex[0:2], 16)
-        error_g = int(error_hex[2:4], 16)
-        error_b = int(error_hex[4:6], 16)
-        error_light = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
-        self.cb_allow_multiple.setStyleSheet(f"""
-            QCheckBox {{
-                color: {theme.get_color('error')};
-                background-color: transparent;
-                border: none;
-                padding: 0px;
-                font-size: 13px;
-                font-family: {theme.get_font('family')};
-                spacing: {theme.get_size('spacing_small')}px;
-            }}
-            QCheckBox::indicator {{
-                width: 22px;
-                height: 22px;
-                border-radius: 6px;
-                border: 2px solid {theme.get_color('error')};
-                background-color: {error_light};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {theme.get_color('error')};
-                border-color: {theme.get_color('error')};
-            }}
-        """)
-        self.cb_allow_multiple.setVisible(False)  # Скрыта по умолчанию
-        settings_layout.addWidget(self.cb_allow_multiple)
-        
         # Выбор языка
         language_row = QHBoxLayout()
         language_row.setSpacing(12)
@@ -218,23 +181,12 @@ class SettingsPage(BasePage):
         self.logs.setReadOnly(True)
         self.logs.setVisible(False)  # Скрываем, так как логи теперь в отдельном окне
         
-        self.debug_logs = TextEdit()
-        self.debug_logs.setReadOnly(True)
-        self.debug_logs.setVisible(False)  # Скрываем, так как логи теперь в отдельном окне
-        
-        # Дебаг логи теперь в отдельном окне, здесь только скрытое поле для хранения
+        # Дебаг логи выводятся вместе с обычными, отдельное поле не нужно
         self._logs_window = None  # Ссылка на окно логов
-        
-        # Инициализируем видимость дебаг элементов
-        self.update_debug_logs_visibility()
     
     def load_logs(self):
         """Загрузка логов в QTextEdit"""
         self.main_window.log_ui_manager.load_logs(self.logs)
-    
-    def load_debug_logs(self):
-        """Загрузка дебаг логов в QTextEdit"""
-        self.main_window.log_ui_manager.load_debug_logs(self.debug_logs)
     
     def _on_interval_radio_toggled(self, value: int):
         """Обработка изменения интервала через радиокнопки"""
@@ -249,15 +201,6 @@ class SettingsPage(BasePage):
         if hasattr(self.main_window, 'on_interval_changed'):
             self.main_window.settings.set("auto_update_minutes", value)
             self.main_window.on_interval_changed_from_radio(value)
-    
-    def update_debug_logs_visibility(self):
-        """Обновляет видимость дебаг элементов на основе настройки isDebug"""
-        is_debug = self.main_window.settings.get("isDebug", False)
-        # Показываем/скрываем дебаг настройку в обычных настройках
-        if hasattr(self, 'cb_allow_multiple'):
-            self.cb_allow_multiple.setVisible(is_debug)
-        if is_debug:
-            self.load_debug_logs()
     
     def _open_logs_window(self, mode="logs"):
         """Открывает окно с логами"""
@@ -282,8 +225,6 @@ class SettingsPage(BasePage):
             
             # Загружаем логи перед показом
             self.load_logs()
-            if hasattr(self, 'debug_logs'):
-                self.load_debug_logs()
             
             # Сохраняем ссылку ПЕРЕД показом, чтобы окно не было уничтожено
             self._logs_window = logs_window

@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
-from config.paths import LOG_FILE, DEBUG_LOG_FILE, SINGBOX_CORE_LOG_FILE
+from config.paths import LOG_FILE, SINGBOX_CORE_LOG_FILE
 from utils.logger import log_to_file
 
 if TYPE_CHECKING:
@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 class LogUIManager:
     """Менеджер логов для UI"""
+
+    # Удаляем ANSI-цвета, чтобы логи SingBox отображались без управляющих последовательностей
+    _ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
     
     def __init__(self, main_window: 'MainWindow'):
         """
@@ -28,7 +31,7 @@ class LogUIManager:
     
     def load_logs(self, logs_widget: Optional['QTextEdit'] = None) -> None:
         """
-        Загрузка логов из singbox.log в виджет
+        Загрузка логов приложения в виджет
         
         Args:
             logs_widget: Виджет для отображения логов (если None, используется page_settings.logs)
@@ -38,21 +41,21 @@ class LogUIManager:
                 return
             logs_widget = self.main_window.page_settings.logs
         
-        self._load_logs_from_file(logs_widget, LOG_FILE)
+        combined = self.get_logs()
+        if logs_widget:
+            logs_widget.setPlainText(combined)
+            cursor = logs_widget.textCursor()
+            cursor.movePosition(cursor.End)
+            logs_widget.setTextCursor(cursor)
     
     def load_debug_logs(self, debug_logs_widget: Optional['QTextEdit'] = None) -> None:
         """
-        Загрузка debug логов из debug.log в виджет
+        Загрузка логов приложения (для обратной совместимости, теперь использует тот же файл что и load_logs)
         
         Args:
-            debug_logs_widget: Виджет для отображения debug логов (если None, используется page_settings.debug_logs)
+            debug_logs_widget: Виджет для отображения логов (если None, используется page_settings.debug_logs)
         """
-        if debug_logs_widget is None:
-            if not hasattr(self.main_window, 'page_settings') or not hasattr(self.main_window.page_settings, 'debug_logs'):
-                return
-            debug_logs_widget = self.main_window.page_settings.debug_logs
-        
-        self._load_logs_from_file(debug_logs_widget, DEBUG_LOG_FILE)
+        self.load_logs(debug_logs_widget)
     
     def _load_logs_from_file(self, widget: 'QTextEdit', log_file: Path) -> None:
         """
@@ -68,16 +71,12 @@ class LogUIManager:
         try:
             with log_file.open("r", encoding="utf-8") as f:
                 content = f.read()
-                # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
-                # Также обрабатываем формат [12:00:00] (для логов SingBox)
                 lines = content.split('\n')
                 formatted_lines = []
                 for line in lines:
-                    # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
-                    line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
-                    # Логи SingBox уже в формате [HH:MM:SS], оставляем как есть
-                    if line.strip():  # Пропускаем пустые строки
-                        formatted_lines.append(line)
+                    formatted = self._format_line(line)
+                    if formatted:
+                        formatted_lines.append(formatted)
                 formatted_content = '\n'.join(formatted_lines)
                 widget.setPlainText(formatted_content)
                 cursor = widget.textCursor()
@@ -102,41 +101,37 @@ class LogUIManager:
         try:
             with log_file.open("r", encoding="utf-8") as f:
                 content = f.read()
-                # Преобразуем формат из файла [2024-01-01 12:00:00] в формат UI [12:00:00]
-                # Также обрабатываем формат [12:00:00] (для логов SingBox)
                 lines = content.split('\n')
                 formatted_lines = []
                 for line in lines:
-                    # Ищем паттерн [YYYY-MM-DD HH:MM:SS] и заменяем на [HH:MM:SS]
-                    line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
-                    # Логи SingBox уже в формате [HH:MM:SS], оставляем как есть
-                    if line.strip():  # Пропускаем пустые строки
-                        formatted_lines.append(line)
+                    formatted = self._format_line(line)
+                    if formatted:
+                        formatted_lines.append(formatted)
                 return '\n'.join(formatted_lines)
         except Exception:
             return ""
     
     def get_logs(self) -> str:
         """
-        Получение логов из singbox.log в виде строки
+        Получение логов приложения в виде строки
         
         Returns:
-            Строка с логами
+            Строка с логами из singbox-ui.log
         """
         return self._get_logs_from_file(LOG_FILE)
     
     def get_debug_logs(self) -> str:
         """
-        Получение debug логов из debug.log в виде строки
+        Получение логов приложения (для обратной совместимости, теперь использует тот же файл что и get_logs)
         
         Returns:
-            Строка с debug логами
+            Строка с логами приложения
         """
-        return self._get_logs_from_file(DEBUG_LOG_FILE)
+        return self.get_logs()
     
     def load_singbox_logs(self, singbox_logs_widget: Optional['QTextEdit'] = None) -> None:
         """
-        Загрузка логов sing-box из singbox-core.log в виджет
+        Загрузка логов sing-box из singbox.log в виджет
         
         Args:
             singbox_logs_widget: Виджет для отображения логов sing-box (если None, используется page_settings.singbox_logs)
@@ -150,7 +145,7 @@ class LogUIManager:
     
     def get_singbox_logs(self) -> str:
         """
-        Получение логов sing-box из singbox-core.log в виде строки
+        Получение логов sing-box из singbox.log в виде строки
         
         Returns:
             Строка с логами sing-box
@@ -159,20 +154,14 @@ class LogUIManager:
     
     def refresh_logs(self, current_page_index: int = None) -> None:
         """
-        Обновление логов из файлов (вызывается таймером)
+        Обновление логов из файлов
         
-        Логика обновления:
-        - Обычные логи: обновляются автоматически окном логов через свой таймер, если окно открыто
-        - Debug логи: обновляются автоматически окном логов через свой таймер, если окно открыто и включен debug режим
-        
-        Этот метод больше не выполняет обновление виджетов, так как логи теперь в отдельном окне,
+        Этот метод не выполняет обновление виджетов, так как логи теперь в отдельном окне,
         которое само обновляет логи через свой таймер (каждые 500мс).
         
         Args:
             current_page_index: Индекс текущей страницы (не используется, оставлен для совместимости)
         """
-        # Окно логов само обновляет логи через свой таймер в методе _update_logs()
-        # Этот метод оставлен для совместимости, но не выполняет никаких действий
         pass
     
     def cleanup_if_needed(self) -> None:
@@ -193,26 +182,16 @@ class LogUIManager:
                     # Если дата некорректная, считаем что нужно очистить
                     pass
             
-            # Полностью очищаем все файлы логов (singbox.log, debug.log и singbox-core.log)
+            # Полностью очищаем все файлы логов (singbox-ui.log и singbox.log)
             if LOG_FILE.exists():
                 try:
                     # Получаем размер файла для информации
                     file_size = LOG_FILE.stat().st_size
                     # Полностью очищаем файл
                     LOG_FILE.write_text("", encoding="utf-8")
-                    self.main_window._log_version_debug(f"[Log Cleanup] singbox.log очищен (было {file_size} байт)")
+                    self.main_window._log_version_debug(f"[Log Cleanup] singbox-ui.log очищен (было {file_size} байт)")
                 except Exception as e:
-                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox.log: {e}")
-            
-            if DEBUG_LOG_FILE.exists():
-                try:
-                    # Получаем размер файла для информации
-                    file_size = DEBUG_LOG_FILE.stat().st_size
-                    # Полностью очищаем файл
-                    DEBUG_LOG_FILE.write_text("", encoding="utf-8")
-                    self.main_window._log_version_debug(f"[Log Cleanup] debug.log очищен (было {file_size} байт)")
-                except Exception as e:
-                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке debug.log: {e}")
+                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox-ui.log: {e}")
             
             if SINGBOX_CORE_LOG_FILE.exists():
                 try:
@@ -220,9 +199,9 @@ class LogUIManager:
                     file_size = SINGBOX_CORE_LOG_FILE.stat().st_size
                     # Полностью очищаем файл
                     SINGBOX_CORE_LOG_FILE.write_text("", encoding="utf-8")
-                    self.main_window._log_version_debug(f"[Log Cleanup] singbox-core.log очищен (было {file_size} байт)")
+                    self.main_window._log_version_debug(f"[Log Cleanup] singbox.log очищен (было {file_size} байт)")
                 except Exception as e:
-                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox-core.log: {e}")
+                    self.main_window._log_version_debug(f"[Log Cleanup] Ошибка при очистке singbox.log: {e}")
             
             # Сохраняем дату последней очистки
             self.main_window.settings.data["last_log_cleanup"] = now.isoformat()
@@ -247,4 +226,31 @@ class LogUIManager:
             cursor = self.main_window.page_settings.logs.textCursor()
             cursor.movePosition(cursor.End)
             self.main_window.page_settings.logs.setTextCursor(cursor)
+
+    def _format_line(self, line: str) -> str:
+        """
+        Приводит строку лога к компактному виду без ANSI-кодов и с временем в формате [HH:MM:SS].
+        Поддерживает:
+        - Формат приложения: [YYYY-MM-DD HH:MM:SS] ...
+        - Формат SingBox: +0300 2025-12-28 19:31:02 ERROR ...
+        - Уже нормализованный формат [HH:MM:SS] ...
+        """
+        if not line:
+            return ""
+
+        # Удаляем ANSI управляющие последовательности
+        line = self._ANSI_RE.sub("", line)
+
+        # Нормализация разных форматов времени к [HH:MM:SS]
+        # 1) [YYYY-MM-DD HH:MM:SS] -> [HH:MM:SS]
+        line = re.sub(r'\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]', r'[\1]', line)
+        # 2) +0300 2025-12-28 19:31:02 ... -> [19:31:02] ...
+        line = re.sub(
+            r'^\+\d{4}\s+\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2}:\d{2})\s+',
+            r'[\1] ',
+            line
+        )
+
+        line = line.strip()
+        return line
 

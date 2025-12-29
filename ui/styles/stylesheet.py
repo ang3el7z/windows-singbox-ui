@@ -87,7 +87,7 @@ class StyleSheet:
             background-color: {variant_style['bg'] if variant in ('warning', 'danger') else theme.get_color('accent')};
             color: {variant_style['text'] if variant in ('warning', 'danger') else theme.get_color('background_primary')};
             border: none;
-            font-weight: {theme.get_font('weight_semibold')};
+            font-weight: {theme.get_font('weight_medium')};
         }}
         QPushButton:checked:hover {{
             background-color: {variant_style['bg_hover'] if variant in ('warning', 'danger') else theme.get_color('accent_hover')};

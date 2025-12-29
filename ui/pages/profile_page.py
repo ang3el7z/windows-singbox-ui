@@ -133,4 +133,8 @@ class ProfilePage(BasePage):
             self.main_window.current_sub_index = -1
             # Сохраняем -1 если профилей нет
             self.main_window.settings.set("current_sub_index", -1)
+        
+        # Дополнительно проверяем и синхронизируем выбор с учетом возможных внешних изменений
+        if hasattr(self.main_window, "ensure_valid_profile_selection"):
+            self.main_window.ensure_valid_profile_selection(sync_ui=True)
 

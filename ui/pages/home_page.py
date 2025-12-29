@@ -48,7 +48,6 @@ class HomePage(BasePage):
         
         self.lbl_version = Label(variant="secondary")
         self.lbl_version.setFont(QFont("Segoe UI", 12))
-        # Версия ядра не кликабельна (дебаг режим активируется только через версию приложения)
         version_row.addWidget(self.lbl_version)
         
         self.btn_version_warning = Button()

@@ -49,16 +49,9 @@ if locales_dir.exists():
         locales_data.append((str(locale_file), 'data/locales'))
         # print(f"Including locale: {locale_file}")  # Removed to avoid encoding issues in CI
 
-# Collect Ace Editor files
-ace_data = []
-ace_dir = Path('resources/web/ace')
-if ace_dir.exists():
-    for ace_file in ace_dir.glob('*.js'):
-        ace_data.append((str(ace_file), 'data/resources/web/ace'))
-
 # Combine all data files
-# Note: Fonts are now embedded via Qt Resource System (QRC) - see resources/app.qrc
-all_datas = locales_data + ace_data
+# Note: Fonts and Ace Editor files are now embedded via Qt Resource System (QRC) - see resources/app.qrc
+all_datas = locales_data
 
 # Icon is NO LONGER added to datas - it's embedded via Qt Resource System (QRC)
 # Uses resources_rc.py, which is compiled from resources/app.qrc
@@ -67,7 +60,7 @@ a = Analysis(
     ['main/main.py'],
     pathex=[],
     binaries=binaries_list,
-    datas=all_datas,  # Includes locales (fonts are in QRC)
+    datas=all_datas,  # Includes locales (fonts and Ace Editor files are in QRC)
     hiddenimports=[
         'scripts.resources_rc',  # Critical: registers Qt resources (icon and fonts)
         'requests',

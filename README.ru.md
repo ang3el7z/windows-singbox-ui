@@ -214,8 +214,8 @@ python main/post_build.py
 
 - `data/core/sing-box.exe` - Ядро SingBox (можно скачать автоматически)
 - `data/logs/` - Папка с логами приложения
-  - `singbox.log` - Логи SingBox
-  - `debug.log` - Отладочные логи
+  - `singbox-ui.log` - Логи приложения (сообщения UI и технические детали)
+  - `singbox.log` - Логи процесса SingBox (stdout/stderr от sing-box.exe)
 - `data/locales/` - Файлы локализации (копируются при сборке)
   - `ru.json` - Русские переводы
   - `en.json` - Английские переводы

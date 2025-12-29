@@ -40,21 +40,21 @@ THEMES_DIR = DATA_DIR / "themes"
 SOURCE_RESOURCES_DIR = ROOT / "resources"
 # Ресурсы в data (для собранного приложения)
 RESOURCES_DIR = DATA_DIR / "resources"
-ACE_EDITOR_DIR = RESOURCES_DIR / "web" / "ace"
+# ACE_EDITOR_DIR удален - Ace Editor файлы теперь в Qt ресурсах (QRC)
 
 # Файлы
 PROFILE_FILE = DATA_DIR / ".profile"
 SETTINGS_FILE = DATA_DIR / ".settings"
 CORE_EXE = CORE_DIR / "sing-box.exe"
 CONFIG_FILE = DATA_DIR / "config.json"
-LOG_FILE = LOG_DIR / "singbox.log"
-DEBUG_LOG_FILE = LOG_DIR / "debug.log"
-SINGBOX_CORE_LOG_FILE = LOG_DIR / "singbox-core.log"
+LOG_FILE = LOG_DIR / "singbox-ui.log"
+DEBUG_LOG_FILE = LOG_DIR / "debug.log"  # Deprecated: все логи теперь пишутся в LOG_FILE (singbox-ui.log)
+SINGBOX_CORE_LOG_FILE = LOG_DIR / "singbox.log"
 
 
 def ensure_dirs():
     """Создает все необходимые папки и проверяет их создание"""
-    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR, ACE_EDITOR_DIR]
+    dirs_to_create = [DATA_DIR, CORE_DIR, LOG_DIR, LOCALES_DIR, THEMES_DIR]
     for p in dirs_to_create:
         try:
             p.mkdir(parents=True, exist_ok=True)

@@ -214,8 +214,8 @@ On first launch, the application automatically creates:
 
 - `data/core/sing-box.exe` - SingBox core (can be downloaded automatically)
 - `data/logs/` - Application logs directory
-  - `singbox.log` - SingBox logs
-  - `debug.log` - Debug logs
+  - `singbox-ui.log` - Application logs (UI messages and technical details)
+  - `singbox.log` - SingBox process logs (stdout/stderr from sing-box.exe)
 - `data/locales/` - Localization files (copied during build)
   - `ru.json` - Russian translations
   - `en.json` - English translations

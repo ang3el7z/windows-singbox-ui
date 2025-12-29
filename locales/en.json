@@ -85,15 +85,8 @@
     "loading": "Loading...",
     "kill_all": "Kill all processes",
     "logs": "Logs",
-    "debug_logs": "Debug Logs",
-    "singbox_logs": "Singbox Logs",
-    "logs_window_application": "Info",
-    "logs_window_singbox": "Singbox",
-    "logs_window_debug": "Debug",
-    "allow_multiple_processes": "Allow multiple processes",
-    "debug_mode": "Debug Mode",
-    "debug_mode_activate_hint": "Click one more time to activate developer mode",
-    "debug_mode_activated": "Developer mode activated"
+    "logs_window_application": "Debug",
+    "logs_window_singbox": "Singbox"
   },
   "download": {
     "title": "Install SingBox",
@@ -168,7 +161,6 @@
     "progress_updating_files": "Updating files...",
     "progress_updating_locales": "Updating localization files...",
     "progress_updating_themes": "Updating theme files...",
-    "progress_updating_ace": "Updating Ace Editor...",
     "progress_merging_settings": "Merging settings...",
     "progress_cleaning": "Cleaning up temporary files...",
     "progress_starting": "Starting application...",
@@ -190,7 +182,10 @@
     "extraction_complete": "Extraction complete",
     "processes_stopped": "Processes stopped",
     "files_updated": "Files updated: {count}",
-    "temp_files_cleaned": "Temporary files cleaned"
+    "temp_files_cleaned": "Temporary files cleaned",
+    "progress_clearing_settings": "Clearing system settings...",
+    "autostart_cleared": "Autostart cleared",
+    "protocols_cleared": "Protocols cleared"
   },
   "tray": {
     "show": "Show",

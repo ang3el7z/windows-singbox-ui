@@ -146,6 +146,15 @@ class TrayManager:
         if not self.tray_icon:
             return
         
+        # Сохраняем старое меню и удаляем его перед созданием нового
+        # Это предотвращает появление двух popup меню (старое и новое)
+        old_menu = self.tray_icon.contextMenu()
+        if old_menu:
+            # Отключаем старое меню от иконки
+            self.tray_icon.setContextMenu(None)
+            # Удаляем старое меню
+            old_menu.deleteLater()
+        
         # Обновляем tooltip
         self.tray_icon.setToolTip(tr("app.title"))
         

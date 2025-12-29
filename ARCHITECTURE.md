@@ -458,8 +458,8 @@ python main/main.py
 All application data is stored in the `data/` folder:
 - `data/core/sing-box.exe` - SingBox core (not updated automatically)
 - `data/logs/` - application logs
-  - `singbox.log` - SingBox logs
-  - `debug.log` - debug logs
+  - `singbox-ui.log` - Application logs (UI messages and technical details)
+  - `singbox.log` - SingBox process logs (stdout/stderr from sing-box.exe)
 - `data/locales/` - localization files (updated, custom ones preserved)
 - `data/themes/` - theme files (copied during build)
 - `data/config.json` - SingBox configuration (downloaded from subscription)

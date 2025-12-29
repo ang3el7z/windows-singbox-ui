@@ -85,15 +85,8 @@
     "loading": "Загрузка...",
     "kill_all": "Убить все процессы",
     "logs": "Логи",
-    "debug_logs": "Дебаг логи",
-    "singbox_logs": "Логи Singbox",
-    "logs_window_application": "Info",
-    "logs_window_singbox": "Singbox",
-    "logs_window_debug": "Отладочные",
-    "allow_multiple_processes": "Разрешить несколько процессов",
-    "debug_mode": "Режим отладки",
-    "debug_mode_activate_hint": "Нажмите ещё один раз, чтобы активировать режим разработчика",
-    "debug_mode_activated": "Режим разработчика активирован"
+    "logs_window_application": "Debug",
+    "logs_window_singbox": "Singbox"
   },
   "download": {
     "title": "Установка SingBox",
@@ -168,7 +161,6 @@
     "progress_updating_files": "Обновление файлов...",
     "progress_updating_locales": "Обновление файлов локализации...",
     "progress_updating_themes": "Обновление файлов тем...",
-    "progress_updating_ace": "Обновление Ace Editor...",
     "progress_merging_settings": "Объединение настроек...",
     "progress_cleaning": "Очистка временных файлов...",
     "progress_starting": "Запуск приложения...",
@@ -190,7 +182,10 @@
     "extraction_complete": "Распаковка завершена",
     "processes_stopped": "Процессы остановлены",
     "files_updated": "Обновлено файлов: {count}",
-    "temp_files_cleaned": "Временные файлы удалены"
+    "temp_files_cleaned": "Временные файлы удалены",
+    "progress_clearing_settings": "Очистка системных настроек...",
+    "autostart_cleared": "Автозапуск очищен",
+    "protocols_cleared": "Протоколы удалены"
   },
   "tray": {
     "show": "Открыть",

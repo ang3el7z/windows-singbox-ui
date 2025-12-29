@@ -424,8 +424,8 @@ python main/main.py
 Все данные приложения хранятся в папке `data/`:
 - `data/core/sing-box.exe` - ядро SingBox (не обновляется автоматически)
 - `data/logs/` - логи приложения
-  - `singbox.log` - логи SingBox
-  - `debug.log` - отладочные логи
+  - `singbox-ui.log` - Логи приложения (сообщения UI и технические детали)
+  - `singbox.log` - Логи процесса SingBox (stdout/stderr от sing-box.exe)
 - `data/locales/` - файлы локализации (обновляются, пользовательские сохраняются)
 - `data/themes/` - файлы тем (копируются при сборке)
 - `data/config.json` - конфигурация SingBox (скачивается из подписки)

@@ -135,11 +135,12 @@ from config.paths import (
 from managers.settings import SettingsManager
 from managers.subscriptions import SubscriptionManager
 from managers.log_ui_manager import LogUIManager
+from managers.system_settings_manager import SystemSettingsManager
 from utils.i18n import tr, set_language, get_available_languages, get_language_name, Translator
 from utils.singbox import get_singbox_version, get_latest_version, compare_versions, get_app_latest_version
 from core.downloader import DownloadThread
 from core.deep_link_handler import DeepLinkHandler
-from core.protocol import register_protocols
+from core.protocol import register_protocols, unregister_protocols
 from core.restart_manager import restart_application
 from core.singbox_manager import StartSingBoxThread, reload_singbox_config
 from workers.init_worker import InitOperationsWorker
@@ -155,23 +156,17 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        # Сначала создаем папки
         ensure_dirs()
         
-        # Фреймлесс-режим, чтобы отрисовывать собственный статус-бар
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         
-        # Инициализируем менеджеры
         self.settings = SettingsManager()
         self.subs = SubscriptionManager()
-        
-        # Инициализируем менеджеры UI
+        self.system_settings = SystemSettingsManager(self.settings)
         self.tray_manager = TrayManager(self)
         self.log_ui_manager = LogUIManager(self)
         self.deep_link_handler = DeepLinkHandler(self)
         
-        
-        # Локальный сервер будет установлен из main() после создания окна
         if not hasattr(self, "local_server"):
             self.local_server = None
         self._pending_args = []
@@ -248,7 +243,6 @@ class MainWindow(QMainWindow):
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(0)
         
-        # Используем новый компонент NavButton
         self.btn_nav_profile = NavButton(tr("nav.profile"), "mdi.account")
         self.btn_nav_home = NavButton(tr("nav.home"), "mdi.home")
         self.btn_nav_settings = NavButton(tr("nav.settings"), "mdi.cog")
@@ -258,8 +252,6 @@ class MainWindow(QMainWindow):
             nav_layout.addWidget(btn, 1)
 
         self.btn_nav_home.setChecked(True)
-
-        # Используем новый стиль навигации
         nav.setStyleSheet(StyleSheet.navigation())
 
         root.addWidget(self.stack, 1)
@@ -274,8 +266,6 @@ class MainWindow(QMainWindow):
         self.lbl_app_version = Label(variant="secondary", size="medium")
         self.lbl_app_version.setFont(QFont("Segoe UI", 10))
         self.lbl_app_version.setAlignment(Qt.AlignCenter)
-        self.lbl_app_version.setCursor(Qt.PointingHandCursor)
-        self.lbl_app_version.mousePressEvent = self.on_app_version_clicked
         version_layout.addWidget(self.lbl_app_version)
         
         # Стрелочка загрузки для версии приложения
@@ -342,7 +332,6 @@ class MainWindow(QMainWindow):
             self._init_thread.start()
             log_to_file("[Init] InitOperationsWorker запущен")
             
-            # Проверки версий в отдельном потоке
             QTimer.singleShot(1000, self._check_versions_async)
             QTimer.singleShot(2000, self._check_app_version_async)
             log_to_file("[Init] Таймеры проверки версий установлены")
@@ -461,17 +450,8 @@ class MainWindow(QMainWindow):
         # Обработка deep link (если передан URL как аргумент)
         self.handle_deep_link()
         
-        # Автозапуск sing-box при запуске приложения
-        if self.settings.get("auto_start_singbox", False):
-            # Запускаем с небольшой задержкой, чтобы UI успел загрузиться
-            QTimer.singleShot(500, self.start_singbox)
-        
-        # Инициализация системного трея
-        # Настраиваем трей только если включена настройка
-        if self.settings.get("minimize_to_tray", True):
-            self.tray_manager.setup()
-            if self.tray_manager.tray_icon:
-                self.tray_manager.show()
+        # Применяем чекбоксы настроек при запуске
+        self.apply_settings_flags_on_launch()
         
         # Таймеры
         # Проверка версии только при запуске, не периодически
@@ -487,21 +467,14 @@ class MainWindow(QMainWindow):
         self.update_timer.timeout.connect(self.auto_update_config)
         self.update_timer.start(self.settings.get("auto_update_minutes", 90) * 60 * 1000)
         
-        # Таймер для ежесуточной очистки логов (проверка раз в час)
         self.log_cleanup_timer = QTimer(self)
         self.log_cleanup_timer.timeout.connect(self.cleanup_logs_if_needed)
-        self.log_cleanup_timer.start(60 * 60 * 1000)  # Проверка каждый час
+        self.log_cleanup_timer.start(60 * 60 * 1000)
         
-        # Таймер для обновления логов из файлов (если открыта страница настроек)
         self.logs_refresh_timer = QTimer(self)
         self.logs_refresh_timer.timeout.connect(self.refresh_logs_from_files)
-        self.logs_refresh_timer.start(1000)  # Каждую секунду
+        self.logs_refresh_timer.start(1000)
 
-        # Автозапуск
-        if self.settings.get("start_with_windows", False):
-            self.set_autostart(True)
-
-    # Страницы перенесены в ui/pages/ - ProfilePage, HomePage, SettingsPage
 
     # Навигация
     def switch_page(self, index: int):
@@ -509,16 +482,56 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
         for i, btn in enumerate([self.btn_nav_profile, self.btn_nav_home, self.btn_nav_settings]):
             btn.setChecked(i == index)
-        if index == 2:  # Settings page
-            # Обновляем видимость дебаг элементов при открытии страницы
-            if hasattr(self, 'page_settings'):
-                self.page_settings.update_debug_logs_visibility()
 
     # Подписки
     def refresh_subscriptions_ui(self):
         """Обновление списка подписок"""
         if hasattr(self, 'page_profile'):
             self.page_profile.refresh_subscriptions()
+
+    def ensure_valid_profile_selection(self, sync_ui: bool = True) -> int:
+        """
+        Гарантирует, что выбранный индекс соответствует доступным профилям.
+
+        Args:
+            sync_ui: Синхронизировать ли выбор в UI (ListWidget)
+
+        Returns:
+            Актуальный индекс выбранного профиля (-1 если нет профилей)
+        """
+        profiles_count = len(self.subs.data.get("profiles", []))
+        normalized_index = self.current_sub_index
+
+        if profiles_count == 0:
+            normalized_index = -1
+        elif normalized_index < 0 or normalized_index >= profiles_count:
+            normalized_index = 0
+
+        if normalized_index != self.current_sub_index:
+            self.current_sub_index = normalized_index
+            self.settings.set("current_sub_index", normalized_index)
+
+        # Если запущенный профиль отсутствует после изменений – сбрасываем
+        if self.running_sub_index >= profiles_count:
+            self.running_sub_index = -1
+
+        if not sync_ui:
+            return normalized_index
+
+        # Синхронизируем выбор с UI, если он уже создан и список совпадает по размеру
+        if hasattr(self, 'page_profile') and hasattr(self.page_profile, 'sub_list'):
+            list_count = self.page_profile.sub_list.count()
+            if list_count == profiles_count:
+                self.page_profile.sub_list.blockSignals(True)
+                if normalized_index >= 0:
+                    if self.page_profile.sub_list.currentRow() != normalized_index:
+                        self.page_profile.sub_list.setCurrentRow(normalized_index)
+                else:
+                    self.page_profile.sub_list.clearSelection()
+                    self.page_profile.sub_list.setCurrentRow(-1)
+                self.page_profile.sub_list.blockSignals(False)
+
+        return normalized_index
 
     def on_sub_changed(self, row: int):
         """Изменение выбранной подписки"""
@@ -776,9 +789,8 @@ class MainWindow(QMainWindow):
         if not self.cached_app_latest_version:
             return
         
-        # Останавливаем SingBox если запущен
-        if self.proc and self.proc.poll() is None:
-            self.stop_singbox()
+        # Полностью останавливаем процессы перед обновлением, но без сброса настроек пользователя
+        self.kill_all_processes(isAll=True, reset_settings=False)
         
         from config.paths import DATA_DIR
         
@@ -812,6 +824,9 @@ class MainWindow(QMainWindow):
         """Обновление информации о профиле"""
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'lbl_profile'):
             return
+        # Приводим индекс выбранного профиля в валидное состояние,
+        # чтобы избежать ситуаций с удаленными/недоступными профилями
+        self.ensure_valid_profile_selection(sync_ui=True)
         running = self.proc and self.proc.poll() is None
         running_sub = None
         selected_sub = None
@@ -1059,6 +1074,8 @@ class MainWindow(QMainWindow):
         """Обновление состояния большой кнопки"""
         if not hasattr(self, 'page_home') or not hasattr(self.page_home, 'big_btn'):
             return
+        # Гарантируем, что выбранный профиль существует, прежде чем проверять состояние
+        self.ensure_valid_profile_selection(sync_ui=False)
         core_ok = CORE_EXE.exists()
         running = self.proc and self.proc.poll() is None
         
@@ -1239,7 +1256,6 @@ class MainWindow(QMainWindow):
         if self.proc and self.proc.poll() is not None:
             code = self.proc.returncode
             self.log(tr("messages.stopped", code=code))
-            # Останавливаем поток чтения логов
             if self.singbox_log_reader_thread:
                 self.singbox_log_reader_thread.stop()
                 self.singbox_log_reader_thread.wait(1000)
@@ -1248,11 +1264,6 @@ class MainWindow(QMainWindow):
             self.update_big_button_state()
 
     # Настройки
-    def on_interval_changed(self):
-        """Изменение интервала автообновления (старый метод для обратной совместимости)"""
-        # Этот метод больше не используется, оставлен для совместимости
-        pass
-    
     def on_interval_changed_from_radio(self, value: int):
         """Изменение интервала автообновления через радиокнопки"""
         if 30 <= value <= 120:
@@ -1260,139 +1271,16 @@ class MainWindow(QMainWindow):
             self.update_timer.start(value * 60 * 1000)
             self.log(tr("messages.interval_changed", value=value))
     
-    def on_version_clicked(self, event):
-        """Обработка клика по версии ядра для активации дебаг режима"""
-        if event.button() != Qt.LeftButton:
-            return
-        
-        # Обрабатываем клики для дебаг режима (6 кликов)
-        self.version_click_count += 1
-        
-        # На 5-м клике показываем сообщение
-        if self.version_click_count == 5:
-            show_info_dialog(
-                self,
-                tr("settings.debug_mode"),
-                tr("settings.debug_mode_activate_hint")
-            )
-        elif self.version_click_count >= 6:
-            self.version_click_count = 0  # Сбрасываем счетчик
-            
-            # Переключаем настройку isDebug
-            current_debug = self.settings.get("isDebug", False)
-            new_debug = not current_debug
-            self.settings.set("isDebug", new_debug)
-            
-            # Обновляем видимость всей дебаг секции на основе isDebug
-            self._update_debug_logs_visibility()
-            
-            if new_debug:
-                log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
-                show_info_dialog(
-                    self,
-                    tr("settings.debug_mode"),
-                    tr("settings.debug_mode_activated")
-                )
-            else:
-                log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
-    
-    def on_app_version_clicked(self, event):
-        """Обработка клика по версии приложения для активации дебаг режима"""
-        if event.button() != Qt.LeftButton:
-            return
-        
-        # Обрабатываем клики для дебаг режима (6 кликов)
-        self.version_click_count += 1
-        
-        # На 5-м клике показываем сообщение
-        if self.version_click_count == 5:
-            show_info_dialog(
-                self,
-                tr("settings.debug_mode"),
-                tr("settings.debug_mode_activate_hint")
-            )
-        elif self.version_click_count >= 6:
-            self.version_click_count = 0  # Сбрасываем счетчик
-            
-            # Переключаем настройку isDebug
-            current_debug = self.settings.get("isDebug", False)
-            new_debug = not current_debug
-            self.settings.set("isDebug", new_debug)
-            
-            # Обновляем видимость всей дебаг секции на основе isDebug
-            self._update_debug_logs_visibility()
-            
-            if new_debug:
-                log_to_file(f"Debug меню активировано (isDebug: {new_debug})")
-                show_info_dialog(
-                    self,
-                    tr("settings.debug_mode"),
-                    tr("settings.debug_mode_activated")
-                )
-            else:
-                log_to_file(f"Debug меню скрыто (isDebug: {new_debug})")
-    
-    def _update_debug_logs_visibility(self):
-        """Обновляет видимость всей дебаг секции (debug_card и debug_logs) на основе настройки isDebug"""
-        if hasattr(self, 'page_settings'):
-            self.page_settings.update_debug_logs_visibility()
-    
-    def on_allow_multiple_changed(self, state: int):
-        """Изменение настройки разрешения нескольких процессов"""
-        if not hasattr(self, 'page_settings') or not hasattr(self.page_settings, 'cb_allow_multiple'):
-            return
-        enabled = state == Qt.Checked
-        try:
-            self.settings.set("allow_multiple_processes", enabled)
-            log_to_file(f"Разрешение нескольких процессов: {'включено' if enabled else 'выключено'}")
-        except Exception as e:
-            log_to_file(f"Ошибка при изменении настройки нескольких процессов: {e}")
-            # Восстанавливаем состояние чекбокса при ошибке
-            self.page_settings.cb_allow_multiple.blockSignals(True)
-            self.page_settings.cb_allow_multiple.setChecked(not enabled)
-            self.page_settings.cb_allow_multiple.blockSignals(False)
-
-    def set_autostart(self, enabled: bool):
-        """Установка автозапуска"""
-        import winreg
-        run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
-        app_name = "SingBox-UI"
-        task_name = "SingBox-UI-AutoStart"
-
-        if getattr(sys, "frozen", False):
-            exe_path = sys.executable
-        else:
-            exe_path = str((Path(__file__).parent / "run_dev.bat").resolve())
-
-        try:
-            # Удаляем задачу Task Scheduler если она была создана ранее
-            try:
-                subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], 
-                             capture_output=True, check=False)
-            except Exception:
-                pass
-            
-            if enabled:
-                # Автозапуск через реестр (приложение всегда запускается от администратора благодаря manifest)
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
-                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
-            else:
-                # Отключаем автозапуск
-                try:
-                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
-                        winreg.DeleteValue(key, app_name)
-                except FileNotFoundError:
-                    pass
-        except OSError as e:
-            self.log(tr("messages.autostart_error", error=str(e)))
-
     def on_autostart_changed(self, state: int):
         """Изменение автозапуска"""
         enabled = state == Qt.Checked
         try:
             self.settings.set("start_with_windows", enabled)
-            self.set_autostart(enabled)
-            self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+            result = self.system_settings.apply({"start_with_windows": enabled})
+            if result.get("autostart", False):
+                self.log(tr("messages.autostart_enabled") if enabled else tr("messages.autostart_disabled"))
+            else:
+                raise Exception("Не удалось применить автозапуск")
         except Exception as e:
             log_to_file(f"Ошибка при изменении автозапуска: {e}")
             # Восстанавливаем состояние чекбокса при ошибке
@@ -1850,34 +1738,6 @@ class MainWindow(QMainWindow):
         if hasattr(self.page_settings, 'cb_minimize_to_tray'):
             self.page_settings.cb_minimize_to_tray.setStyleSheet(StyleSheet.checkbox())
         
-        # Обновляем чекбокс allow_multiple (специальный стиль)
-        if hasattr(self.page_settings, 'cb_allow_multiple'):
-            error_color = theme.get_color('error')
-            error_hex = error_color.lstrip('#')
-            error_r = int(error_hex[0:2], 16)
-            error_g = int(error_hex[2:4], 16)
-            error_b = int(error_hex[4:6], 16)
-            error_light = f"rgba({error_r}, {error_g}, {error_b}, 0.1)"
-            self.page_settings.cb_allow_multiple.setStyleSheet(f"""
-                QCheckBox {{
-                    color: {error_color};
-                    background-color: transparent;
-                    border: none;
-                    padding: 0px;
-                }}
-                QCheckBox::indicator {{
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 6px;
-                    border: 2px solid {error_color};
-                    background-color: {error_light};
-                }}
-                QCheckBox::indicator:checked {{
-                    background-color: {error_color};
-                    border-color: {error_color};
-                }}
-            """)
-        
         # Обновляем радиокнопки интервала
         if hasattr(self.page_settings, 'interval_buttons'):
             for radio in self.page_settings.interval_buttons.values():
@@ -1984,8 +1844,6 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_auto_start_singbox.setText(tr("settings.auto_start_singbox"))
             if hasattr(self.page_settings, 'cb_minimize_to_tray'):
                 self.page_settings.cb_minimize_to_tray.setText(tr("settings.minimize_to_tray"))
-            if hasattr(self.page_settings, 'cb_allow_multiple'):
-                self.page_settings.cb_allow_multiple.setText(tr("settings.allow_multiple_processes"))
             if hasattr(self.page_settings, 'btn_kill_all'):
                 self.page_settings.btn_kill_all.setText(tr("settings.kill_all"))
             if hasattr(self.page_settings, 'btn_open_logs'):
@@ -2104,13 +1962,71 @@ class MainWindow(QMainWindow):
                 self.page_settings.cb_minimize_to_tray.setChecked(not enabled)
                 self.page_settings.cb_minimize_to_tray.blockSignals(False)
     
-    def kill_all_processes(self, isAll=False):
+    def apply_settings_flags_on_launch(self):
+        """Применяет ключевые чекбоксы настроек при запуске и синхронизирует систему"""
+        # Проверяем и применяем системные настройки через менеджер
+        try:
+            check_result = self.system_settings.check()
+            if not check_result.get("all_match", False):
+                log_to_file("[Startup] Обнаружено несоответствие настроек, применяем исправления...")
+                apply_result = self.system_settings.apply()
+                if apply_result.get("autostart", False):
+                    log_to_file(f"[Startup] Автозапуск приложения применен: {self.settings.get('start_with_windows', False)}")
+                if apply_result.get("protocols", False):
+                    log_to_file("[Startup] Протоколы применены")
+            else:
+                log_to_file("[Startup] Все системные настройки синхронизированы")
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Не удалось проверить/применить системные настройки: {e}")
+        
+        # Автозапуск sing-box при старте UI
+        auto_start_singbox = self.settings.get("auto_start_singbox", False)
+        if auto_start_singbox and not (self.proc and self.proc.poll() is None):
+            # Даем UI загрузиться перед стартом процесса
+            QTimer.singleShot(500, self.start_singbox)
+        
+        # Сворачивание в трей
+        minimize_to_tray = self.settings.get("minimize_to_tray", True)
+        try:
+            if minimize_to_tray:
+                if not self.tray_manager.tray_icon:
+                    self.tray_manager.setup()
+                if self.tray_manager.tray_icon:
+                    self.tray_manager.show()
+            else:
+                self.tray_manager.cleanup()
+            
+            app = QApplication.instance()
+            if app:
+                app.setQuitOnLastWindowClosed(not minimize_to_tray)
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Не удалось применить настройку трея: {e}")
+        
+        # Синхронизируем чекбоксы на странице настроек с сохраненными значениями
+        try:
+            if hasattr(self, 'page_settings'):
+                mapping = [
+                    ("start_with_windows", "cb_autostart"),
+                    ("auto_start_singbox", "cb_auto_start_singbox"),
+                    ("minimize_to_tray", "cb_minimize_to_tray"),
+                ]
+                for setting_key, attr in mapping:
+                    cb = getattr(self.page_settings, attr, None)
+                    if cb:
+                        cb.blockSignals(True)
+                        cb.setChecked(self.settings.get(setting_key, cb.isChecked()))
+                        cb.blockSignals(False)
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Не удалось синхронизировать чекбоксы: {e}")
+    
+    def kill_all_processes(self, isAll=False, reset_settings: bool = True):
         """
         Остановка всех процессов SingBox
         
         Args:
             isAll: Если True, выполняет полную очистку (убивает процессы, убирает автозапуск)
                   Если False, только убивает процессы
+            reset_settings: Если True, сбрасывает связанные настройки и чекбоксы
         """
         # Останавливаем текущий процесс, если он запущен
         if self.proc:
@@ -2160,26 +2076,33 @@ class MainWindow(QMainWindow):
         
         # Полная очистка при isAll=True
         if isAll:
-            # Убираем автозапуск приложения
+            # Используем менеджер системных настроек для очистки
             try:
-                self.set_autostart(False)
-                self.settings.set("start_with_windows", False)
-                # Обновляем UI чекбокса
-                if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_autostart'):
-                    self.page_settings.cb_autostart.blockSignals(True)
-                    self.page_settings.cb_autostart.setChecked(False)
-                    self.page_settings.cb_autostart.blockSignals(False)
+                clear_result = self.system_settings.clear()
+                if clear_result.get("autostart", False):
+                    log_to_file("[KillAll] Автозапуск отключен")
+                if clear_result.get("protocols", False):
+                    log_to_file("[KillAll] Протоколы удалены")
+                
+                if reset_settings:
+                    self.settings.set("start_with_windows", False)
+                    # Обновляем UI чекбокса
+                    if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_autostart'):
+                        self.page_settings.cb_autostart.blockSignals(True)
+                        self.page_settings.cb_autostart.setChecked(False)
+                        self.page_settings.cb_autostart.blockSignals(False)
             except Exception as e:
-                log_to_file(f"Ошибка при отключении автозапуска: {e}")
+                log_to_file(f"Ошибка при очистке системных настроек: {e}")
             
             # Убираем автозапуск sing-box
             try:
-                self.settings.set("auto_start_singbox", False)
-                # Обновляем UI чекбокса
-                if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_auto_start_singbox'):
-                    self.page_settings.cb_auto_start_singbox.blockSignals(True)
-                    self.page_settings.cb_auto_start_singbox.setChecked(False)
-                    self.page_settings.cb_auto_start_singbox.blockSignals(False)
+                if reset_settings:
+                    self.settings.set("auto_start_singbox", False)
+                    # Обновляем UI чекбокса
+                    if hasattr(self, 'page_settings') and hasattr(self.page_settings, 'cb_auto_start_singbox'):
+                        self.page_settings.cb_auto_start_singbox.blockSignals(True)
+                        self.page_settings.cb_auto_start_singbox.setChecked(False)
+                        self.page_settings.cb_auto_start_singbox.blockSignals(False)
             except Exception as e:
                 log_to_file(f"Ошибка при отключении автозапуска sing-box: {e}")
     
@@ -2295,16 +2218,12 @@ class MainWindow(QMainWindow):
     
     # Логи (делегируются в LogUIManager)
     def load_logs(self):
-        """Загрузка логов из singbox.log (важные логи)"""
+        """Загрузка логов из singbox-ui.log (важные логи)"""
         self.log_ui_manager.load_logs()
     
     def _load_logs_from_file(self):
-        """Загрузка обычных логов из singbox.log (для обратной совместимости)"""
+        """Загрузка обычных логов из singbox-ui.log (для обратной совместимости)"""
         self.log_ui_manager.load_logs()
-    
-    def _load_debug_logs_from_file(self):
-        """Загрузка debug логов из debug.log (для обратной совместимости)"""
-        self.log_ui_manager.load_debug_logs()
     
     def refresh_logs_from_files(self):
         """Обновление логов из файлов (вызывается таймером каждую секунду, если открыто окно логов)"""
@@ -2317,11 +2236,11 @@ class MainWindow(QMainWindow):
         self.log_ui_manager.cleanup_if_needed()
     
     def log(self, msg: str):
-        """Логирование в UI панель и в singbox.log (только важные сообщения для пользователя)"""
+        """Логирование в UI панель и в singbox-ui.log (только важные сообщения для пользователя)"""
         # Показываем в UI
         self.log_ui_manager.log_to_ui(msg)
         
-        # Записываем в singbox.log (важные логи)
+        # Записываем в singbox-ui.log (важные логи)
         try:
             from config.paths import LOG_FILE
             LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -2418,9 +2337,6 @@ if __name__ == "__main__":
         # Загружаем настройки и принудительно запрещаем несколько экземпляров
         settings = SettingsManager()
         allow_multiple = False
-        if settings.get("allow_multiple_processes", True):
-            settings.set("allow_multiple_processes", False)
-            settings.save()
         
         # Регистрируем/обновляем протоколы при каждом запуске (без лишних логов)
         try:

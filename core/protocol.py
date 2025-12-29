@@ -95,6 +95,40 @@ def register_protocols() -> bool:
         return False
 
 
+def unregister_protocols() -> bool:
+    """
+    Удаляет регистрацию протоколов sing-box:// и singbox-ui:// из реестра (HKCU)
+    """
+    if sys.platform != "win32":
+        return False
+    
+    try:
+        import winreg
+        protocols = ["sing-box", "singbox-ui"]
+        
+        for protocol in protocols:
+            base_path = f"Software\\Classes\\{protocol}"
+            # Удаляем ключи снизу вверх, чтобы DeleteKey не падал на непустых ключах
+            delete_paths = [
+                f"{base_path}\\shell\\open\\command",
+                f"{base_path}\\shell\\open",
+                f"{base_path}\\shell",
+                base_path,
+            ]
+            for path in delete_paths:
+                try:
+                    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, path)
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    # Может остаться, если ключ уже удален частично – это не критично
+                    pass
+        
+        return True
+    except Exception:
+        return False
+
+
 def is_admin() -> bool:
     """
     Проверяет, запущено ли приложение от имени администратора

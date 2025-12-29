@@ -27,6 +27,7 @@ from ui.design import CardWidget, TitleBar
 from ui.design.component import Container, TextEdit, ProgressBar, Button, Label
 from utils.i18n import tr, set_language
 from managers.settings import SettingsManager
+from managers.system_settings_manager import SystemSettingsManager
 
 GITHUB_OWNER = "ang3el7z"
 GITHUB_REPO = "windows-singbox-ui"
@@ -203,6 +204,19 @@ class UpdateThread(QThread):
                 pass  # Игнорируем ошибки остановки процессов
         time.sleep(1)
     
+    def _clear_system_settings(self):
+        """Очищает системные настройки перед обновлением."""
+        try:
+            settings = SettingsManager()
+            system_settings = SystemSettingsManager(settings)
+            clear_result = system_settings.clear()
+            if clear_result.get("autostart", False):
+                self.status(tr("updater.autostart_cleared"))
+            if clear_result.get("protocols", False):
+                self.status(tr("updater.protocols_cleared"))
+        except Exception:  # noqa: BLE001
+            pass  # Игнорируем ошибки очистки настроек
+    
     @staticmethod
     def _is_skipped(rel_path: Path, protected: Set[Path], handled_separately: Set[Path]) -> bool:
         """Проверяет, нужно ли пропустить путь при копировании."""
@@ -223,7 +237,6 @@ class UpdateThread(QThread):
         handled_separately = {
             Path("data/locales"),
             Path("data/themes"),
-            Path("data/resources/web/ace"),
             Path("data/updater.exe"),
         }
         
@@ -275,22 +288,6 @@ class UpdateThread(QThread):
         for theme_file in themes_src.glob("*.json"):
             dest = themes_dest / theme_file.name
             shutil.copy2(theme_file, dest)
-            items_copied += 1
-        return items_copied
-    
-    def _copy_ace(self, new_app_dir: Path) -> int:
-        """Обновляет Ace Editor файлы в data/resources/web/ace."""
-        ace_src = new_app_dir / "data" / "resources" / "web" / "ace"
-        if not ace_src.exists():
-            return 0
-        
-        ace_dest = self.app_dir / "data" / "resources" / "web" / "ace"
-        ace_dest.mkdir(parents=True, exist_ok=True)
-        
-        items_copied = 0
-        for ace_file in ace_src.glob("*.js"):
-            dest = ace_dest / ace_file.name
-            shutil.copy2(ace_file, dest)
             items_copied += 1
         return items_copied
     
@@ -403,8 +400,7 @@ class UpdateThread(QThread):
         items_copied += self._copy_themes(new_app_dir)
         self.progress_signal.emit(78)
         
-        self.status(tr("updater.progress_updating_ace"))
-        items_copied += self._copy_ace(new_app_dir)
+        # Ace Editor файлы теперь встроены в QRC, не нужно их копировать отдельно
         self.progress_signal.emit(80)
         
         self._update_updater_exe(new_app_dir)
@@ -475,6 +471,11 @@ class UpdateThread(QThread):
             self.status(tr("updater.progress_stopping"))
             self._stop_processes()
             self.status(tr("updater.processes_stopped"))
+            self.progress_signal.emit(63)
+            
+            # Очистка системных настроек
+            self.status(tr("updater.progress_clearing_settings"))
+            self._clear_system_settings()
             self.progress_signal.emit(65)
             
             # Установка обновления

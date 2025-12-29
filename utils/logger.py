@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 from datetime import datetime
-from config.paths import DEBUG_LOG_FILE, SETTINGS_FILE
+from config.paths import LOG_FILE
 
 # Глобальная ссылка на MainWindow для показа логов в UI при isDebug
 _main_window_instance = None
@@ -15,20 +15,10 @@ def set_main_window(main_window):
 
 
 def log_to_file(msg: str, log_file: Path = None):
-    """Логирование в debug файл (всегда пишет в debug.log, UI обновляется автоматически при чтении файла)"""
-    # Проверяем настройку isDebug из файла напрямую
-    is_debug = False
-    try:
-        if SETTINGS_FILE.exists():
-            import json
-            settings_data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            is_debug = settings_data.get("isDebug", False)
-    except Exception:
-        pass
-    
-    # Всегда записываем в debug файл
+    """Логирование в файл логов приложения (всегда пишет в singbox-ui.log, UI обновляется автоматически при чтении файла)"""
+    # Всегда записываем в основной файл логов
     if log_file is None:
-        log_file = DEBUG_LOG_FILE
+        log_file = LOG_FILE
     
     try:
         log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -37,7 +27,7 @@ def log_to_file(msg: str, log_file: Path = None):
         with log_file.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
         
-        # Не отправляем напрямую в UI - только через файл debug.log
+        # Не отправляем напрямую в UI - только через файл логов
         # UI будет обновляться автоматически при чтении файла
         
         # Также выводим в консоль, если доступна (только в режиме разработки)

@@ -12,30 +12,44 @@ from ui.design.component.line_edit import LineEdit
 from ui.design.component.progress_bar import ProgressBar
 from ui.design.component.combo_box import ComboBox
 from utils.i18n import tr, get_available_languages, get_language_name
-from config.paths import ACE_EDITOR_DIR, SOURCE_RESOURCES_DIR
+from config.paths import SOURCE_RESOURCES_DIR
 import json
 import sys
+import base64
 from pathlib import Path
 
+# Импортируем ресурсы Qt
+try:
+    import scripts.resources_rc  # noqa: F401 - для регистрации Qt ресурсов
+except ImportError:
+    pass
 
-def get_ace_editor_url(filename: str) -> str:
-    """Получает URL для локального файла Ace Editor"""
-    # Сначала проверяем в data/resources/web/ace (для собранного приложения)
-    ace_file = ACE_EDITOR_DIR / filename
-    # Если не найдено, проверяем в исходниках (для разработки)
-    if not ace_file.exists():
-        source_ace_file = SOURCE_RESOURCES_DIR / "web" / "ace" / filename
-        if source_ace_file.exists():
-            ace_file = source_ace_file
+
+def get_ace_editor_content(filename: str) -> str:
+    """Получает содержимое файла Ace Editor из Qt ресурсов или файловой системы"""
+    from PyQt5.QtCore import QFile
     
-    if ace_file.exists():
-        # Используем file:// протокол для локальных файлов
-        # QUrl.fromLocalFile автоматически обрабатывает пути для всех платформ
-        url = QUrl.fromLocalFile(str(ace_file.absolute())).toString()
-        return url
-    else:
-        # Fallback на CDN если файл не найден
-        return f"https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.4/src-min-noconflict/{filename}"
+    # Пытаемся загрузить из Qt ресурсов (qrc://web/ace/filename)
+    resource_path = f":/web/ace/{filename}"
+    qfile = QFile(resource_path)
+    
+    if qfile.exists():
+        if qfile.open(QFile.ReadOnly | QFile.Text):
+            content = qfile.readAll().data().decode('utf-8')
+            qfile.close()
+            return content
+    
+    # Fallback: загружаем из файловой системы (для разработки)
+    source_ace_file = SOURCE_RESOURCES_DIR / "web" / "ace" / filename
+    if source_ace_file.exists():
+        try:
+            with source_ace_file.open('r', encoding='utf-8') as f:
+                return f.read()
+        except Exception:
+            pass
+    
+    # Если не найдено, возвращаем пустую строку (приложение должно работать, но без Ace Editor)
+    return ""
 
 
 class DialogType(Enum):
@@ -400,12 +414,22 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
         editor_content["value"] = initial_json
         config_json_escaped = json.dumps(initial_json)
         
-        # Получаем URL для локальных файлов Ace Editor
-        ace_js_url = get_ace_editor_url("ace.js")
-        mode_json5_url = get_ace_editor_url("mode-json5.js")
-        theme_monokai_url = get_ace_editor_url("theme-monokai.js")
-        worker_json_url = get_ace_editor_url("worker-json.js")
-        ext_language_tools_url = get_ace_editor_url("ext-language_tools.js")
+        # Получаем содержимое файлов Ace Editor из Qt ресурсов
+        ace_js_content = get_ace_editor_content("ace.js")
+        mode_json5_content = get_ace_editor_content("mode-json5.js")
+        theme_monokai_content = get_ace_editor_content("theme-monokai.js")
+        worker_json_content = get_ace_editor_content("worker-json.js")
+        ext_language_tools_content = get_ace_editor_content("ext-language_tools.js")
+        
+        # Экранируем JS код для вставки в HTML (заменяем </script> на <\/script>)
+        def escape_js_for_html(js_code: str) -> str:
+            return js_code.replace("</script>", "<\\/script>")
+        
+        # Создаем data URL для worker (Ace Editor требует URL для worker)
+        worker_data_url = ""
+        if worker_json_content:
+            worker_json_encoded = base64.b64encode(worker_json_content.encode('utf-8')).decode('utf-8')
+            worker_data_url = f"data:text/javascript;base64,{worker_json_encoded}"
         
         html_content = f"""
         <!DOCTYPE html>
@@ -413,10 +437,10 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
         <head>
             <meta charset="UTF-8">
             <title>Ace Editor</title>
-            <script src="{ace_js_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{mode_json5_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{theme_monokai_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{ext_language_tools_url}" type="text/javascript" charset="utf-8"></script>
+            <script type="text/javascript">{escape_js_for_html(ace_js_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(mode_json5_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(theme_monokai_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(ext_language_tools_content)}</script>
             <style>
                 body {{
                     margin: 0;
@@ -449,7 +473,7 @@ def show_add_profile_dialog(parent: QWidget) -> Tuple[Optional[str], Optional[st
                 
                 // Настраиваем воркер для валидации JSON
                 editor.session.setUseWorker(true);
-                editor.session.setWorkerUrl("{worker_json_url}");
+                editor.session.setWorkerUrl("{worker_data_url}");
                 
                 editor.on("change", function() {{
                     window.editorValue = editor.getValue();
@@ -808,12 +832,22 @@ def show_edit_profile_dialog(parent: QWidget, profile: Dict[str, Any]) -> Tuple[
         # Экранируем JSON для вставки в JavaScript
         config_json_escaped = json.dumps(config_json)
         
-        # Получаем URL для локальных файлов Ace Editor
-        ace_js_url = get_ace_editor_url("ace.js")
-        mode_json5_url = get_ace_editor_url("mode-json5.js")
-        theme_monokai_url = get_ace_editor_url("theme-monokai.js")
-        worker_json_url = get_ace_editor_url("worker-json.js")
-        ext_language_tools_url = get_ace_editor_url("ext-language_tools.js")
+        # Получаем содержимое файлов Ace Editor из Qt ресурсов
+        ace_js_content = get_ace_editor_content("ace.js")
+        mode_json5_content = get_ace_editor_content("mode-json5.js")
+        theme_monokai_content = get_ace_editor_content("theme-monokai.js")
+        worker_json_content = get_ace_editor_content("worker-json.js")
+        ext_language_tools_content = get_ace_editor_content("ext-language_tools.js")
+        
+        # Экранируем JS код для вставки в HTML (заменяем </script> на <\/script>)
+        def escape_js_for_html(js_code: str) -> str:
+            return js_code.replace("</script>", "<\\/script>")
+        
+        # Создаем data URL для worker (Ace Editor требует URL для worker)
+        worker_data_url = ""
+        if worker_json_content:
+            worker_json_encoded = base64.b64encode(worker_json_content.encode('utf-8')).decode('utf-8')
+            worker_data_url = f"data:text/javascript;base64,{worker_json_encoded}"
         
         # Создаем HTML с Ace Editor
         html_content = f"""
@@ -822,10 +856,10 @@ def show_edit_profile_dialog(parent: QWidget, profile: Dict[str, Any]) -> Tuple[
         <head>
             <meta charset="UTF-8">
             <title>Ace Editor</title>
-            <script src="{ace_js_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{mode_json5_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{theme_monokai_url}" type="text/javascript" charset="utf-8"></script>
-            <script src="{ext_language_tools_url}" type="text/javascript" charset="utf-8"></script>
+            <script type="text/javascript">{escape_js_for_html(ace_js_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(mode_json5_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(theme_monokai_content)}</script>
+            <script type="text/javascript">{escape_js_for_html(ext_language_tools_content)}</script>
             <style>
                 body {{
                     margin: 0;
@@ -858,7 +892,7 @@ def show_edit_profile_dialog(parent: QWidget, profile: Dict[str, Any]) -> Tuple[
                 
                 // Настраиваем воркер для валидации JSON
                 editor.session.setUseWorker(true);
-                editor.session.setWorkerUrl("{worker_json_url}");
+                editor.session.setWorkerUrl("{worker_data_url}");
                 
                 // Сохраняем значение при каждом изменении
                 editor.on("change", function() {{

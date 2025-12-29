@@ -4,6 +4,12 @@
         <!-- Material Design Icons font - используется для icon_helper.py -->
         <!-- Скопируйте шрифт в resources/fonts/ (см. resources/fonts/README.md) -->
         <file>fonts/materialdesignicons5-webfont-5.9.55.ttf</file>
+        <!-- Ace Editor files - встроены в QRC для использования в HTML -->
+        <file>web/ace/ace.js</file>
+        <file>web/ace/mode-json5.js</file>
+        <file>web/ace/theme-monokai.js</file>
+        <file>web/ace/worker-json.js</file>
+        <file>web/ace/ext-language_tools.js</file>
     </qresource>
 </RCC>
 
