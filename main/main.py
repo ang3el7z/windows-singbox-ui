@@ -1964,6 +1964,12 @@ class MainWindow(QMainWindow):
     
     def apply_settings_flags_on_launch(self):
         """Применяет ключевые чекбоксы настроек при запуске и синхронизирует систему"""
+        # Сначала выполняем миграцию старых настроек (удаление старого автозапуска из реестра)
+        try:
+            self.system_settings.migrate_old_settings()
+        except Exception as e:
+            log_to_file(f"[Startup Warning] Не удалось выполнить миграцию старых настроек: {e}")
+        
         # Проверяем и применяем системные настройки через менеджер
         try:
             check_result = self.system_settings.check()

@@ -85,6 +85,38 @@ class SystemSettingsManager:
         except Exception:
             return False
     
+    def _migrate_old_autostart(self) -> bool:
+        """
+        Миграция: удаляет старый автозапуск из реестра (Run) если он существует.
+        Этот метод должен вызываться при запуске приложения для очистки старых записей.
+        
+        Returns:
+            True если миграция выполнена (или не требовалась), False при ошибке
+        """
+        if sys.platform != "win32" or not winreg:
+            return True
+        
+        try:
+            run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_ALL_ACCESS) as key:
+                    try:
+                        # Проверяем, существует ли старая запись
+                        value = winreg.QueryValueEx(key, self.app_name)
+                        # Если запись существует, удаляем её
+                        winreg.DeleteValue(key, self.app_name)
+                        log_to_file(f"[SystemSettings] Миграция: удален старый автозапуск из реестра (Run)")
+                        return True
+                    except FileNotFoundError:
+                        # Записи нет - это нормально, миграция не требуется
+                        return True
+            except OSError:
+                # Ключ не существует или нет доступа - это нормально
+                return True
+        except Exception as e:
+            log_to_file(f"[SystemSettings] Ошибка при миграции автозапуска: {e}")
+            return False
+    
     def _check_protocols_registered(self) -> bool:
         """
         Проверяет, зарегистрированы ли протоколы
@@ -297,6 +329,16 @@ class SystemSettingsManager:
             "autostart": autostart_result,
             "protocols": protocols_result
         }
+    
+    def migrate_old_settings(self) -> bool:
+        """
+        Выполняет миграцию старых системных настроек (удаляет старые записи из реестра).
+        Должен вызываться при запуске приложения для очистки устаревших записей.
+        
+        Returns:
+            True если миграция выполнена успешно, False иначе
+        """
+        return self._migrate_old_autostart()
     
     def manage(
         self,
