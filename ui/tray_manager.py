@@ -139,7 +139,7 @@ class TrayManager:
             duration: Длительность показа в миллисекундах
         """
         if self.tray_icon:
-            self.tray_icon.showMessage(title, message, icon, timeout=duration)  # type: ignore
+            self.tray_icon.showMessage(title, message, icon, msecs=duration)  # type: ignore
     
     def update_menu(self) -> None:
         """Обновление меню трея (например, при смене языка)"""
